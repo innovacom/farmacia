@@ -1,0 +1,176 @@
+{
+  "meta": {
+    "ejercicio": 2026,
+    "fecha_corte": "2026-01-31",
+    "fuente": "Balanza_de_comprobación.xlsx",
+    "generado": "2026-06-23T05:51:27.541Z",
+    "total_cargos": 14436100.3,
+    "total_abonos": 14436100.3,
+    "cuentas": 27,
+    "cuadra": true
+  },
+  "movimientos": [
+    {
+      "cuenta_codigo": "102.01",
+      "nombre": "Bancos nacionales",
+      "cargo": 7768459.22,
+      "abono": 0
+    },
+    {
+      "cuenta_codigo": "105.01",
+      "nombre": "Clientes nacionales",
+      "cargo": 0,
+      "abono": 12544130.6
+    },
+    {
+      "cuenta_codigo": "118.01",
+      "nombre": "IVA acreditable pagado",
+      "cargo": 651247.97,
+      "abono": 0
+    },
+    {
+      "cuenta_codigo": "119.01",
+      "nombre": "IVA pendiente de pago",
+      "cargo": 11395.38,
+      "abono": 0
+    },
+    {
+      "cuenta_codigo": "153.01",
+      "nombre": "Maquinaria y equipo",
+      "cargo": 6854.69,
+      "abono": 0
+    },
+    {
+      "cuenta_codigo": "155.01",
+      "nombre": "Mobiliario y equipo de oficina",
+      "cargo": 24654.48,
+      "abono": 0
+    },
+    {
+      "cuenta_codigo": "201.01",
+      "nombre": "Proveedores nacionales",
+      "cargo": 0,
+      "abono": 75628.1
+    },
+    {
+      "cuenta_codigo": "207.01",
+      "nombre": "IVA trasladado",
+      "cargo": 1725463.5,
+      "abono": 0
+    },
+    {
+      "cuenta_codigo": "208.01",
+      "nombre": "IVA trasladado cobrado",
+      "cargo": 0,
+      "abono": 1725463.5
+    },
+    {
+      "cuenta_codigo": "209.01",
+      "nombre": "IVA trasladado no cobrado",
+      "cargo": 0,
+      "abono": 4160
+    },
+    {
+      "cuenta_codigo": "216.02",
+      "nombre": "Impuestos retenidos de ISR por asimilados a salarios",
+      "cargo": 0,
+      "abono": 44546.1
+    },
+    {
+      "cuenta_codigo": "401.01",
+      "nombre": "Ventas y/o servicios gravados a la tasa general",
+      "cargo": 0,
+      "abono": 26000
+    },
+    {
+      "cuenta_codigo": "401.04",
+      "nombre": "Ventas y/o servicios gravados al 0",
+      "cargo": 0,
+      "abono": 16172
+    },
+    {
+      "cuenta_codigo": "502.01",
+      "nombre": "Compras nacionales",
+      "cargo": 3935094.76,
+      "abono": 0
+    },
+    {
+      "cuenta_codigo": "601.15",
+      "nombre": "Despensa",
+      "cargo": 8430.09,
+      "abono": 0
+    },
+    {
+      "cuenta_codigo": "601.31",
+      "nombre": "Asimilados a salarios",
+      "cargo": 200000,
+      "abono": 0
+    },
+    {
+      "cuenta_codigo": "601.34",
+      "nombre": "Honorarios a personas físicas residentes nacionales",
+      "cargo": 14400,
+      "abono": 0
+    },
+    {
+      "cuenta_codigo": "601.48",
+      "nombre": "Combustibles y lubricantes",
+      "cargo": 5162.69,
+      "abono": 0
+    },
+    {
+      "cuenta_codigo": "601.49",
+      "nombre": "Viáticos y gastos de viaje",
+      "cargo": 3897.41,
+      "abono": 0
+    },
+    {
+      "cuenta_codigo": "601.50",
+      "nombre": "Teléfono, internet",
+      "cargo": 1126.74,
+      "abono": 0
+    },
+    {
+      "cuenta_codigo": "601.54",
+      "nombre": "Limpieza",
+      "cargo": 4570.62,
+      "abono": 0
+    },
+    {
+      "cuenta_codigo": "601.55",
+      "nombre": "Papelería y artículos de oficina",
+      "cargo": 2593.11,
+      "abono": 0
+    },
+    {
+      "cuenta_codigo": "601.56",
+      "nombre": "Mantenimiento y conservación",
+      "cargo": 49293.09,
+      "abono": 0
+    },
+    {
+      "cuenta_codigo": "601.57",
+      "nombre": "Seguros y fianzas",
+      "cargo": 10092.29,
+      "abono": 0
+    },
+    {
+      "cuenta_codigo": "601.60",
+      "nombre": "Cuotas y suscripciones",
+      "cargo": 5741.72,
+      "abono": 0
+    },
+    {
+      "cuenta_codigo": "601.84",
+      "nombre": "Otros gastos generales",
+      "cargo": 7294.54,
+      "abono": 0
+    },
+    {
+      "cuenta_codigo": "701.10",
+      "nombre": "Comisiones bancarias",
+      "cargo": 328,
+      "abono": 0
+    }
+  ]
+}

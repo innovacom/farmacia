@@ -1,0 +1,8 @@
+# React Router — redirige todas las rutas al index.html
+# Apache copia este archivo al dist/ durante el build de Vite
+
+Options -MultiViews
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [QSA,L]

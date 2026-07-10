@@ -1,0 +1,53 @@
+# Credenciales y secretos - NUNCA subir a git
+.env.server
+.env
+.env.local
+.env.production
+*.env
+*.pem
+*.key
+*.cer
+*.pfx
+
+# FIEL/CSD y facturas fiscales reales
+CFDI/
+
+# Respaldo del repo git anidado (dismed/ era repo propio)
+dismed/.git.bak/
+
+# Dependencias
+node_modules/
+*/node_modules/
+
+# Builds
+dismed/frontend/dist/
+
+# Archivos generados
+dismed/backend/uploads/
+dismed/backend/outputs/
+dismed/backend/data/
+dismed/uploads/
+dismed/outputs/
+*.tar.gz
+deploy-temp/
+
+# Documentos y datos de produccion (raiz)
+*.pdf
+*.xlsx
+*.csv
+MANUAL_USUARIO.html
+
+# Python
+__pycache__/
+*.pyc
+
+# Logs
+*.log
+npm-debug.log*
+
+# Claude Code local
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db

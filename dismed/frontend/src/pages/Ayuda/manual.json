@@ -1,0 +1,233 @@
+{
+  "titulo": "Manual de Usuario",
+  "subtitulo": "Sistema DISMED — INNOVACOM (Distribución Médica)",
+  "intro": "Esta guía explica, de forma breve y práctica, cómo usar el sistema en el día a día. El flujo principal es: Solicitud del cliente → Comparar precios de proveedores → Cotización → Pedido y surtido → Entrega/Factura (CFDI). En el menú lateral los módulos están agrupados por área: Ventas (clientes, solicitudes, cotizaciones, pedidos), Inventario (existencias, productos, proveedores), Consultas (históricas y CFDI) y Configuración. Cada grupo se abre y cierra al hacer clic en su nombre. Lo que ves en el menú depende de tu rol y de los permisos que te haya dado un administrador.",
+  "secciones": [
+    {
+      "id": "acceso",
+      "titulo": "1. Acceso al sistema",
+      "intro": "Entra con tu correo y contraseña. La sesión dura 8 horas; si caduca, solo vuelve a iniciar sesión (no se pierde nada de lo guardado).",
+      "imagen": "/ayuda/login.png",
+      "pasos": [
+        "Abre la dirección del sistema en el navegador (de preferencia Chrome o Edge).",
+        "Escribe tu correo y contraseña y presiona “Entrar”.",
+        "Si los datos son incorrectos verás un aviso en rojo; vuelve a intentar.",
+        "En el celular puedes instalarlo como app: menú del navegador → “Agregar a pantalla de inicio”. Funciona como una aplicación más."
+      ],
+      "tips": [
+        "Tu rol (operador o administrador) y los permisos que te asigne un administrador definen qué módulos ves en el menú.",
+        "Un operador recién creado arranca sin acceso a los módulos hasta que un administrador se los habilite en Configuración. Si no ves nada en el menú, es esto: pídeselo a un administrador.",
+        "Si olvidaste tu contraseña, pídele a un administrador que te la restablezca."
+      ]
+    },
+    {
+      "id": "panel",
+      "titulo": "2. Panel principal (Dashboard)",
+      "intro": "Es la primera pantalla al entrar. Muestra indicadores rápidos (solicitudes activas, cotizaciones, pedidos) y las solicitudes más recientes para entrar directo a ellas.",
+      "imagen": "/ayuda/dashboard.png",
+      "pasos": [
+        "Usa el menú lateral izquierdo para moverte entre módulos.",
+        "En “Solicitudes recientes”, haz clic en “Ver” para abrir una directamente.",
+        "El botón “+ Nueva solicitud” (arriba a la derecha) te lleva a registrar una nueva.",
+        "En el celular, abre el menú con el botón ☰ de la esquina superior."
+      ],
+      "tips": ["Los números de las tarjetas son accesos rápidos al estado general del negocio."]
+    },
+    {
+      "id": "solicitudes",
+      "titulo": "3. Solicitudes (lo que pide el cliente)",
+      "intro": "Aquí registras la lista de productos que un cliente solicita. Puedes capturarla a mano o subir el archivo que te mandó el cliente (Excel o PDF); el sistema lee los productos automáticamente.",
+      "imagen": "/ayuda/solicitudes.png",
+      "pasos": [
+        "Menú “Solicitudes” → botón “Nueva solicitud”.",
+        "Elige el cliente y sube el archivo Excel o PDF (o captura las partidas manualmente).",
+        "El sistema extrae los productos; revisa y corrige cantidades, descripciones y códigos en la tabla.",
+        "Guarda. Se crea un folio SOL-AÑO-#### y la solicitud queda lista para cotizar.",
+        "Desde la lista puedes abrir una solicitud para ver su detalle o continuar con la comparación de precios."
+      ],
+      "tips": [
+        "Siempre revisa lo que el sistema extrajo del archivo antes de guardar; la lectura automática puede equivocarse.",
+        "Los datos originales del cliente (su código y descripción) se conservan tal cual para referencia."
+      ]
+    },
+    {
+      "id": "comparador",
+      "titulo": "4. Comparar precios de proveedores",
+      "intro": "Para cada solicitud puedes pedir precios a varios proveedores y compararlos lado a lado para elegir el mejor por producto.",
+      "pasos": [
+        "Abre la solicitud → entra a “Comparador de precios”.",
+        "Selecciona los proveedores a consultar; el sistema arma el mensaje para pedirles precio.",
+        "Conforme respondan, registra sus precios y disponibilidad.",
+        "El sistema marca automáticamente el mejor precio de cada producto.",
+        "Con esos precios podrás armar la cotización al cliente."
+      ],
+      "tips": [
+        "La primera vez que registras el código de un proveedor para un producto, el sistema lo aprende para la próxima.",
+        "El mejor precio queda resaltado para que la decisión sea rápida."
+      ]
+    },
+    {
+      "id": "cotizaciones",
+      "titulo": "5. Cotización al cliente",
+      "intro": "Genera la cotización formal en PDF, con tu margen de ganancia ya aplicado y el folio COT-AÑO-####.",
+      "imagen": "/ayuda/cotizaciones.png",
+      "pasos": [
+        "Desde la solicitud (con precios ya cargados), crea la cotización.",
+        "Aplica el margen: un porcentaje general para toda la cotización o ajústalo renglón por renglón.",
+        "Genera el PDF y descárgalo o envíalo al cliente.",
+        "Cambia el estatus (enviada, aceptada) para darle seguimiento desde la lista de Cotizaciones."
+      ],
+      "tips": [
+        "Puedes usar un margen global y aun así afinar productos puntuales.",
+        "Cuando el cliente acepta, desde la cotización creas el pedido (botón “Asignación / Crear pedido”)."
+      ]
+    },
+    {
+      "id": "pedidos",
+      "titulo": "6. Pedido y surtido",
+      "intro": "Cuando el cliente acepta, conviertes la cotización en un Pedido y desde ahí gestionas toda la operación: compra a proveedores, recepción en almacén y entrega al cliente.",
+      "imagen": "/ayuda/pedidos.png",
+      "pasos": [
+        "Desde la cotización aceptada, crea el Pedido (folio PED-AÑO-####).",
+        "Genera las Órdenes de compra con el botón “Generar órdenes de compra”: el sistema las agrupa por proveedor.",
+        "Cuando llega la mercancía, registra la Recepción: entra a inventario indicando lote y caducidad.",
+        "Genera la Entrega al cliente y elige el tipo: Remisión (sin valor fiscal) o Factura (para timbrar CFDI).",
+        "Cada documento (OC, entrega) tiene su PDF descargable desde el detalle del pedido."
+      ],
+      "tips": [
+        "El inventario se descuenta al entregar, tomando primero los lotes que caducan antes (PEPS por caducidad).",
+        "No puedes entregar más de lo que se recibió en almacén."
+      ]
+    },
+    {
+      "id": "facturacion",
+      "titulo": "7. Facturación electrónica (CFDI 4.0)",
+      "intro": "Cuando una entrega es de tipo Factura, puedes timbrarla ante el SAT (a través del PAC Facturama) directamente desde el pedido. El sistema guarda el XML oficial y genera el PDF de la factura con el sello, la cadena original, el timbre (folio fiscal/UUID) y el código QR de verificación, como se ve en la imagen.",
+      "imagen": "/ayuda/factura_cfdi.png",
+      "pasos": [
+        "Entra al Pedido → sección “Entregas” → ubica la factura.",
+        "Presiona “Timbrar”.",
+        "Si faltan datos fiscales, el sistema te dirá exactamente cuáles (RFC, código postal, régimen o uso de CFDI del cliente, o clave SAT del producto). Corrígelos y vuelve a intentar.",
+        "Al timbrar bien, verás el Folio Fiscal (UUID) y se abrirá el PDF de la factura.",
+        "Después tendrás los botones “PDF CFDI” y “XML” para descargar, y “Cancelar” si fue un error."
+      ],
+      "tips": [
+        "El PDF incluye el QR del SAT, ambos sellos (CFDI y SAT) y la cadena original: es la representación impresa válida.",
+        "Una factura ya timbrada no se puede volver a timbrar; primero cancélala.",
+        "Para facturar un producto, este debe tener su Clave de Producto SAT y su Clave de Unidad SAT (ver módulo Productos)."
+      ]
+    },
+    {
+      "id": "cfdi",
+      "titulo": "8. CFDI: consulta y descargas del SAT",
+      "intro": "El sistema guarda un repositorio de comprobantes fiscales (CFDI). Cualquier usuario con acceso puede consultarlos; descargar nuevos comprobantes desde el portal del SAT es una función exclusiva de administradores.",
+      "pasos": [
+        "Consultar (menú “Consultas → CFDI”): busca comprobantes emitidos y recibidos por RFC, folio fiscal (UUID), fechas o importe; abre cada uno para ver su detalle y conceptos.",
+        "Descargar del SAT (menú “Descargas SAT”, solo administradores): solicita la descarga masiva de un periodo; el sistema usa la e.firma (FIEL) configurada para traer los XML del SAT.",
+        "En la página de Descargas SAT se ve la bitácora de cada solicitud (estatus, periodo, cuántos comprobantes trajo).",
+        "Desde esa misma bitácora un administrador puede borrar registros de descargas antiguos con el botón de eliminar."
+      ],
+      "tips": [
+        "La descarga del SAT está reservada a administradores porque usa la e.firma (FIEL) de la empresa.",
+        "Una descarga programada se ejecuta automáticamente cada mes; la descarga manual sirve para periodos puntuales o para poner al día el repositorio."
+      ]
+    },
+    {
+      "id": "clientes",
+      "titulo": "9. Clientes",
+      "intro": "Administras los clientes y —muy importante para facturar— sus datos fiscales.",
+      "imagen": "/ayuda/clientes.png",
+      "pasos": [
+        "Menú “Clientes” → “Nuevo”, o edita uno existente.",
+        "Captura los datos fiscales: RFC, Razón social, Código postal, Régimen fiscal y Uso de CFDI.",
+        "Agrega el correo para poder enviarle documentos.",
+        "Guarda; el cliente queda disponible para solicitudes, cotizaciones y facturas."
+      ],
+      "tips": [
+        "Si un cliente no tiene completos sus datos fiscales, su factura no podrá timbrarse.",
+        "Una misma empresa puede tener varias sucursales aunque compartan RFC."
+      ]
+    },
+    {
+      "id": "productos",
+      "titulo": "10. Catálogo de productos",
+      "intro": "Es el catálogo maestro de lo que vendes. Cada producto tiene un SKU interno (DM-#####) y sus claves SAT necesarias para facturar.",
+      "imagen": "/ayuda/productos.png",
+      "pasos": [
+        "Menú “Catálogo de productos” para consultar, buscar o editar.",
+        "Verifica que cada producto facturable tenga su Clave de Producto SAT y su Clave de Unidad SAT.",
+        "La carga masiva del catálogo se hace desde el archivo maestro y normalmente la realiza un administrador."
+      ],
+      "tips": ["Un producto sin clave SAT sí puede cotizarse, pero NO podrá facturarse hasta que se le asigne."]
+    },
+    {
+      "id": "inventario",
+      "titulo": "11. Inventario",
+      "intro": "Controla existencias por almacén, con lotes y caducidades.",
+      "pasos": [
+        "“Existencias”: consulta cuánto hay de cada producto y en qué almacén.",
+        "“Movimientos”: revisa el historial de entradas y salidas.",
+        "“Almacenes” y “Catálogos de apoyo”: configuración, normalmente a cargo de un administrador."
+      ],
+      "tips": ["Las entradas se generan al registrar la Recepción de una orden de compra; las salidas, al hacer una Entrega."]
+    },
+    {
+      "id": "consultas",
+      "titulo": "12. Consultas históricas",
+      "intro": "Busca documentos y productos del histórico, incluyendo la información migrada del sistema anterior.",
+      "imagen": "/ayuda/consultas.png",
+      "pasos": [
+        "Menú “Consultas históricas”.",
+        "Elige el tipo de documento (cotizaciones, solicitudes, órdenes de compra, pedidos).",
+        "Cambia entre buscar por “Encabezados” (documentos) o por “Detalle” (renglones/productos).",
+        "Escribe parte de la descripción, folio o código y filtra por fechas.",
+        "Doble clic (o “Ver”) en un resultado para abrir el documento completo; usa “Imprimir” si lo necesitas."
+      ],
+      "tips": ["En datos antiguos, lo más efectivo es buscar por la descripción del producto."]
+    },
+    {
+      "id": "usuarios",
+      "titulo": "13. Usuarios (solo administradores)",
+      "intro": "Los administradores dan de alta a los usuarios del sistema y definen su rol.",
+      "pasos": [
+        "Menú “Usuarios” → “Nuevo”.",
+        "Asigna nombre, correo, contraseña y rol (operador o administrador).",
+        "Comparte las credenciales con la persona y pídele que cambie su contraseña al entrar.",
+        "Para un operador, define a qué módulos puede entrar desde Configuración → Permisos de acceso."
+      ],
+      "tips": [
+        "Los administradores siempre tienen acceso a todo; los permisos por módulo solo aplican a operadores.",
+        "Un operador nuevo no verá ningún módulo hasta que le asignes permisos."
+      ]
+    },
+    {
+      "id": "configuracion",
+      "titulo": "14. Configuración",
+      "intro": "Ajustes del sistema. Algunas opciones son personales (cada quien las suyas) y otras son exclusivas de administradores.",
+      "pasos": [
+        "Preferencias (todos): elige cuántos renglones por página quieres ver en los listados (10, 25, 50 o 100). El cambio aplica de inmediato y se recuerda en ese navegador.",
+        "Permisos de acceso (solo administradores): elige un operador y marca, módulo por módulo, a qué secciones del menú puede entrar.",
+        "Marca o desmarca cada módulo (puedes usar “Marcar todo” o por grupo) y presiona “Guardar permisos”.",
+        "El operador verá reflejados sus permisos la próxima vez que cargue el sistema; no necesita volver a iniciar sesión."
+      ],
+      "tips": [
+        "Quitar un permiso oculta el módulo del menú y además bloquea el acceso aunque la persona escriba la dirección directa.",
+        "Las descargas del SAT y la administración de usuarios siempre son solo para administradores, no se pueden asignar a un operador."
+      ]
+    },
+    {
+      "id": "faq",
+      "titulo": "15. Preguntas frecuentes",
+      "intro": "Situaciones comunes y cómo resolverlas:",
+      "pasos": [
+        "“Me pide datos al timbrar”: completa los datos fiscales del cliente o las claves SAT del producto que indica el mensaje, y vuelve a timbrar.",
+        "“No me deja entregar una cantidad”: solo puedes entregar lo que ya se recibió en inventario.",
+        "“Se cerró mi sesión”: por seguridad dura 8 horas; vuelve a iniciar sesión.",
+        "“Busco por código/SKU y no aparece”: en datos históricos busca mejor por la descripción del producto.",
+        "“No veo un módulo (o ningún módulo) en el menú”: un administrador debe habilitarte el acceso desde Configuración → Permisos de acceso. Los operadores nuevos empiezan sin permisos.",
+        "“Me sale ‘Sin acceso’ al abrir una página”: no tienes permiso para ese módulo; pídeselo a un administrador."
+      ],
+      "tips": ["Para soporte, contacta al administrador del sistema."]
+    }
+  ]
+}

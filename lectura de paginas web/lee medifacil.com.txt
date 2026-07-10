@@ -1,0 +1,73 @@
+// ============================================================
+// EXTRACTOR DE PRECIOS - MEDIFACIL.COM
+// Uso: Abrir medifacil.com → F12 → Consola → Pegar y Enter
+// Genera: productos_medifacil.xlsx
+// ============================================================
+
+(async function() {
+
+  // 1. Cargar SheetJS
+  console.log('⏳ Cargando librería Excel...');
+  await new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js';
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+    setTimeout(reject, 15000);
+  });
+  console.log('✅ SheetJS cargado');
+
+  // 2. Obtener todos los productos via API Shopify
+  console.log('⏳ Descargando catálogo de Medifácil...');
+  let allProducts = [];
+  let page = 1;
+  let hasMore = true;
+
+  while (hasMore) {
+    const resp = await fetch(`/products.json?limit=250&page=${page}`);
+    const data = await resp.json();
+    if (data.products && data.products.length > 0) {
+      allProducts = allProducts.concat(data.products);
+      console.log(`  Página ${page}: ${data.products.length} productos. Total: ${allProducts.length}`);
+      hasMore = data.products.length === 250;
+      page++;
+    } else {
+      hasMore = false;
+    }
+  }
+  console.log(`✅ Total productos descargados: ${allProducts.length}`);
+
+  // 3. Formatear datos
+  const rows = [['Código (SKU)', 'Descripción', 'Marca / Fabricante', 'Tipo de Producto', 'Precio (MXN)', 'URL']];
+  allProducts.forEach(product => {
+    product.variants.forEach(variant => {
+      const codigo = variant.sku || product.handle;
+      const descripcion = product.title + (variant.title && variant.title !== 'Default Title' ? ' - ' + variant.title : '');
+      rows.push([
+        codigo,
+        descripcion,
+        product.vendor || '',
+        product.product_type || '',
+        parseFloat(variant.price),
+        'https://medifacil.com/products/' + product.handle
+      ]);
+    });
+  });
+
+  // 4. Crear Excel
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [
+    { wch: 22 }, { wch: 70 }, { wch: 25 }, { wch: 25 }, { wch: 15 }, { wch: 60 }
+  ];
+  XLSX.utils.book_append_sheet(wb, ws, 'Productos Medifácil');
+
+  // 5. Descargar
+  const fecha = new Date().toISOString().slice(0, 10);
+  const filename = `productos_medifacil_${fecha}.xlsx`;
+  XLSX.writeFile(wb, filename);
+  console.log(`✅ Archivo descargado: ${filename}`);
+  console.log(`📊 Total registros (incluyendo variantes): ${rows.length - 1}`);
+
+})();

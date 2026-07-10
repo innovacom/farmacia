@@ -1,0 +1,136 @@
+// ============================================================
+// EXTRACTOR DE PRECIOS - HEKA.MX
+// Uso: Abrir heka.mx → F12 → Consola → Pegar y Enter
+// Genera: productos_heka_FECHA.xlsx  (3 hojas)
+//   Hoja 1: Todos los productos
+//   Hoja 2: Solo Cuadro Básico IMSS/ISSSTE
+//   Hoja 3: Solo productos con código HK
+// ============================================================
+
+(async function() {
+
+  // 1. Cargar SheetJS
+  console.log('⏳ Cargando librería Excel...');
+  await new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js';
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+    setTimeout(reject, 15000);
+  });
+  console.log('✅ SheetJS cargado');
+
+  // 2. Función para obtener todas las páginas de un tipo de producto
+  async function fetchAllByType(type, label) {
+    const firstResp = await fetch(`/wp-json/wc/store/v1/products?per_page=100&page=1&type=${type}`);
+    const totalPages = parseInt(firstResp.headers.get('X-WP-TotalPages') || '1');
+    const total = firstResp.headers.get('X-WP-Total');
+    console.log(`⏳ ${label}: ${total} productos en ${totalPages} páginas...`);
+
+    const BATCH = 10;
+    let all = [];
+    for (let start = 1; start <= totalPages; start += BATCH) {
+      const end = Math.min(start + BATCH - 1, totalPages);
+      const results = await Promise.all(
+        Array.from({ length: end - start + 1 }, (_, i) => start + i).map(async pg => {
+          try {
+            const r = await fetch(`/wp-json/wc/store/v1/products?per_page=100&page=${pg}&type=${type}`);
+            if (!r.ok) return [];
+            return await r.json();
+          } catch(e) { return []; }
+        })
+      );
+      all = all.concat(results.flat());
+      console.log(`  ${label}: páginas ${start}-${end} ✓ (${all.length} acumulados)`);
+    }
+    return all;
+  }
+
+  // 3. Descargar los tres tipos
+  const simples    = await fetchAllByType('simple',    'Productos Simples');
+  const variables  = await fetchAllByType('variable',  'Productos Variables (padres)');
+  const variaciones = await fetchAllByType('variation', 'Variaciones');
+
+  // 4. Mapa de padres para heredar categorías a variaciones
+  const parentMap = new Map();
+  variables.forEach(p => {
+    parentMap.set(p.id, {
+      categories: p.categories?.map(c => c.name) || [],
+      permalink: p.permalink
+    });
+  });
+
+  // 5. Construir dataset
+  const HEADERS = [
+    'Clave / Cuadro Básico',
+    'Descripción del Producto',
+    'Laboratorio / Marca',
+    'Grupo / Categoría',
+    'Precio (MXN)',
+    'Tipo',
+    'URL del Producto'
+  ];
+
+  const allRows = [];
+
+  // Variaciones (tienen clave CB del cuadro básico IMSS/ISSSTE)
+  variaciones.forEach(p => {
+    const parentData = parentMap.get(p.parent) || {};
+    const cats = (p.categories?.map(c => c.name) || parentData.categories || []).join(' > ');
+    const lab = p.variation ? p.variation.replace(/^(Laboratorio|Marca|Lab|Marga):\s*/i, '').trim() : '';
+    const precio = parseInt(p.prices?.price || 0) / 100;
+    const desc = (p.name || '').replace(/&#8211;/g, '-').replace(/&#[0-9]+;/g, '').trim();
+    allRows.push([p.sku || '', desc, lab, cats, precio, 'Variación', p.permalink || parentData.permalink || '']);
+  });
+
+  // Productos simples
+  simples.forEach(p => {
+    const cats = (p.categories?.map(c => c.name) || []).join(' > ');
+    const labAttr = (p.attributes || []).find(a =>
+      a.name?.toLowerCase().includes('laboratorio') || a.name?.toLowerCase().includes('marca')
+    );
+    const lab = labAttr?.value || '';
+    const precio = parseInt(p.prices?.price || 0) / 100;
+    const desc = (p.name || '').replace(/&#8211;/g, '-').replace(/&#[0-9]+;/g, '').trim();
+    allRows.push([p.sku || '', desc, lab, cats, precio, 'Simple', p.permalink || '']);
+  });
+
+  // Ordenar por categoría, luego por clave
+  allRows.sort((a, b) => {
+    const catCmp = (a[3] || '').localeCompare(b[3] || '', 'es');
+    return catCmp !== 0 ? catCmp : (a[0] || '').localeCompare(b[0] || '', 'es');
+  });
+
+  console.log(`✅ Total registros preparados: ${allRows.length}`);
+
+  // 6. Crear Excel con 3 hojas
+  const wb = XLSX.utils.book_new();
+  const COL_WIDTHS = [{ wch: 22 }, { wch: 75 }, { wch: 25 }, { wch: 40 }, { wch: 15 }, { wch: 12 }, { wch: 80 }];
+
+  function makeSheet(rows) {
+    const ws = XLSX.utils.aoa_to_sheet([HEADERS, ...rows]);
+    ws['!cols'] = COL_WIDTHS;
+    return ws;
+  }
+
+  // Hoja 1: Todos
+  XLSX.utils.book_append_sheet(wb, makeSheet(allRows), 'Todos los Productos');
+
+  // Hoja 2: Solo Cuadro Básico IMSS/ISSSTE (clave numérica)
+  const cbRows = allRows.filter(r => r[0] && /^\d{3}\./.test(r[0]));
+  XLSX.utils.book_append_sheet(wb, makeSheet(cbRows), 'Cuadro Básico IMSS-ISSSTE');
+
+  // Hoja 3: Solo códigos HK
+  const hkRows = allRows.filter(r => r[0] && r[0].startsWith('HK'));
+  XLSX.utils.book_append_sheet(wb, makeSheet(hkRows), 'Productos Código HK');
+
+  // 7. Descargar
+  const fecha = new Date().toISOString().slice(0, 10);
+  const filename = `productos_heka_${fecha}.xlsx`;
+  XLSX.writeFile(wb, filename);
+
+  console.log(`✅ Archivo descargado: ${filename}`);
+  console.log(`📊 Total: ${allRows.length} | CB IMSS/ISSSTE: ${cbRows.length} | Código HK: ${hkRows.length}`);
+
+})();

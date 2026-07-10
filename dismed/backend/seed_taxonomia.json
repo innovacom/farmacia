@@ -1,0 +1,1098 @@
+{
+  "generado": "2026-06-14T19:01:48.704Z",
+  "taxonomia": [
+    {
+      "nombre": "ACCESORIOS_Y_SUMINISTROS",
+      "categorias": [
+        {
+          "nombre": "CONSUMIBLES",
+          "subcategorias": [
+            "BATERIAS",
+            "CONTENEDORES DE DESECHOS",
+            "PAPEL DESECHABLE"
+          ]
+        },
+        {
+          "nombre": "CUIDADO_INTENSIVO",
+          "subcategorias": [
+            "INFUSION",
+            "VALORACION"
+          ]
+        },
+        {
+          "nombre": "LIMPIEZA_HOSPITALARIA",
+          "subcategorias": [
+            "BOLSA Y CONTENEDORES",
+            "CONTROL DE PLAGAS",
+            "DESINFECTANTES Y SANITIZANTES",
+            "LIMPIADORES Y DISOLVENTES"
+          ]
+        },
+        {
+          "nombre": "MATERIAL_DIDACTICO",
+          "subcategorias": [
+            "LIBROS Y MANUALES",
+            "MODELOS ANATOMICOS"
+          ]
+        },
+        {
+          "nombre": "RECIPIENTES",
+          "subcategorias": [
+            "CHAROLAS",
+            "CON TAPA",
+            "DOSIFICADORES",
+            "ORINALES Y COMODOS",
+            "TAZONES Y CUBETAS",
+            "TINAS",
+            "VASOS"
+          ]
+        },
+        {
+          "nombre": "ROPA",
+          "subcategorias": [
+            "CAMPOS PARA CIRUGIA",
+            "CIRUGIA",
+            "CUBREBOCAS",
+            "EQUIPO DE PROTECCION",
+            "FAJAS MODELADORAS",
+            "GUANTES",
+            "LENTES",
+            "MEDIAS Y PANTIMEDIAS",
+            "PARA CAMA",
+            "PAÑALES Y TOALLAS SANITARIAS",
+            "ROPA INTERIOR",
+            "UNIFORMES"
+          ]
+        },
+        {
+          "nombre": "SOLUCIONES_Y_LIQUIDOS",
+          "subcategorias": [
+            "ANTISEPTICOS Y GERMINICIDAS",
+            "COSMETICO",
+            "DESINFECTANTES Y SANITIZANTES",
+            "DISOLVENTES",
+            "INTRAVENOSOS O ADMINISTRABLES",
+            "LAVADO Y PRESERVACION",
+            "LIMPIADORES Y QUITAMANCHAS",
+            "PARA IRRIGACION"
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "CUIDADO_PERSONAL",
+      "categorias": [
+        {
+          "nombre": "ALMOHADAS_Y_COJINES",
+          "subcategorias": [
+            "ALMOHADAS",
+            "ASIENTOS"
+          ]
+        },
+        {
+          "nombre": "AUXILIARES_MOVILIDAD",
+          "subcategorias": [
+            "ANDADERAS",
+            "BASTONES",
+            "MOVILIZACION",
+            "MULETAS",
+            "SILLAS DE RUEDAS"
+          ]
+        },
+        {
+          "nombre": "CAMA",
+          "subcategorias": [
+            "CUBRECOLCHONES"
+          ]
+        },
+        {
+          "nombre": "COSMETICOS",
+          "subcategorias": [
+            "CORTE DE VELLO",
+            "HIDRATACION DE LA PIEL",
+            "MANICURE",
+            "PADS Y ALGODON",
+            "REJUVENECIMIENTO"
+          ]
+        },
+        {
+          "nombre": "CUIDADO_FACIAL",
+          "subcategorias": [
+            "ACNE"
+          ]
+        },
+        {
+          "nombre": "DEPORTES",
+          "subcategorias": [
+            "ENTRENAMIENTO"
+          ]
+        },
+        {
+          "nombre": "DE_LOS_OJOS",
+          "subcategorias": [
+            "PARCHES OCULARES"
+          ]
+        },
+        {
+          "nombre": "DE_PIES",
+          "subcategorias": [
+            "PEDICURE",
+            "TRATAMIENTOS"
+          ]
+        },
+        {
+          "nombre": "LIMPIEZA_CORPORAL",
+          "subcategorias": [
+            "ANTIBACTERIALES",
+            "ANTISEPTICOS BUCALES",
+            "BAÑERAS",
+            "ENEMAS Y LAVATIVAS",
+            "JABONES Y SHAMPOOS",
+            "TOALLAS LIMPIADORAS"
+          ]
+        },
+        {
+          "nombre": "MATERNIDAD",
+          "subcategorias": [
+            "LACTANCIA"
+          ]
+        },
+        {
+          "nombre": "NASAL",
+          "subcategorias": [
+            "LIMPIADORES DE NARIZ"
+          ]
+        },
+        {
+          "nombre": "PORTA_MEDICAMENTOS",
+          "subcategorias": [
+            "CORTADORES",
+            "ESTUCHES",
+            "PASTILLEROS"
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "ESPECIALIDADES",
+      "categorias": [
+        {
+          "nombre": "ALERGOLOGIA",
+          "subcategorias": [
+            "ACCESORIOS",
+            "REACTIVOS",
+            "SOLUCIONES"
+          ]
+        },
+        {
+          "nombre": "ANESTESIOLOGIA",
+          "subcategorias": [
+            "AGUJAS Y EQUIPOS",
+            "CIRCUITOS PARA ANESTESIA",
+            "MASCARILLAS",
+            "SONDAS"
+          ]
+        },
+        {
+          "nombre": "AUDIOLOGIA",
+          "subcategorias": [
+            "INSTRUMENTOS"
+          ]
+        },
+        {
+          "nombre": "CARDIOLOGIA",
+          "subcategorias": [
+            "EQUIPOS",
+            "GUIAS",
+            "OCLUSORES",
+            "VALVULAS"
+          ]
+        },
+        {
+          "nombre": "CIRUGIA RECONSTRUCTIVA",
+          "subcategorias": [
+            "ACCESORIOS",
+            "EXPANSORES",
+            "INJERTOS",
+            "MEMBRANAS"
+          ]
+        },
+        {
+          "nombre": "COLOSTOMIA_Y_UROSTOMIA",
+          "subcategorias": [
+            "ACCESORIOS Y CONSUMIBLES",
+            "BOLSAS PARA COLOSTOMIA",
+            "DISCOS Y BARRERAS"
+          ]
+        },
+        {
+          "nombre": "GASTROENTEROLOGIA",
+          "subcategorias": [
+            "ALIMENTACION GASTRICA",
+            "ASPIRACION GASTRICA"
+          ]
+        },
+        {
+          "nombre": "GINECOLOGIA",
+          "subcategorias": [
+            "ABLACION",
+            "ANTICONCEPTIVOS",
+            "COLPOSCOPIO",
+            "EMBARAZO",
+            "ESPEJOS VAGINALES",
+            "INSTRUMENTAL",
+            "PROLAPSO",
+            "TOMAS DE MUESTRA CERVICAL"
+          ]
+        },
+        {
+          "nombre": "HEMATOLOGIA",
+          "subcategorias": [
+            "ESTUDIOS Y ANALISIS DE SANGRE",
+            "MUESTRAS DE SANGRE",
+            "TORNIQUETES"
+          ]
+        },
+        {
+          "nombre": "INHALOTERAPIA",
+          "subcategorias": [
+            "CANULAS RESPIRATORIAS",
+            "CIRCUITOS PARA VENTILACION",
+            "CONCENTRADORES Y TANQUES DE OXIGENO",
+            "EJERCITADORES RESPITARORIOS",
+            "HUMIDIFICADORES Y NEBULIZADORES",
+            "TERAPIA DEL SUEÑO Y CPAP"
+          ]
+        },
+        {
+          "nombre": "ODONTOLOGIA",
+          "subcategorias": [
+            "INSTRUMENTAL",
+            "SUMINISTROS DENTALES"
+          ]
+        },
+        {
+          "nombre": "OFTALMOLOGIA",
+          "subcategorias": [
+            "INSTRUMENTAL",
+            "LENTES Y ACCESORIOS",
+            "SOLUCIONES"
+          ]
+        },
+        {
+          "nombre": "ONCOLOGIA",
+          "subcategorias": [
+            "AGUJAS PARA BIOPSIA",
+            "QUIMIOTERAPIA"
+          ]
+        },
+        {
+          "nombre": "ORTOPEDIA_Y_REHABILITACION",
+          "subcategorias": [
+            "BOLSAS Y COMPRESAS TERMICAS",
+            "INMOBILIZADORES",
+            "INSTRUMENTOS PARA REHABILITACION",
+            "PLANTILLAS Y TALONERAS",
+            "SOPORTES Y SUSPENSORIOS"
+          ]
+        },
+        {
+          "nombre": "PEDIATRIA",
+          "subcategorias": [
+            "ACCESORIOS PEDIATRIA",
+            "SONDAS PEDIATRICAS"
+          ]
+        },
+        {
+          "nombre": "PRIMEROS_AUXILIOS",
+          "subcategorias": [
+            "CANULAS Y MASCARILLAS",
+            "EQUIPO DE REANIMACION",
+            "SUJETADORES E INMOVILIZADORES"
+          ]
+        },
+        {
+          "nombre": "UROLOGIA",
+          "subcategorias": [
+            "EVACUACION Y RECOLECCION DE ORINA",
+            "SONDAS UROLOGICAS"
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "LABORATORIO",
+      "categorias": [
+        {
+          "nombre": "ACCESORIOS_DE_LABORATORIO",
+          "subcategorias": [
+            "AGUJAS DE DISECCION",
+            "ENCENDEDORES",
+            "ESPATULAS",
+            "INOCULACION",
+            "LUPAS",
+            "MARCADORES",
+            "MECHEROS",
+            "PAPALES",
+            "PIPETAS"
+          ]
+        },
+        {
+          "nombre": "EQUIPOS",
+          "subcategorias": [
+            "AGITADORES",
+            "AUTOCLAVES",
+            "BAÑOS",
+            "CENTRIFUGAS",
+            "INCUBADORAS",
+            "MICROSCOPIOS"
+          ]
+        },
+        {
+          "nombre": "INSTRUMENTOS_DE_MEDICION",
+          "subcategorias": [
+            "ANALIZADORES",
+            "CONTADORES",
+            "CRONOMETROS",
+            "MEDIDORES DE PH",
+            "TERMOMETROS"
+          ]
+        },
+        {
+          "nombre": "RECIPIENTES_DE_LABORATORIO",
+          "subcategorias": [
+            "CONTENEDORES",
+            "CUBREOBJETOS Y PORTAOBJETOS",
+            "GRADILLAS",
+            "MATRACES",
+            "PROBETAS",
+            "TRUTURADORES",
+            "TUBOS",
+            "VASOS DE PRECIPITADO"
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "MATERIAL_CURACION",
+      "categorias": [
+        {
+          "nombre": "ALGODON_Y_GASAS",
+          "subcategorias": [
+            "ALGODON",
+            "GASAS Y ESPONJAS DE GASA"
+          ]
+        },
+        {
+          "nombre": "APLICADORES_Y_ABATELENGUAS",
+          "subcategorias": [
+            "ABATELENGUAS",
+            "APLICADORES"
+          ]
+        },
+        {
+          "nombre": "APOSITOS",
+          "subcategorias": [
+            "ABSORBENTES",
+            "ANTIMICROBIANOS",
+            "BANDAS ADHESIVAS",
+            "CUIDADO QUEMADURAS",
+            "FIJACION",
+            "HIDROCELULARES",
+            "REGENERATIVOS"
+          ]
+        },
+        {
+          "nombre": "CINTAS_ADHESIVAS",
+          "subcategorias": [
+            "CINTAS Y TELAS ADHESIVAS"
+          ]
+        },
+        {
+          "nombre": "HERIDAS_PROFUNDAS",
+          "subcategorias": [
+            "TERAPIA PRESION NEGATIVA"
+          ]
+        },
+        {
+          "nombre": "JERINGAS",
+          "subcategorias": [
+            "AGUJAS",
+            "JERINGAS"
+          ]
+        },
+        {
+          "nombre": "VENDAS",
+          "subcategorias": [
+            "DE COMPRESION E INMOVILIZACION",
+            "PARA CURACION"
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "MEDICAMENTOS",
+      "categorias": [
+        {
+          "nombre": "ALTA_ESPECIALIDAD",
+          "subcategorias": [
+            "ALERGOLOGIA",
+            "ANESTESIOLOGIA",
+            "CARDIOLOGIA",
+            "DERMATOLOGIA",
+            "DIABETES",
+            "ENDOCRINOLOGIA",
+            "GASTROENTEROLOGIA",
+            "GINECOLOGIA",
+            "HEMATOLOGIA",
+            "HEPATOLOGIA",
+            "INFECTOLOGIA",
+            "INMUNOLOGIA",
+            "NEONATOLOGIA",
+            "NEUMOLOGIA",
+            "NEUROLOGIA",
+            "OFTALMOLOGIA",
+            "ONCOLOGIA",
+            "OSTEOPOROSIS",
+            "OTORRINOLARINGOLOGIA",
+            "OTRAS",
+            "PEDIATRIA",
+            "RADIOLOGIA",
+            "RARAS",
+            "REUMATOLOGIA",
+            "UROLOGIA"
+          ]
+        },
+        {
+          "nombre": "CON_RECETA",
+          "subcategorias": [
+            "ANTIBIOTICOS",
+            "ETICOS"
+          ]
+        },
+        {
+          "nombre": "LIBRE_VENTA",
+          "subcategorias": [
+            "OTC",
+            "PERFUMERIA"
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "MOBILIARIO_Y_EQUIPO",
+      "categorias": [
+        {
+          "nombre": "DIAGNOSTICO_Y_MONITOREO",
+          "subcategorias": [
+            "ALTIMETROS",
+            "BASCULAS",
+            "BAUBANOMETROS",
+            "ESTETOSOPIOS",
+            "ESTUCHES DE DIAGNOSTICO",
+            "FUNDAS PARA EQUIPO MEDICO",
+            "GLUCOMETROS",
+            "GONIOMETROS",
+            "LANCETAS Y DISPARADORES",
+            "LARINGOSCOPIOS",
+            "MALETINES MEDICOS",
+            "MANOMENTROS Y ACCESORIOS",
+            "MEDICION CARDIACA Y RESPIRATORIA",
+            "MEDICION DE ALCOHOL Y DROGAS",
+            "MEDICION DE MASA Y GRASA",
+            "OTOSCOPIOS Y OFTALMOSCOPIOS",
+            "OXIMETROS",
+            "TERMOMETROS",
+            "TIRAS REACTIVAS"
+          ]
+        },
+        {
+          "nombre": "ELECTROCARDIOGRAFOS",
+          "subcategorias": [
+            "ACCESORIOS",
+            "CONSUMIBLES",
+            "EQUIPOS"
+          ]
+        },
+        {
+          "nombre": "LAMPARAS",
+          "subcategorias": [
+            "DE ILUMINACION",
+            "ESPECIALES",
+            "PARA PROCEDIMIENTOS",
+            "PORTATILES"
+          ]
+        },
+        {
+          "nombre": "MOBILIARIO",
+          "subcategorias": [
+            "BIOMBOS",
+            "BOTES DE BASURA",
+            "BOTIQUINES",
+            "CAMAS",
+            "COLCHONES",
+            "CONSULTORIOS",
+            "DESPACHADORES Y DISPENSADORES",
+            "ESCALERAS",
+            "GABINETES Y BUROES",
+            "MESAS",
+            "MUEBLES MOVILES",
+            "PORTA HISTORIA CLINICA",
+            "SILLAS Y ASIENTOS"
+          ]
+        },
+        {
+          "nombre": "TOCOCARDIOGRAFOS",
+          "subcategorias": [
+            "ACCESORIOS"
+          ]
+        },
+        {
+          "nombre": "ULTRASONIDOS",
+          "subcategorias": [
+            "CONSUMIBLES"
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "PAPELERIA",
+      "categorias": [
+        {
+          "nombre": "ARCHIVO",
+          "subcategorias": [
+            "CAJAS",
+            "CARPETAS"
+          ]
+        },
+        {
+          "nombre": "COMPUTO_E_IMPRESION",
+          "subcategorias": [
+            "ALMACENAMIENTO"
+          ]
+        },
+        {
+          "nombre": "ESCOLAR",
+          "subcategorias": [
+            "ADHESIVOS",
+            "MARCADORES Y RESALTADORES",
+            "PAPEL",
+            "VARIOS"
+          ]
+        },
+        {
+          "nombre": "ESCRITURA",
+          "subcategorias": [
+            "BOLIGRAFOS",
+            "CUADERNOS",
+            "LAPICES"
+          ]
+        },
+        {
+          "nombre": "OFICINA",
+          "subcategorias": [
+            "BROCHES",
+            "ESCRITORIO",
+            "FOLDERS"
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "QUIRURGICO",
+      "categorias": [
+        {
+          "nombre": "ASPIRACION",
+          "subcategorias": [
+            "ASPIRADORES",
+            "FRASCOS",
+            "TUBOS Y CANULAS"
+          ]
+        },
+        {
+          "nombre": "CAUTERIOS",
+          "subcategorias": [
+            "EQUIPOS Y ACCESORIOS"
+          ]
+        },
+        {
+          "nombre": "COMPLEMENTOS",
+          "subcategorias": [
+            "ACCESORIOS PARA CIRUGIA",
+            "ACCESORIOS PARA ESTERILIZAR",
+            "HEMOSTATICOS",
+            "LLAVES Y VALVULAS",
+            "MALLAS QUIRURGICAS",
+            "PROTECTORES DE HERIDAS"
+          ]
+        },
+        {
+          "nombre": "DRENAJES",
+          "subcategorias": [
+            "SISTEMAS Y ACCESORIOS"
+          ]
+        },
+        {
+          "nombre": "ELECTROCIRUGIA",
+          "subcategorias": [
+            "ACCESORIOS",
+            "ELECTROBISTURIS"
+          ]
+        },
+        {
+          "nombre": "FERULAS_QUIRURGICAS",
+          "subcategorias": [
+            "FERULAS CERVICALES",
+            "FERULAS NASALES"
+          ]
+        },
+        {
+          "nombre": "INSTRUMENTAL",
+          "subcategorias": [
+            "ABREBOCAS",
+            "ACCESORIOS",
+            "AMIGDALAS",
+            "ANOSCOPIOS",
+            "BISTURIS",
+            "CANULAS",
+            "CATETERS",
+            "CINCELES",
+            "CUCHARILLAS",
+            "CURETAS",
+            "DIAPASONES",
+            "DILATADORES",
+            "DISECTORES",
+            "ELEVADORES",
+            "ENGRAPADORES PARA PIEL",
+            "ESPEJOS",
+            "GUIAS",
+            "OTRO INSTRUMENTAL",
+            "PINZAS",
+            "PORTA AGUJAS",
+            "TIJERAS"
+          ]
+        },
+        {
+          "nombre": "IRRIGACION",
+          "subcategorias": [
+            "SISTEMAS"
+          ]
+        },
+        {
+          "nombre": "SUTURAS",
+          "subcategorias": [
+            "ABSORBIBLES",
+            "AGUJAS",
+            "ESPECIALES",
+            "NO ABSORBIBLES"
+          ]
+        },
+        {
+          "nombre": "VENOCLISIS",
+          "subcategorias": [
+            "CATETERES INTRAVENOSOS",
+            "EQUIPOS"
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "TLAPALERIA",
+      "categorias": [
+        {
+          "nombre": "PLOMERIA",
+          "subcategorias": [
+            "INSTALACION Y REPARACION"
+          ]
+        }
+      ]
+    }
+  ],
+  "unidades": [
+    {
+      "nombre": "PIEZA",
+      "factor_sugerido": 1,
+      "usos": 1040
+    },
+    {
+      "nombre": "CAJA C/100",
+      "factor_sugerido": 100,
+      "usos": 109
+    },
+    {
+      "nombre": "CAJA C/10",
+      "factor_sugerido": 10,
+      "usos": 63
+    },
+    {
+      "nombre": "CAJA C/12",
+      "factor_sugerido": 12,
+      "usos": 51
+    },
+    {
+      "nombre": "CAJA C/50",
+      "factor_sugerido": 50,
+      "usos": 47
+    },
+    {
+      "nombre": "CAJA C/20",
+      "factor_sugerido": 20,
+      "usos": 32
+    },
+    {
+      "nombre": "CAJA C/5",
+      "factor_sugerido": 5,
+      "usos": 27
+    },
+    {
+      "nombre": "CAJA C/30",
+      "factor_sugerido": 30,
+      "usos": 21
+    },
+    {
+      "nombre": "CAJA C/4",
+      "factor_sugerido": 4,
+      "usos": 13
+    },
+    {
+      "nombre": "CAJA C/200",
+      "factor_sugerido": 200,
+      "usos": 12
+    },
+    {
+      "nombre": "CAJA C/3",
+      "factor_sugerido": 3,
+      "usos": 11
+    },
+    {
+      "nombre": "CAJA C/24",
+      "factor_sugerido": 24,
+      "usos": 11
+    },
+    {
+      "nombre": "PAQUETE C/10",
+      "factor_sugerido": 10,
+      "usos": 10
+    },
+    {
+      "nombre": "CAJA C/25",
+      "factor_sugerido": 25,
+      "usos": 8
+    },
+    {
+      "nombre": "CAJA C/6",
+      "factor_sugerido": 6,
+      "usos": 8
+    },
+    {
+      "nombre": "PAQUETE C/100",
+      "factor_sugerido": 100,
+      "usos": 7
+    },
+    {
+      "nombre": "PAR",
+      "factor_sugerido": null,
+      "usos": 7
+    },
+    {
+      "nombre": "CAJA C/60",
+      "factor_sugerido": 60,
+      "usos": 6
+    },
+    {
+      "nombre": "CAJA C/2",
+      "factor_sugerido": 2,
+      "usos": 5
+    },
+    {
+      "nombre": "CAJA C/50 PARES",
+      "factor_sugerido": 50,
+      "usos": 5
+    },
+    {
+      "nombre": "PAQUETE C/25",
+      "factor_sugerido": 25,
+      "usos": 4
+    },
+    {
+      "nombre": "PAQUETE C/50",
+      "factor_sugerido": 50,
+      "usos": 4
+    },
+    {
+      "nombre": "CAJA C/14",
+      "factor_sugerido": 14,
+      "usos": 4
+    },
+    {
+      "nombre": "CAJA C/28",
+      "factor_sugerido": 28,
+      "usos": 4
+    },
+    {
+      "nombre": "CAJA C/1000",
+      "factor_sugerido": 1000,
+      "usos": 4
+    },
+    {
+      "nombre": "PAQUETE C/12",
+      "factor_sugerido": 12,
+      "usos": 4
+    },
+    {
+      "nombre": "CAJA C/500",
+      "factor_sugerido": 500,
+      "usos": 3
+    },
+    {
+      "nombre": "CAJA C/36",
+      "factor_sugerido": 36,
+      "usos": 3
+    },
+    {
+      "nombre": "BOLSA C/100",
+      "factor_sugerido": 100,
+      "usos": 3
+    },
+    {
+      "nombre": "CAJA/30",
+      "factor_sugerido": null,
+      "usos": 3
+    },
+    {
+      "nombre": "CAJA C/48",
+      "factor_sugerido": 48,
+      "usos": 2
+    },
+    {
+      "nombre": "CAJA C/15",
+      "factor_sugerido": 15,
+      "usos": 2
+    },
+    {
+      "nombre": "BOLSA C/50",
+      "factor_sugerido": 50,
+      "usos": 2
+    },
+    {
+      "nombre": "CAJA",
+      "factor_sugerido": null,
+      "usos": 2
+    },
+    {
+      "nombre": "CAJA C/40",
+      "factor_sugerido": 40,
+      "usos": 2
+    },
+    {
+      "nombre": "PAQUETE C/6",
+      "factor_sugerido": 6,
+      "usos": 2
+    },
+    {
+      "nombre": "CAJA C/20 SOBRES",
+      "factor_sugerido": 20,
+      "usos": 2
+    },
+    {
+      "nombre": "SOBRE C/10",
+      "factor_sugerido": 10,
+      "usos": 2
+    },
+    {
+      "nombre": "CAJA C/250",
+      "factor_sugerido": 250,
+      "usos": 2
+    },
+    {
+      "nombre": "CAJA C/18",
+      "factor_sugerido": 18,
+      "usos": 2
+    },
+    {
+      "nombre": "CAJA C/16",
+      "factor_sugerido": 16,
+      "usos": 2
+    },
+    {
+      "nombre": "CAJA C/120",
+      "factor_sugerido": 120,
+      "usos": 2
+    },
+    {
+      "nombre": "CAJA C/90",
+      "factor_sugerido": 90,
+      "usos": 2
+    },
+    {
+      "nombre": "CAJA C/150",
+      "factor_sugerido": 150,
+      "usos": 2
+    },
+    {
+      "nombre": "CAJA/200",
+      "factor_sugerido": null,
+      "usos": 2
+    },
+    {
+      "nombre": "ROLLO",
+      "factor_sugerido": null,
+      "usos": 2
+    },
+    {
+      "nombre": "CJA C/240",
+      "factor_sugerido": 240,
+      "usos": 2
+    },
+    {
+      "nombre": "CAJA C/300",
+      "factor_sugerido": 300,
+      "usos": 2
+    },
+    {
+      "nombre": "BOLSA C/200",
+      "factor_sugerido": 200,
+      "usos": 2
+    },
+    {
+      "nombre": "CAJA C200",
+      "factor_sugerido": null,
+      "usos": 2
+    },
+    {
+      "nombre": "CAJA C/9",
+      "factor_sugerido": 9,
+      "usos": 1
+    },
+    {
+      "nombre": "PAQUETE C/500",
+      "factor_sugerido": 500,
+      "usos": 1
+    },
+    {
+      "nombre": "TARRO C/100",
+      "factor_sugerido": 100,
+      "usos": 1
+    },
+    {
+      "nombre": "PAQUETE C/300",
+      "factor_sugerido": 300,
+      "usos": 1
+    },
+    {
+      "nombre": "CAJA C/1500",
+      "factor_sugerido": 1500,
+      "usos": 1
+    },
+    {
+      "nombre": "CAJA C/144",
+      "factor_sugerido": 144,
+      "usos": 1
+    },
+    {
+      "nombre": "PAQUETE C/36",
+      "factor_sugerido": 36,
+      "usos": 1
+    },
+    {
+      "nombre": "CAJA C/1",
+      "factor_sugerido": 1,
+      "usos": 1
+    },
+    {
+      "nombre": "CAJA C/7",
+      "factor_sugerido": 7,
+      "usos": 1
+    },
+    {
+      "nombre": "PAQUETE C/2",
+      "factor_sugerido": 2,
+      "usos": 1
+    },
+    {
+      "nombre": "PAQUETE C/20",
+      "factor_sugerido": 20,
+      "usos": 1
+    },
+    {
+      "nombre": "SOBRE C/5",
+      "factor_sugerido": 5,
+      "usos": 1
+    },
+    {
+      "nombre": "CAJA C/21 TABLETAS",
+      "factor_sugerido": 21,
+      "usos": 1
+    },
+    {
+      "nombre": "CAJA C/8",
+      "factor_sugerido": 8,
+      "usos": 1
+    },
+    {
+      "nombre": "PAQUETE C/3",
+      "factor_sugerido": 3,
+      "usos": 1
+    },
+    {
+      "nombre": "CAJA C/125",
+      "factor_sugerido": 125,
+      "usos": 1
+    },
+    {
+      "nombre": "BLISTER C/4",
+      "factor_sugerido": 4,
+      "usos": 1
+    },
+    {
+      "nombre": "BLISTER C/6",
+      "factor_sugerido": 6,
+      "usos": 1
+    },
+    {
+      "nombre": "pieza",
+      "factor_sugerido": 1,
+      "usos": 1
+    },
+    {
+      "nombre": "CAJA C/2 FRASCOS",
+      "factor_sugerido": 2,
+      "usos": 1
+    },
+    {
+      "nombre": "CAJA C/56",
+      "factor_sugerido": 56,
+      "usos": 1
+    },
+    {
+      "nombre": "PAQUETE C/5",
+      "factor_sugerido": 5,
+      "usos": 1
+    },
+    {
+      "nombre": "PAQUETE C/40",
+      "factor_sugerido": 40,
+      "usos": 1
+    },
+    {
+      "nombre": "BOLSA C/4000",
+      "factor_sugerido": 4000,
+      "usos": 1
+    },
+    {
+      "nombre": "CAJA C/400",
+      "factor_sugerido": 400,
+      "usos": 1
+    },
+    {
+      "nombre": "CAJA C/5040",
+      "factor_sugerido": 5040,
+      "usos": 1
+    },
+    {
+      "nombre": "BOLSA C/26",
+      "factor_sugerido": 26,
+      "usos": 1
+    }
+  ]
+}

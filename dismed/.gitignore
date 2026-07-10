@@ -1,0 +1,33 @@
+# Credenciales y secretos - NUNCA subir a git
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cer
+
+# Dependencias
+node_modules/
+*/node_modules/
+
+# Build
+frontend/dist/
+
+# Datos generados / subidos (contienen datos reales de clientes y facturas)
+backend/uploads/
+backend/outputs/
+backend/data/
+uploads/
+outputs/
+
+# Documentos generados con datos reales
+*.pdf
+MANUAL_USUARIO.html
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
