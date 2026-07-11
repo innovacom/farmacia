@@ -9,8 +9,9 @@
 *.cer
 *.pfx
 
-# FIEL/CSD y facturas fiscales reales
-CFDI/
+# FIEL/CSD y facturas fiscales reales (solo la carpeta de la raiz;
+# anclada con / para no excluir codigo fuente como modules/cfdi o pages/Cfdi)
+/CFDI/
 
 # Respaldo del repo git anidado (dismed/ era repo propio)
 dismed/.git.bak/
