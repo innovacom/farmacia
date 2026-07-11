@@ -6,9 +6,11 @@ async function list(req, res, next) {
   try {
     const [rows] = await pool.query(
       `SELECT u.id, u.nombre, u.puesto, u.email, u.rol, u.activo,
-              u.jefe_id, j.nombre AS jefe_nombre
+              u.jefe_id, j.nombre AS jefe_nombre,
+              u.empresa_id, e.nombre AS empresa_nombre
        FROM usuarios u
        LEFT JOIN usuarios j ON j.id = u.jefe_id
+       LEFT JOIN empresas e ON e.id = u.empresa_id
        ORDER BY u.nombre`
     );
     res.json(rows);
@@ -19,9 +21,11 @@ async function getById(req, res, next) {
   try {
     const [[u]] = await pool.query(
       `SELECT u.id, u.nombre, u.puesto, u.email, u.rol, u.activo,
-              u.jefe_id, j.nombre AS jefe_nombre
+              u.jefe_id, j.nombre AS jefe_nombre,
+              u.empresa_id, e.nombre AS empresa_nombre
        FROM usuarios u
        LEFT JOIN usuarios j ON j.id = u.jefe_id
+       LEFT JOIN empresas e ON e.id = u.empresa_id
        WHERE u.id = ?`,
       [req.params.id]
     );
@@ -32,15 +36,15 @@ async function getById(req, res, next) {
 
 async function create(req, res, next) {
   try {
-    const { nombre, puesto, email, password, rol, jefe_id } = req.body;
+    const { nombre, puesto, email, password, rol, jefe_id, empresa_id } = req.body;
     if (!nombre || !email || !password) {
       return res.status(400).json({ error: 'nombre, email y contraseña son requeridos' });
     }
     const hash = await bcrypt.hash(password, 10);
     const [r] = await pool.query(
-      `INSERT INTO usuarios (nombre, puesto, email, password_hash, rol, jefe_id)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [nombre, puesto || null, email, hash, rol || 'operador', jefe_id || null]
+      `INSERT INTO usuarios (nombre, puesto, email, password_hash, rol, jefe_id, empresa_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [nombre, puesto || null, email, hash, rol || 'operador', jefe_id || null, empresa_id || 1]
     );
     res.status(201).json({ id: r.insertId, nombre, email });
   } catch (err) {
@@ -53,22 +57,22 @@ async function create(req, res, next) {
 
 async function update(req, res, next) {
   try {
-    const { nombre, puesto, email, rol, jefe_id, activo, password } = req.body;
+    const { nombre, puesto, email, rol, jefe_id, activo, password, empresa_id } = req.body;
 
     if (password) {
       const hash = await bcrypt.hash(password, 10);
       await pool.query(
-        `UPDATE usuarios SET nombre=?, puesto=?, email=?, rol=?, jefe_id=?, activo=?, password_hash=?
+        `UPDATE usuarios SET nombre=?, puesto=?, email=?, rol=?, jefe_id=?, activo=?, empresa_id=?, password_hash=?
          WHERE id = ?`,
         [nombre, puesto || null, email, rol || 'operador',
-         jefe_id || null, activo !== undefined ? activo : 1, hash, req.params.id]
+         jefe_id || null, activo !== undefined ? activo : 1, empresa_id || 1, hash, req.params.id]
       );
     } else {
       await pool.query(
-        `UPDATE usuarios SET nombre=?, puesto=?, email=?, rol=?, jefe_id=?, activo=?
+        `UPDATE usuarios SET nombre=?, puesto=?, email=?, rol=?, jefe_id=?, activo=?, empresa_id=?
          WHERE id = ?`,
         [nombre, puesto || null, email, rol || 'operador',
-         jefe_id || null, activo !== undefined ? activo : 1, req.params.id]
+         jefe_id || null, activo !== undefined ? activo : 1, empresa_id || 1, req.params.id]
       );
     }
     res.json({ ok: true });

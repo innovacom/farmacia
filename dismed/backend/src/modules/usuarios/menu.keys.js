@@ -12,6 +12,7 @@ const PERMISSIONABLE_KEYS = [
   'contabilidad-catalogo-cuentas', 'contabilidad-polizas', 'contabilidad-bancos',
   'contabilidad-cfdi-por-comprobante', 'contabilidad-cfdi-resumen-general',
   'herramientas-importar', 'herramientas-exportar',
+  'pos-venta', 'pos-turnos', 'pos-bitacora', 'pos-admin',
 ];
 
 module.exports = { PERMISSIONABLE_KEYS };
