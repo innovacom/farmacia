@@ -5,8 +5,8 @@
     "semantic_hash": ""
   },
   ".claude/settings.local.json": {
-    "mtime": 1783049005.4487255,
-    "ast_hash": "b00da04d72c1d48793dbceca49d24489",
+    "mtime": 1783709996.8248446,
+    "ast_hash": "66f72b521a58bbdbed6581cd2b2afef7",
     "semantic_hash": ""
   },
   "check_mysql.py": {
@@ -165,9 +165,9 @@
     "semantic_hash": "eb35ff0f970440f6ff4f37fdd9dc9966"
   },
   "dismed/backend/src/modules/cotizaciones/cliente/cotcli.controller.js": {
-    "mtime": 1781138905.1402986,
-    "ast_hash": "ec600bdae51ec0ba920381518dfbcb60",
-    "semantic_hash": "ec600bdae51ec0ba920381518dfbcb60"
+    "mtime": 1783361204.0047753,
+    "ast_hash": "6d6c1b6c55be00cb8b6fa0f1ba700b3f",
+    "semantic_hash": ""
   },
   "dismed/backend/src/modules/cotizaciones/cliente/cotcli.routes.js": {
     "mtime": 1777699116.0322104,
@@ -270,9 +270,9 @@
     "semantic_hash": "f6ca68e0fd1f9f3c5d52ae6614695082"
   },
   "dismed/backend/src/modules/solicitudes/parser.excel.js": {
-    "mtime": 1781138857.089202,
-    "ast_hash": "de7edd8c868095efd6b6e6680320035a",
-    "semantic_hash": "de7edd8c868095efd6b6e6680320035a"
+    "mtime": 1783453150.665179,
+    "ast_hash": "9286b3c1aa5f12b68201aa8c9651cac5",
+    "semantic_hash": ""
   },
   "dismed/backend/src/modules/solicitudes/parser.pdf.js": {
     "mtime": 1782140487.221616,
@@ -280,8 +280,8 @@
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/solicitudes/solicitudes.controller.js": {
-    "mtime": 1782158558.5100694,
-    "ast_hash": "c3f5b39b43906d056a9920b3d73e5c2b",
+    "mtime": 1783361195.5544727,
+    "ast_hash": "622cf648987432f112c1984db8d89b8f",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/solicitudes/solicitudes.routes.js": {
@@ -390,8 +390,8 @@
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Cotizaciones/DetalleCotizacion.jsx": {
-    "mtime": 1783033074.5256839,
-    "ast_hash": "6debf6dbb8e3dcac0e9d289016c47f46",
+    "mtime": 1783363382.7414901,
+    "ast_hash": "32c035214a1deedbf7198fd71dc567a4",
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Cotizaciones/NuevaCotizacion.jsx": {
@@ -885,32 +885,32 @@
     "semantic_hash": ""
   },
   "dismed/backend/data/legacy_cfdi/_manifest.json": {
-    "mtime": 1781887356.6503246,
-    "ast_hash": "7484099f93dee82f9d473324754cd6b6",
+    "mtime": 1783447894.232757,
+    "ast_hash": "02771b15a3ca8d6861f5a9961c7c7d08",
     "semantic_hash": ""
   },
   "dismed/backend/data/legacy_cfdi/cfdi_emitido.json": {
-    "mtime": 1781887354.192648,
-    "ast_hash": "a2ea23058649e719620effe9f24aee99",
+    "mtime": 1783447891.2115016,
+    "ast_hash": "0fa890e5f713f89e42b362bba3773caf",
     "semantic_hash": ""
   },
   "dismed/backend/data/legacy_cfdi/cfdi_emitido_detalle.json": {
-    "mtime": 1781887356.2923245,
+    "mtime": 1783447892.9275088,
     "ast_hash": "00c7512c51af6d9d20e4e73d7fb0656a",
     "semantic_hash": ""
   },
   "dismed/backend/data/legacy_cfdi/cfdi_pagos.json": {
-    "mtime": 1781887356.111291,
-    "ast_hash": "01aeda0406a9e109384d8b38609561a6",
+    "mtime": 1783447892.7746375,
+    "ast_hash": "3d14ef6bd40be474a1ab33a180e800b0",
     "semantic_hash": ""
   },
   "dismed/backend/data/legacy_cfdi/cfdi_recibido.json": {
-    "mtime": 1781887355.7600272,
-    "ast_hash": "1d6a8c685a3902802986723fd1034cd2",
+    "mtime": 1783447892.577681,
+    "ast_hash": "8223e80d0bf877892d958c1c1370733f",
     "semantic_hash": ""
   },
   "dismed/backend/data/legacy_cfdi/cfdi_recibido_detalle.json": {
-    "mtime": 1781887356.6483176,
+    "mtime": 1783447894.2249072,
     "ast_hash": "e8d91c2e3c9b5255381ab9f0eb3ca06c",
     "semantic_hash": ""
   },
@@ -980,8 +980,8 @@
     "semantic_hash": ""
   },
   "dismed/backend/scripts/verify_cfdi.js": {
-    "mtime": 1781903225.2499802,
-    "ast_hash": "74179c554cc61e658ce117e1444dc96a",
+    "mtime": 1783699141.804775,
+    "ast_hash": "b4f841cf6a5e91c78ebc3e3d1349d2ba",
     "semantic_hash": ""
   },
   "dismed/backend/smoke_gemini.js": {
@@ -1030,8 +1030,8 @@
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/cfdi/sat.descarga.service.js": {
-    "mtime": 1782434607.970217,
-    "ast_hash": "6baf08e170c5ccbcaa746b26b013f63f",
+    "mtime": 1783443146.952105,
+    "ast_hash": "da003388a8a51824f94e17466ce6e887",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/cfdi/sat.fiel.js": {
@@ -1602,6 +1602,21 @@
   "dismed/frontend/src/services/exportarExcel.js": {
     "mtime": 1783034715.7498605,
     "ast_hash": "6511a9c016320c6b44a0821ebff7e2da",
+    "semantic_hash": ""
+  },
+  "dismed/backend/migrate_v27.js": {
+    "mtime": 1783389020.5767527,
+    "ast_hash": "2a0bc5624546e50d0ad1849eccc6c6f4",
+    "semantic_hash": ""
+  },
+  "dismed/subir_a_github.ps1": {
+    "mtime": 1783703180.824342,
+    "ast_hash": "205c3bf2225234f30d27875fcc23b5c8",
+    "semantic_hash": ""
+  },
+  "PROPUESTA_POS_FARMACIA.md": {
+    "mtime": 1783711223.4420881,
+    "ast_hash": "bb763739bb7e670b54962463a47eb7c4",
     "semantic_hash": ""
   }
 }

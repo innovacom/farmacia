@@ -13,7 +13,7 @@ const PROD_FIELDS = [
   'unidad_base', 'factor_empaque', 'control_lote_caducidad',
   'precio_lista', 'precio_publico', 'iva_exento', 'ieps',
   'fabricante', 'ean', 'sustancia_activa', 'tamano', 'calibre', 'especificacion',
-  'clave_cuadro_basico',
+  'clave_cuadro_basico', 'clasificacion_cofepris',
   'cuenta_ingreso_codigo', 'cuenta_costo_codigo',
   'activo',
 ];
@@ -37,7 +37,7 @@ async function list(req, res, next) {
               p.control_lote_caducidad, p.unidad_base, p.factor_empaque,
               p.precio_lista, p.precio_publico, p.iva_exento,
               p.familia_id, p.categoria_id, p.subcategoria_id, p.fabricante,
-              p.clave_sat, p.clave_unidad_sat, p.ean,
+              p.clave_sat, p.clave_unidad_sat, p.ean, p.clasificacion_cofepris,
               p.cuenta_ingreso_codigo, p.cuenta_costo_codigo,
               f.nombre AS familia_nombre, c.nombre AS categoria_nombre, s.nombre AS subcategoria_nombre
        FROM productos p

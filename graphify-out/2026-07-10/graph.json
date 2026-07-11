@@ -908,7 +908,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_cfdi_gen",
-      "community": 176,
+      "community": 16,
       "norm_label": "cfdi_gen.js"
     },
     {
@@ -918,7 +918,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "backend_cfdi_gen_pool",
-      "community": 176,
+      "community": 16,
       "norm_label": "{ pool }"
     },
     {
@@ -928,7 +928,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_cfdi_gen_run",
-      "community": 176,
+      "community": 16,
       "norm_label": "run()"
     },
     {
@@ -1298,7 +1298,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_migrate_v12",
-      "community": 144,
+      "community": 113,
       "norm_label": "migrate_v12.js"
     },
     {
@@ -1308,7 +1308,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "backend_migrate_v12_pool",
-      "community": 144,
+      "community": 113,
       "norm_label": "{ pool }"
     },
     {
@@ -1318,7 +1318,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "backend_migrate_v12_run",
-      "community": 144,
+      "community": 113,
       "norm_label": "run()"
     },
     {
@@ -1358,7 +1358,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_migrate_v14",
-      "community": 98,
+      "community": 118,
       "norm_label": "migrate_v14.js"
     },
     {
@@ -1368,7 +1368,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "backend_migrate_v14_pool",
-      "community": 98,
+      "community": 118,
       "norm_label": "{ pool }"
     },
     {
@@ -1378,7 +1378,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_migrate_v14_run",
-      "community": 98,
+      "community": 118,
       "norm_label": "run()"
     },
     {
@@ -1388,7 +1388,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "backend_migrate_v14_columnexists",
-      "community": 98,
+      "community": 118,
       "norm_label": "columnexists()"
     },
     {
@@ -1498,7 +1498,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_migrate_v18",
-      "community": 16,
+      "community": 144,
       "norm_label": "migrate_v18.js"
     },
     {
@@ -1508,7 +1508,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "backend_migrate_v18_pool",
-      "community": 16,
+      "community": 144,
       "norm_label": "{ pool }"
     },
     {
@@ -1518,7 +1518,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "backend_migrate_v18_run",
-      "community": 16,
+      "community": 144,
       "norm_label": "run()"
     },
     {
@@ -1528,7 +1528,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_migrate_v19",
-      "community": 177,
+      "community": 16,
       "norm_label": "migrate_v19.js"
     },
     {
@@ -1538,7 +1538,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "backend_migrate_v19_pool",
-      "community": 177,
+      "community": 16,
       "norm_label": "{ pool }"
     },
     {
@@ -1548,7 +1548,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "backend_migrate_v19_run",
-      "community": 177,
+      "community": 16,
       "norm_label": "run()"
     },
     {
@@ -1558,7 +1558,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_migrate_v2",
-      "community": 161,
+      "community": 113,
       "norm_label": "migrate_v2.js"
     },
     {
@@ -1568,7 +1568,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "backend_migrate_v2_pool",
-      "community": 161,
+      "community": 113,
       "norm_label": "{ pool }"
     },
     {
@@ -1578,7 +1578,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "backend_migrate_v2_steps",
-      "community": 161,
+      "community": 113,
       "norm_label": "steps"
     },
     {
@@ -1588,7 +1588,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_migrate_v20",
-      "community": 98,
+      "community": 145,
       "norm_label": "migrate_v20.js"
     },
     {
@@ -1598,7 +1598,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "backend_migrate_v20_pool",
-      "community": 98,
+      "community": 145,
       "norm_label": "{ pool }"
     },
     {
@@ -1608,7 +1608,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_migrate_v20_run",
-      "community": 98,
+      "community": 145,
       "norm_label": "run()"
     },
     {
@@ -1618,7 +1618,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_migrate_v21",
-      "community": 16,
+      "community": 152,
       "norm_label": "migrate_v21.js"
     },
     {
@@ -1628,7 +1628,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "backend_migrate_v21_pool",
-      "community": 16,
+      "community": 152,
       "norm_label": "{ pool }"
     },
     {
@@ -1638,7 +1638,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "backend_migrate_v21_run",
-      "community": 16,
+      "community": 152,
       "norm_label": "run()"
     },
     {
@@ -1648,7 +1648,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_migrate_v22",
-      "community": 16,
+      "community": 153,
       "norm_label": "migrate_v22.js"
     },
     {
@@ -1658,7 +1658,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_migrate_v22_pool",
-      "community": 16,
+      "community": 153,
       "norm_label": "{ pool }"
     },
     {
@@ -1668,7 +1668,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "backend_migrate_v22_run",
-      "community": 16,
+      "community": 153,
       "norm_label": "run()"
     },
     {
@@ -1738,7 +1738,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_migrate_v25",
-      "community": 98,
+      "community": 159,
       "norm_label": "migrate_v25.js"
     },
     {
@@ -1748,7 +1748,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "backend_migrate_v25_pool",
-      "community": 98,
+      "community": 159,
       "norm_label": "{ pool }"
     },
     {
@@ -1758,7 +1758,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_migrate_v25_run",
-      "community": 98,
+      "community": 159,
       "norm_label": "run()"
     },
     {
@@ -1768,7 +1768,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_migrate_v26",
-      "community": 171,
+      "community": 113,
       "norm_label": "migrate_v26.js"
     },
     {
@@ -1778,7 +1778,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "backend_migrate_v26_pool",
-      "community": 171,
+      "community": 113,
       "norm_label": "{ pool }"
     },
     {
@@ -1788,7 +1788,37 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_migrate_v26_run",
-      "community": 171,
+      "community": 113,
+      "norm_label": "run()"
+    },
+    {
+      "label": "migrate_v27.js",
+      "file_type": "code",
+      "source_file": "dismed/backend/migrate_v27.js",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_migrate_v27",
+      "community": 160,
+      "norm_label": "migrate_v27.js"
+    },
+    {
+      "label": "{ pool }",
+      "file_type": "code",
+      "source_file": "dismed/backend/migrate_v27.js",
+      "source_location": "L13",
+      "_origin": "ast",
+      "id": "backend_migrate_v27_pool",
+      "community": 160,
+      "norm_label": "{ pool }"
+    },
+    {
+      "label": "run()",
+      "file_type": "code",
+      "source_file": "dismed/backend/migrate_v27.js",
+      "source_location": "L15",
+      "_origin": "ast",
+      "id": "backend_migrate_v27_run",
+      "community": 160,
       "norm_label": "run()"
     },
     {
@@ -1798,7 +1828,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_migrate_v3",
-      "community": 98,
+      "community": 113,
       "norm_label": "migrate_v3.js"
     },
     {
@@ -1808,7 +1838,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "backend_migrate_v3_pool",
-      "community": 98,
+      "community": 113,
       "norm_label": "{ pool }"
     },
     {
@@ -1818,7 +1848,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_migrate_v4",
-      "community": 16,
+      "community": 113,
       "norm_label": "migrate_v4.js"
     },
     {
@@ -1828,7 +1858,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "backend_migrate_v4_pool",
-      "community": 16,
+      "community": 113,
       "norm_label": "{ pool }"
     },
     {
@@ -1928,7 +1958,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_migrate_v8",
-      "community": 98,
+      "community": 16,
       "norm_label": "migrate_v8.js"
     },
     {
@@ -1938,7 +1968,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "backend_migrate_v8_pool",
-      "community": 98,
+      "community": 16,
       "norm_label": "{ pool }"
     },
     {
@@ -2278,7 +2308,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "scripts_cargar_apertura",
-      "community": 16,
+      "community": 161,
       "norm_label": "cargar_apertura.js"
     },
     {
@@ -2288,7 +2318,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "scripts_cargar_apertura_path",
-      "community": 16,
+      "community": 161,
       "norm_label": "path"
     },
     {
@@ -2298,7 +2328,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "scripts_cargar_apertura_pool",
-      "community": 16,
+      "community": 161,
       "norm_label": "{ pool }"
     },
     {
@@ -2498,7 +2528,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "scripts_descarga_sat",
-      "community": 164,
+      "community": 33,
       "norm_label": "descarga_sat.js"
     },
     {
@@ -2508,7 +2538,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "scripts_descarga_sat_svc",
-      "community": 164,
+      "community": 33,
       "norm_label": "svc"
     },
     {
@@ -2518,7 +2548,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "scripts_descarga_sat_validasat",
-      "community": 164,
+      "community": 33,
       "norm_label": "{ validasat }"
     },
     {
@@ -2528,7 +2558,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "scripts_descarga_sat_tipos_ok",
-      "community": 164,
+      "community": 33,
       "norm_label": "tipos_ok"
     },
     {
@@ -2538,7 +2568,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "scripts_descarga_sat_parseargs",
-      "community": 164,
+      "community": 33,
       "norm_label": "parseargs()"
     },
     {
@@ -2548,7 +2578,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "scripts_descarga_sat_rango",
-      "community": 153,
+      "community": 33,
       "norm_label": "descarga_sat_rango.js"
     },
     {
@@ -2558,7 +2588,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "scripts_descarga_sat_rango_svc",
-      "community": 153,
+      "community": 33,
       "norm_label": "svc"
     },
     {
@@ -2568,7 +2598,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "scripts_descarga_sat_rango_validasat",
-      "community": 153,
+      "community": 33,
       "norm_label": "{ validasat }"
     },
     {
@@ -2578,7 +2608,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "scripts_descarga_sat_rango_sleep",
-      "community": 153,
+      "community": 33,
       "norm_label": "sleep()"
     },
     {
@@ -2588,7 +2618,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "scripts_descarga_sat_rango_tipos_ok",
-      "community": 153,
+      "community": 33,
       "norm_label": "tipos_ok"
     },
     {
@@ -2598,7 +2628,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "scripts_descarga_sat_rango_terminales",
-      "community": 153,
+      "community": 33,
       "norm_label": "terminales"
     },
     {
@@ -2608,7 +2638,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "scripts_descarga_sat_rango_ts",
-      "community": 153,
+      "community": 33,
       "norm_label": "ts()"
     },
     {
@@ -2618,7 +2648,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "scripts_descarga_sat_rango_log",
-      "community": 153,
+      "community": 33,
       "norm_label": "log()"
     },
     {
@@ -2628,7 +2658,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "scripts_descarga_sat_rango_rangomeses",
-      "community": 153,
+      "community": 33,
       "norm_label": "rangomeses()"
     },
     {
@@ -2638,7 +2668,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "scripts_discover_legacy_cfdi",
-      "community": 130,
+      "community": 116,
       "norm_label": "discover_legacy_cfdi.js"
     },
     {
@@ -2648,7 +2678,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "scripts_discover_legacy_cfdi_createoldpool",
-      "community": 130,
+      "community": 116,
       "norm_label": "{ createoldpool }"
     },
     {
@@ -2728,7 +2758,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "scripts_legacy_cfdi_load",
-      "community": 118,
+      "community": 23,
       "norm_label": "legacy_cfdi_load.js"
     },
     {
@@ -2738,7 +2768,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "scripts_legacy_cfdi_load_fs",
-      "community": 118,
+      "community": 23,
       "norm_label": "fs"
     },
     {
@@ -2748,7 +2778,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "scripts_legacy_cfdi_load_path",
-      "community": 118,
+      "community": 23,
       "norm_label": "path"
     },
     {
@@ -2758,7 +2788,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "scripts_legacy_cfdi_load_guardarcomprobante",
-      "community": 118,
+      "community": 23,
       "norm_label": "{ guardarcomprobante }"
     },
     {
@@ -2768,7 +2798,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "scripts_legacy_cfdi_load_pool",
-      "community": 118,
+      "community": 23,
       "norm_label": "{ pool }"
     },
     {
@@ -2778,7 +2808,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "scripts_legacy_cfdi_load_dir",
-      "community": 118,
+      "community": 23,
       "norm_label": "dir"
     },
     {
@@ -2788,7 +2818,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "scripts_legacy_cfdi_load_rfc_propio",
-      "community": 118,
+      "community": 23,
       "norm_label": "rfc_propio"
     },
     {
@@ -2798,7 +2828,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "scripts_legacy_cfdi_load_read",
-      "community": 118,
+      "community": 23,
       "norm_label": "read()"
     },
     {
@@ -2808,7 +2838,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "scripts_legacy_cfdi_load_s",
-      "community": 118,
+      "community": 23,
       "norm_label": "s()"
     },
     {
@@ -2818,7 +2848,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "scripts_legacy_cfdi_load_n",
-      "community": 118,
+      "community": 23,
       "norm_label": "n()"
     },
     {
@@ -2828,7 +2858,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "scripts_legacy_cfdi_load_uuid",
-      "community": 118,
+      "community": 23,
       "norm_label": "uuid()"
     },
     {
@@ -2838,7 +2868,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "scripts_legacy_cfdi_load_headertocomprobante",
-      "community": 118,
+      "community": 23,
       "norm_label": "headertocomprobante()"
     },
     {
@@ -2848,7 +2878,7 @@
       "source_location": "L66",
       "_origin": "ast",
       "id": "scripts_legacy_cfdi_load_detalletoconcepto",
-      "community": 118,
+      "community": 23,
       "norm_label": "detalletoconcepto()"
     },
     {
@@ -2858,7 +2888,7 @@
       "source_location": "L87",
       "_origin": "ast",
       "id": "scripts_legacy_cfdi_load_agrupardetalle",
-      "community": 118,
+      "community": 23,
       "norm_label": "agrupardetalle()"
     },
     {
@@ -3398,7 +3428,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "scripts_reconciliar_estatus_rango",
-      "community": 152,
+      "community": 33,
       "norm_label": "reconciliar_estatus_rango.js"
     },
     {
@@ -3408,7 +3438,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "scripts_reconciliar_estatus_rango_pool",
-      "community": 152,
+      "community": 33,
       "norm_label": "{ pool }"
     },
     {
@@ -3418,7 +3448,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "scripts_reconciliar_estatus_rango_svc",
-      "community": 152,
+      "community": 33,
       "norm_label": "svc"
     },
     {
@@ -3428,7 +3458,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "scripts_reconciliar_estatus_rango_validasat",
-      "community": 152,
+      "community": 33,
       "norm_label": "{ validasat }"
     },
     {
@@ -3438,7 +3468,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "scripts_reconciliar_estatus_rango_sleep",
-      "community": 152,
+      "community": 33,
       "norm_label": "sleep()"
     },
     {
@@ -3448,7 +3478,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "scripts_reconciliar_estatus_rango_tipos_ok",
-      "community": 152,
+      "community": 33,
       "norm_label": "tipos_ok"
     },
     {
@@ -3458,7 +3488,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "scripts_reconciliar_estatus_rango_terminales",
-      "community": 152,
+      "community": 33,
       "norm_label": "terminales"
     },
     {
@@ -3468,7 +3498,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "scripts_reconciliar_estatus_rango_ts",
-      "community": 152,
+      "community": 33,
       "norm_label": "ts()"
     },
     {
@@ -3478,7 +3508,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "scripts_reconciliar_estatus_rango_log",
-      "community": 152,
+      "community": 33,
       "norm_label": "log()"
     },
     {
@@ -3488,7 +3518,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "scripts_reconciliar_estatus_rango_rangomeses",
-      "community": 152,
+      "community": 33,
       "norm_label": "rangomeses()"
     },
     {
@@ -3498,7 +3528,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "scripts_reconciliar_estatus_rango_reporte",
-      "community": 152,
+      "community": 33,
       "norm_label": "reporte()"
     },
     {
@@ -3538,7 +3568,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "scripts_test_sat_full",
-      "community": 96,
+      "community": 33,
       "norm_label": "test_sat_full.js"
     },
     {
@@ -3548,7 +3578,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "scripts_test_sat_full_solicitar_verificar_descargarpaquete_leercfdisdezip",
-      "community": 96,
+      "community": 33,
       "norm_label": "{ solicitar, verificar, descargarpaquete, leercfdisdezip }"
     },
     {
@@ -3558,7 +3588,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "scripts_test_sat_full_parsecfdi",
-      "community": 96,
+      "community": 33,
       "norm_label": "{ parsecfdi }"
     },
     {
@@ -3568,7 +3598,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "scripts_test_sat_full_sleep",
-      "community": 96,
+      "community": 33,
       "norm_label": "sleep()"
     },
     {
@@ -3578,7 +3608,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "scripts_test_sat_full_periodomes",
-      "community": 96,
+      "community": 33,
       "norm_label": "periodomes()"
     },
     {
@@ -3748,7 +3778,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_smoke_gemini",
-      "community": 45,
+      "community": 24,
       "norm_label": "smoke_gemini.js"
     },
     {
@@ -3758,7 +3788,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "backend_smoke_gemini_desempatarconia",
-      "community": 45,
+      "community": 24,
       "norm_label": "{ desempatarconia }"
     },
     {
@@ -3768,7 +3798,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_smoke_gemini_buscarprecioweb",
-      "community": 45,
+      "community": 24,
       "norm_label": "{ buscarprecioweb }"
     },
     {
@@ -3848,7 +3878,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "config_ai_provider",
-      "community": 80,
+      "community": 24,
       "norm_label": "ai.provider.js"
     },
     {
@@ -3858,7 +3888,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "config_ai_provider_provider",
-      "community": 80,
+      "community": 24,
       "norm_label": "provider"
     },
     {
@@ -3868,7 +3898,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "config_ai_provider_geminifetchconreintentos",
-      "community": 80,
+      "community": 24,
       "norm_label": "geminifetchconreintentos()"
     },
     {
@@ -3878,7 +3908,7 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "config_ai_provider_geminigenerate",
-      "community": 80,
+      "community": 24,
       "norm_label": "geminigenerate()"
     },
     {
@@ -3888,7 +3918,7 @@
       "source_location": "L99",
       "_origin": "ast",
       "id": "config_ai_provider_anthropicgenerate",
-      "community": 80,
+      "community": 24,
       "norm_label": "anthropicgenerate()"
     },
     {
@@ -3898,7 +3928,7 @@
       "source_location": "L153",
       "_origin": "ast",
       "id": "config_ai_provider_despachar",
-      "community": 80,
+      "community": 24,
       "norm_label": "despachar()"
     },
     {
@@ -3908,7 +3938,7 @@
       "source_location": "L170",
       "_origin": "ast",
       "id": "config_ai_provider_extraerjson",
-      "community": 45,
+      "community": 24,
       "norm_label": "extraerjson()"
     },
     {
@@ -3918,7 +3948,7 @@
       "source_location": "L178",
       "_origin": "ast",
       "id": "config_ai_provider_buscarconweb",
-      "community": 80,
+      "community": 24,
       "norm_label": "buscarconweb()"
     },
     {
@@ -3928,7 +3958,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "config_anthropic",
-      "community": 45,
+      "community": 24,
       "norm_label": "anthropic.js"
     },
     {
@@ -3938,7 +3968,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "config_anthropic_anthropic",
-      "community": 45,
+      "community": 24,
       "norm_label": "anthropic"
     },
     {
@@ -3948,7 +3978,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "config_anthropic_client",
-      "community": 45,
+      "community": 24,
       "norm_label": "client"
     },
     {
@@ -3978,7 +4008,7 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "config_db_pool",
-      "community": 98,
+      "community": 113,
       "norm_label": "pool"
     },
     {
@@ -4028,7 +4058,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "config_old_db",
-      "community": 130,
+      "community": 116,
       "norm_label": "old-db.js"
     },
     {
@@ -4038,7 +4068,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "config_old_db_mysql",
-      "community": 130,
+      "community": 116,
       "norm_label": "mysql"
     },
     {
@@ -4048,7 +4078,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "config_old_db_createoldpool",
-      "community": 130,
+      "community": 116,
       "norm_label": "createoldpool()"
     },
     {
@@ -4738,7 +4768,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "cfdi_cfdi_parser",
-      "community": 96,
+      "community": 23,
       "norm_label": "cfdi.parser.js"
     },
     {
@@ -4748,7 +4778,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "cfdi_cfdi_parser_xmlparser",
-      "community": 96,
+      "community": 23,
       "norm_label": "{ xmlparser }"
     },
     {
@@ -4758,7 +4788,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "cfdi_cfdi_parser_parser",
-      "community": 96,
+      "community": 23,
       "norm_label": "parser"
     },
     {
@@ -4768,7 +4798,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "cfdi_cfdi_parser_num",
-      "community": 96,
+      "community": 23,
       "norm_label": "num()"
     },
     {
@@ -4778,7 +4808,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "cfdi_cfdi_parser_numn",
-      "community": 96,
+      "community": 23,
       "norm_label": "numn()"
     },
     {
@@ -4788,7 +4818,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "cfdi_cfdi_parser_str",
-      "community": 96,
+      "community": 23,
       "norm_label": "str()"
     },
     {
@@ -4798,7 +4828,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "cfdi_cfdi_parser_arr",
-      "community": 96,
+      "community": 23,
       "norm_label": "arr()"
     },
     {
@@ -4808,7 +4838,7 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "cfdi_cfdi_parser_impuestosconcepto",
-      "community": 96,
+      "community": 23,
       "norm_label": "impuestosconcepto()"
     },
     {
@@ -4818,7 +4848,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "cfdi_cfdi_parser_parsecfdi",
-      "community": 96,
+      "community": 23,
       "norm_label": "parsecfdi()"
     },
     {
@@ -4828,7 +4858,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "cfdi_cfdi_repo",
-      "community": 160,
+      "community": 23,
       "norm_label": "cfdi.repo.js"
     },
     {
@@ -4838,7 +4868,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "cfdi_cfdi_repo_pool",
-      "community": 160,
+      "community": 23,
       "norm_label": "{ pool }"
     },
     {
@@ -4848,7 +4878,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "cfdi_cfdi_repo_cols_comp",
-      "community": 160,
+      "community": 23,
       "norm_label": "cols_comp"
     },
     {
@@ -4858,7 +4888,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "cfdi_cfdi_repo_cols_conc",
-      "community": 160,
+      "community": 23,
       "norm_label": "cols_conc"
     },
     {
@@ -4868,7 +4898,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "cfdi_cfdi_repo_pick",
-      "community": 160,
+      "community": 23,
       "norm_label": "pick()"
     },
     {
@@ -4878,7 +4908,7 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "cfdi_cfdi_repo_guardarcomprobante",
-      "community": 160,
+      "community": 23,
       "norm_label": "guardarcomprobante()"
     },
     {
@@ -4888,7 +4918,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "cfdi_cfdi_routes",
-      "community": 147,
+      "community": 96,
       "norm_label": "cfdi.routes.js"
     },
     {
@@ -4898,7 +4928,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "cfdi_cfdi_routes_router",
-      "community": 147,
+      "community": 96,
       "norm_label": "router"
     },
     {
@@ -4908,7 +4938,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "cfdi_cfdi_routes_auth",
-      "community": 147,
+      "community": 96,
       "norm_label": "auth"
     },
     {
@@ -4918,7 +4948,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "cfdi_cfdi_routes_c",
-      "community": 147,
+      "community": 96,
       "norm_label": "c"
     },
     {
@@ -4928,7 +4958,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "cfdi_cfdi_routes_adminonly",
-      "community": 147,
+      "community": 96,
       "norm_label": "adminonly()"
     },
     {
@@ -5058,7 +5088,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "cfdi_sat_cron",
-      "community": 167,
+      "community": 23,
       "norm_label": "sat.cron.js"
     },
     {
@@ -5068,7 +5098,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "cfdi_sat_cron_cron",
-      "community": 167,
+      "community": 23,
       "norm_label": "cron"
     },
     {
@@ -5078,7 +5108,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "cfdi_sat_cron_svc",
-      "community": 167,
+      "community": 23,
       "norm_label": "svc"
     },
     {
@@ -5088,7 +5118,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "cfdi_sat_cron_initcfdicron",
-      "community": 167,
+      "community": 23,
       "norm_label": "initcfdicron()"
     },
     {
@@ -5265,7 +5295,7 @@
       "label": "crearJobReconciliacion()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/cfdi/sat.descarga.service.js",
-      "source_location": "L177",
+      "source_location": "L187",
       "_origin": "ast",
       "id": "cfdi_sat_descarga_service_crearjobreconciliacion",
       "community": 23,
@@ -5275,7 +5305,7 @@
       "label": "procesarConEspera()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/cfdi/sat.descarga.service.js",
-      "source_location": "L186",
+      "source_location": "L196",
       "_origin": "ast",
       "id": "cfdi_sat_descarga_service_procesarconespera",
       "community": 23,
@@ -5285,7 +5315,7 @@
       "label": "procesarPendientes()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/cfdi/sat.descarga.service.js",
-      "source_location": "L197",
+      "source_location": "L207",
       "_origin": "ast",
       "id": "cfdi_sat_descarga_service_procesarpendientes",
       "community": 23,
@@ -5295,7 +5325,7 @@
       "label": "descargaMensualAutomatica()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/cfdi/sat.descarga.service.js",
-      "source_location": "L212",
+      "source_location": "L222",
       "_origin": "ast",
       "id": "cfdi_sat_descarga_service_descargamensualautomatica",
       "community": 23,
@@ -5305,7 +5335,7 @@
       "label": "purgarRepositorio()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/cfdi/sat.descarga.service.js",
-      "source_location": "L224",
+      "source_location": "L234",
       "_origin": "ast",
       "id": "cfdi_sat_descarga_service_purgarrepositorio",
       "community": 23,
@@ -5315,7 +5345,7 @@
       "label": "programarBatch()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/cfdi/sat.descarga.service.js",
-      "source_location": "L250",
+      "source_location": "L260",
       "_origin": "ast",
       "id": "cfdi_sat_descarga_service_programarbatch",
       "community": 23,
@@ -5328,7 +5358,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "cfdi_sat_fiel",
-      "community": 159,
+      "community": 33,
       "norm_label": "sat.fiel.js"
     },
     {
@@ -5338,7 +5368,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "cfdi_sat_fiel_fs",
-      "community": 159,
+      "community": 33,
       "norm_label": "fs"
     },
     {
@@ -5348,7 +5378,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "cfdi_sat_fiel_path",
-      "community": 159,
+      "community": 33,
       "norm_label": "path"
     },
     {
@@ -5358,7 +5388,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "cfdi_sat_fiel_fieldir",
-      "community": 159,
+      "community": 33,
       "norm_label": "fieldir()"
     },
     {
@@ -5368,7 +5398,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "cfdi_sat_fiel_findbyext",
-      "community": 159,
+      "community": 33,
       "norm_label": "findbyext()"
     },
     {
@@ -5378,7 +5408,7 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "cfdi_sat_fiel_readpassword",
-      "community": 159,
+      "community": 33,
       "norm_label": "readpassword()"
     },
     {
@@ -5388,7 +5418,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "cfdi_sat_fiel_cargarfiel",
-      "community": 159,
+      "community": 33,
       "norm_label": "cargarfiel()"
     },
     {
@@ -5398,7 +5428,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "clientes_clientes_controller",
-      "community": 13,
+      "community": 15,
       "norm_label": "clientes.controller.js"
     },
     {
@@ -5408,7 +5438,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "clientes_clientes_controller_pool",
-      "community": 13,
+      "community": 15,
       "norm_label": "{ pool }"
     },
     {
@@ -5418,7 +5448,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "clientes_clientes_controller_list",
-      "community": 13,
+      "community": 15,
       "norm_label": "list()"
     },
     {
@@ -5428,7 +5458,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "clientes_clientes_controller_getbyid",
-      "community": 13,
+      "community": 15,
       "norm_label": "getbyid()"
     },
     {
@@ -5438,7 +5468,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "clientes_clientes_controller_create",
-      "community": 13,
+      "community": 15,
       "norm_label": "create()"
     },
     {
@@ -5448,7 +5478,7 @@
       "source_location": "L57",
       "_origin": "ast",
       "id": "clientes_clientes_controller_update",
-      "community": 13,
+      "community": 15,
       "norm_label": "update()"
     },
     {
@@ -5458,7 +5488,7 @@
       "source_location": "L76",
       "_origin": "ast",
       "id": "clientes_clientes_controller_remove",
-      "community": 13,
+      "community": 15,
       "norm_label": "remove()"
     },
     {
@@ -5468,7 +5498,7 @@
       "source_location": "L83",
       "_origin": "ast",
       "id": "clientes_clientes_controller_listcontactos",
-      "community": 13,
+      "community": 15,
       "norm_label": "listcontactos()"
     },
     {
@@ -5478,7 +5508,7 @@
       "source_location": "L93",
       "_origin": "ast",
       "id": "clientes_clientes_controller_createcontacto",
-      "community": 13,
+      "community": 15,
       "norm_label": "createcontacto()"
     },
     {
@@ -5488,7 +5518,7 @@
       "source_location": "L112",
       "_origin": "ast",
       "id": "clientes_clientes_controller_updatecontacto",
-      "community": 13,
+      "community": 15,
       "norm_label": "updatecontacto()"
     },
     {
@@ -5498,7 +5528,7 @@
       "source_location": "L132",
       "_origin": "ast",
       "id": "clientes_clientes_controller_listskus",
-      "community": 13,
+      "community": 15,
       "norm_label": "listskus()"
     },
     {
@@ -5508,7 +5538,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "clientes_clientes_routes",
-      "community": 13,
+      "community": 15,
       "norm_label": "clientes.routes.js"
     },
     {
@@ -5518,7 +5548,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "clientes_clientes_routes_router",
-      "community": 13,
+      "community": 15,
       "norm_label": "router"
     },
     {
@@ -5528,7 +5558,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "clientes_clientes_routes_auth",
-      "community": 13,
+      "community": 15,
       "norm_label": "auth"
     },
     {
@@ -5538,7 +5568,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "clientes_clientes_routes_c",
-      "community": 13,
+      "community": 15,
       "norm_label": "c"
     },
     {
@@ -6745,7 +6775,7 @@
       "label": "getById()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/cotizaciones/cliente/cotcli.controller.js",
-      "source_location": "L20",
+      "source_location": "L19",
       "_origin": "ast",
       "id": "cliente_cotcli_controller_getbyid",
       "community": 6,
@@ -6755,7 +6785,7 @@
       "label": "create()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/cotizaciones/cliente/cotcli.controller.js",
-      "source_location": "L63",
+      "source_location": "L62",
       "_origin": "ast",
       "id": "cliente_cotcli_controller_create",
       "community": 6,
@@ -6765,7 +6795,7 @@
       "label": "update()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/cotizaciones/cliente/cotcli.controller.js",
-      "source_location": "L154",
+      "source_location": "L153",
       "_origin": "ast",
       "id": "cliente_cotcli_controller_update",
       "community": 6,
@@ -6775,7 +6805,7 @@
       "label": "cambiarEstatus()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/cotizaciones/cliente/cotcli.controller.js",
-      "source_location": "L169",
+      "source_location": "L168",
       "_origin": "ast",
       "id": "cliente_cotcli_controller_cambiarestatus",
       "community": 6,
@@ -6785,7 +6815,7 @@
       "label": "generarPdf()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/cotizaciones/cliente/cotcli.controller.js",
-      "source_location": "L180",
+      "source_location": "L179",
       "_origin": "ast",
       "id": "cliente_cotcli_controller_generarpdf",
       "community": 6,
@@ -6795,7 +6825,7 @@
       "label": "convertirPedido()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/cotizaciones/cliente/cotcli.controller.js",
-      "source_location": "L227",
+      "source_location": "L226",
       "_origin": "ast",
       "id": "cliente_cotcli_controller_convertirpedido",
       "community": 6,
@@ -7398,7 +7428,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "ingestion_extractor_factura",
-      "community": 173,
+      "community": 24,
       "norm_label": "extractor.factura.js"
     },
     {
@@ -7408,7 +7438,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "ingestion_extractor_factura_fs",
-      "community": 173,
+      "community": 24,
       "norm_label": "fs"
     },
     {
@@ -7418,7 +7448,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "ingestion_extractor_factura_pdfparse",
-      "community": 173,
+      "community": 24,
       "norm_label": "pdfparse"
     },
     {
@@ -7428,7 +7458,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "ingestion_extractor_factura_extraerjson",
-      "community": 173,
+      "community": 24,
       "norm_label": "{ extraerjson }"
     },
     {
@@ -7438,7 +7468,7 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "ingestion_extractor_factura_extraerfactura",
-      "community": 173,
+      "community": 24,
       "norm_label": "extraerfactura()"
     },
     {
@@ -7968,7 +7998,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "inventario_catalogos_routes",
-      "community": 174,
+      "community": 10,
       "norm_label": "catalogos.routes.js"
     },
     {
@@ -7978,7 +8008,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "inventario_catalogos_routes_router",
-      "community": 174,
+      "community": 10,
       "norm_label": "router"
     },
     {
@@ -7988,7 +8018,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "inventario_catalogos_routes_auth",
-      "community": 174,
+      "community": 10,
       "norm_label": "auth"
     },
     {
@@ -7998,7 +8028,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "inventario_catalogos_routes_c",
-      "community": 174,
+      "community": 10,
       "norm_label": "c"
     },
     {
@@ -8588,7 +8618,7 @@
       "source_location": "L88",
       "_origin": "ast",
       "id": "productos_productos_controller_matchia",
-      "community": 45,
+      "community": 9,
       "norm_label": "matchia()"
     },
     {
@@ -8678,7 +8708,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "productos_productos_routes",
-      "community": 145,
+      "community": 147,
       "norm_label": "productos.routes.js"
     },
     {
@@ -8688,7 +8718,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "productos_productos_routes_router",
-      "community": 145,
+      "community": 147,
       "norm_label": "router"
     },
     {
@@ -8698,7 +8728,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "productos_productos_routes_auth",
-      "community": 145,
+      "community": 147,
       "norm_label": "auth"
     },
     {
@@ -8708,7 +8738,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "productos_productos_routes_upload",
-      "community": 145,
+      "community": 147,
       "norm_label": "upload"
     },
     {
@@ -8718,7 +8748,7 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "productos_productos_routes_c",
-      "community": 145,
+      "community": 147,
       "norm_label": "c"
     },
     {
@@ -8908,7 +8938,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "solicitudes_buscador_web",
-      "community": 80,
+      "community": 24,
       "norm_label": "buscador.web.js"
     },
     {
@@ -8918,7 +8948,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "solicitudes_buscador_web_buscarconweb",
-      "community": 80,
+      "community": 24,
       "norm_label": "{ buscarconweb }"
     },
     {
@@ -8928,7 +8958,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "solicitudes_buscador_web_buscarprecioweb",
-      "community": 80,
+      "community": 24,
       "norm_label": "buscarprecioweb()"
     },
     {
@@ -8938,7 +8968,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "solicitudes_matcher_ia",
-      "community": 45,
+      "community": 24,
       "norm_label": "matcher.ia.js"
     },
     {
@@ -8948,7 +8978,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "solicitudes_matcher_ia_extraerjson",
-      "community": 45,
+      "community": 24,
       "norm_label": "{ extraerjson }"
     },
     {
@@ -8958,7 +8988,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "solicitudes_matcher_ia_desempatarconia",
-      "community": 45,
+      "community": 9,
       "norm_label": "desempatarconia()"
     },
     {
@@ -9095,7 +9125,7 @@
       "label": "normalizar()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/solicitudes/parser.excel.js",
-      "source_location": "L115",
+      "source_location": "L126",
       "_origin": "ast",
       "id": "solicitudes_parser_excel_normalizar",
       "community": 132,
@@ -9105,7 +9135,7 @@
       "label": "parseCantidad()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/solicitudes/parser.excel.js",
-      "source_location": "L123",
+      "source_location": "L134",
       "_origin": "ast",
       "id": "solicitudes_parser_excel_parsecantidad",
       "community": 132,
@@ -9118,7 +9148,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "solicitudes_parser_pdf",
-      "community": 45,
+      "community": 24,
       "norm_label": "parser.pdf.js"
     },
     {
@@ -9128,7 +9158,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "solicitudes_parser_pdf_fs",
-      "community": 45,
+      "community": 24,
       "norm_label": "fs"
     },
     {
@@ -9138,7 +9168,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "solicitudes_parser_pdf_pdfparse",
-      "community": 45,
+      "community": 24,
       "norm_label": "pdfparse"
     },
     {
@@ -9148,7 +9178,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "solicitudes_parser_pdf_extraerjson",
-      "community": 45,
+      "community": 24,
       "norm_label": "{ extraerjson }"
     },
     {
@@ -9158,7 +9188,7 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "solicitudes_parser_pdf_parsepdf",
-      "community": 45,
+      "community": 24,
       "norm_label": "parsepdf()"
     },
     {
@@ -9345,7 +9375,7 @@
       "label": "getById()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/solicitudes/solicitudes.controller.js",
-      "source_location": "L31",
+      "source_location": "L30",
       "_origin": "ast",
       "id": "solicitudes_solicitudes_controller_getbyid",
       "community": 5,
@@ -9355,7 +9385,7 @@
       "label": "create()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/solicitudes/solicitudes.controller.js",
-      "source_location": "L55",
+      "source_location": "L54",
       "_origin": "ast",
       "id": "solicitudes_solicitudes_controller_create",
       "community": 5,
@@ -9365,7 +9395,7 @@
       "label": "update()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/solicitudes/solicitudes.controller.js",
-      "source_location": "L87",
+      "source_location": "L86",
       "_origin": "ast",
       "id": "solicitudes_solicitudes_controller_update",
       "community": 5,
@@ -9375,7 +9405,7 @@
       "label": "parseExcel()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/solicitudes/solicitudes.controller.js",
-      "source_location": "L103",
+      "source_location": "L102",
       "_origin": "ast",
       "id": "solicitudes_solicitudes_controller_parseexcel",
       "community": 5,
@@ -9385,7 +9415,7 @@
       "label": "parsePdf()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/solicitudes/solicitudes.controller.js",
-      "source_location": "L112",
+      "source_location": "L111",
       "_origin": "ast",
       "id": "solicitudes_solicitudes_controller_parsepdf",
       "community": 5,
@@ -9395,7 +9425,7 @@
       "label": "clasificarComentarioProveedor()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/solicitudes/solicitudes.controller.js",
-      "source_location": "L133",
+      "source_location": "L132",
       "_origin": "ast",
       "id": "solicitudes_solicitudes_controller_clasificarcomentarioproveedor",
       "community": 5,
@@ -9405,7 +9435,7 @@
       "label": "bulkPartidas()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/solicitudes/solicitudes.controller.js",
-      "source_location": "L149",
+      "source_location": "L148",
       "_origin": "ast",
       "id": "solicitudes_solicitudes_controller_bulkpartidas",
       "community": 5,
@@ -9415,7 +9445,7 @@
       "label": "addPartida()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/solicitudes/solicitudes.controller.js",
-      "source_location": "L342",
+      "source_location": "L341",
       "_origin": "ast",
       "id": "solicitudes_solicitudes_controller_addpartida",
       "community": 5,
@@ -9425,7 +9455,7 @@
       "label": "updatePartida()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/solicitudes/solicitudes.controller.js",
-      "source_location": "L372",
+      "source_location": "L371",
       "_origin": "ast",
       "id": "solicitudes_solicitudes_controller_updatepartida",
       "community": 5,
@@ -9435,7 +9465,7 @@
       "label": "deletePartida()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/solicitudes/solicitudes.controller.js",
-      "source_location": "L418",
+      "source_location": "L417",
       "_origin": "ast",
       "id": "solicitudes_solicitudes_controller_deletepartida",
       "community": 5,
@@ -9445,7 +9475,7 @@
       "label": "registrarPrecioProveedor()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/solicitudes/solicitudes.controller.js",
-      "source_location": "L431",
+      "source_location": "L430",
       "_origin": "ast",
       "id": "solicitudes_solicitudes_controller_registrarprecioproveedor",
       "community": 5,
@@ -9455,7 +9485,7 @@
       "label": "recalcularMejorPrecio()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/solicitudes/solicitudes.controller.js",
-      "source_location": "L462",
+      "source_location": "L461",
       "_origin": "ast",
       "id": "solicitudes_solicitudes_controller_recalcularmejorprecio",
       "community": 5,
@@ -9465,7 +9495,7 @@
       "label": "sugerirCatalogoPorDescripcion()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/solicitudes/solicitudes.controller.js",
-      "source_location": "L486",
+      "source_location": "L485",
       "_origin": "ast",
       "id": "solicitudes_solicitudes_controller_sugerircatalogopordescripcion",
       "community": 133,
@@ -9475,7 +9505,7 @@
       "label": "buscarPrecioCatalogoPartida()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/solicitudes/solicitudes.controller.js",
-      "source_location": "L523",
+      "source_location": "L522",
       "_origin": "ast",
       "id": "solicitudes_solicitudes_controller_buscarpreciocatalogopartida",
       "community": 5,
@@ -9485,7 +9515,7 @@
       "label": "buscarPrecioWebPartida()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/solicitudes/solicitudes.controller.js",
-      "source_location": "L612",
+      "source_location": "L611",
       "_origin": "ast",
       "id": "solicitudes_solicitudes_controller_buscarpreciowebpartida",
       "community": 5,
@@ -9495,7 +9525,7 @@
       "label": "comparador()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/solicitudes/solicitudes.controller.js",
-      "source_location": "L697",
+      "source_location": "L696",
       "_origin": "ast",
       "id": "solicitudes_solicitudes_controller_comparador",
       "community": 5,
@@ -10548,7 +10578,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_test_ai_provider",
-      "community": 80,
+      "community": 24,
       "norm_label": "test_ai_provider.js"
     },
     {
@@ -10558,7 +10588,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "backend_test_ai_provider_assert",
-      "community": 80,
+      "community": 24,
       "norm_label": "assert()"
     },
     {
@@ -10568,7 +10598,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_test_ai_provider_provider",
-      "community": 80,
+      "community": 24,
       "norm_label": "provider"
     },
     {
@@ -10578,7 +10608,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_test_ai_provider_parser",
-      "community": 80,
+      "community": 24,
       "norm_label": "parser"
     },
     {
@@ -10588,7 +10618,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "backend_test_ai_provider_matcher",
-      "community": 80,
+      "community": 24,
       "norm_label": "matcher"
     },
     {
@@ -10598,7 +10628,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "backend_test_ai_provider_buscador",
-      "community": 80,
+      "community": 24,
       "norm_label": "buscador"
     },
     {
@@ -12000,7 +12030,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "configuracion_configuracion",
-      "community": 11,
+      "community": 45,
       "norm_label": "configuracion.jsx"
     },
     {
@@ -12010,7 +12040,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "configuracion_configuracion_configuracion",
-      "community": 11,
+      "community": 45,
       "norm_label": "configuracion()"
     },
     {
@@ -12020,7 +12050,7 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "configuracion_configuracion_vigenciaprecios",
-      "community": 11,
+      "community": 45,
       "norm_label": "vigenciaprecios()"
     },
     {
@@ -12030,7 +12060,7 @@
       "source_location": "L152",
       "_origin": "ast",
       "id": "configuracion_configuracion_all_keys",
-      "community": 11,
+      "community": 45,
       "norm_label": "all_keys"
     },
     {
@@ -12040,7 +12070,7 @@
       "source_location": "L154",
       "_origin": "ast",
       "id": "configuracion_configuracion_permisosusuarios",
-      "community": 11,
+      "community": 45,
       "norm_label": "permisosusuarios()"
     },
     {
@@ -12260,7 +12290,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "contabilidad_bancos",
-      "community": 8,
+      "community": 28,
       "norm_label": "bancos.jsx"
     },
     {
@@ -12270,7 +12300,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "contabilidad_bancos_form_vacio",
-      "community": 8,
+      "community": 28,
       "norm_label": "form_vacio"
     },
     {
@@ -12280,7 +12310,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "contabilidad_bancos_bancos",
-      "community": 8,
+      "community": 28,
       "norm_label": "bancos()"
     },
     {
@@ -12670,37 +12700,37 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "cotizaciones_detallecotizacion",
-      "community": 28,
+      "community": 8,
       "norm_label": "detallecotizacion.jsx"
     },
     {
       "label": "fmt()",
       "file_type": "code",
       "source_file": "dismed/frontend/src/pages/Cotizaciones/DetalleCotizacion.jsx",
-      "source_location": "L9",
+      "source_location": "L11",
       "_origin": "ast",
       "id": "cotizaciones_detallecotizacion_fmt",
-      "community": 28,
+      "community": 8,
       "norm_label": "fmt()"
     },
     {
       "label": "ESTATUS_BADGE",
       "file_type": "code",
       "source_file": "dismed/frontend/src/pages/Cotizaciones/DetalleCotizacion.jsx",
-      "source_location": "L12",
+      "source_location": "L14",
       "_origin": "ast",
       "id": "cotizaciones_detallecotizacion_estatus_badge",
-      "community": 28,
+      "community": 8,
       "norm_label": "estatus_badge"
     },
     {
       "label": "DetalleCotizacion()",
       "file_type": "code",
       "source_file": "dismed/frontend/src/pages/Cotizaciones/DetalleCotizacion.jsx",
-      "source_location": "L20",
+      "source_location": "L22",
       "_origin": "ast",
       "id": "cotizaciones_detallecotizacion_detallecotizacion",
-      "community": 28,
+      "community": 8,
       "norm_label": "detallecotizacion()"
     },
     {
@@ -12780,7 +12810,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "herramientas_exportardatos",
-      "community": 36,
+      "community": 13,
       "norm_label": "exportardatos.jsx"
     },
     {
@@ -12790,7 +12820,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "herramientas_exportardatos_tipos",
-      "community": 36,
+      "community": 13,
       "norm_label": "tipos"
     },
     {
@@ -12800,7 +12830,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "herramientas_exportardatos_exportardatos",
-      "community": 36,
+      "community": 13,
       "norm_label": "exportardatos()"
     },
     {
@@ -12810,7 +12840,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "herramientas_importardatos",
-      "community": 36,
+      "community": 13,
       "norm_label": "importardatos.jsx"
     },
     {
@@ -12820,7 +12850,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "herramientas_importardatos_tipos",
-      "community": 36,
+      "community": 13,
       "norm_label": "tipos"
     },
     {
@@ -12830,7 +12860,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "herramientas_importardatos_importardatos",
-      "community": 36,
+      "community": 13,
       "norm_label": "importardatos()"
     },
     {
@@ -12840,7 +12870,7 @@
       "source_location": "L270",
       "_origin": "ast",
       "id": "herramientas_importardatos_stat",
-      "community": 36,
+      "community": 13,
       "norm_label": "stat()"
     },
     {
@@ -12950,7 +12980,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "inventario_importexistenciasmodal",
-      "community": 36,
+      "community": 13,
       "norm_label": "importexistenciasmodal.jsx"
     },
     {
@@ -12960,7 +12990,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "inventario_importexistenciasmodal_importexistenciasmodal",
-      "community": 8,
+      "community": 13,
       "norm_label": "importexistenciasmodal()"
     },
     {
@@ -12970,7 +13000,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "inventario_movimientos",
-      "community": 8,
+      "community": 13,
       "norm_label": "movimientos.jsx"
     },
     {
@@ -12980,7 +13010,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "inventario_movimientos_tipo_badge",
-      "community": 8,
+      "community": 13,
       "norm_label": "tipo_badge"
     },
     {
@@ -12990,7 +13020,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "inventario_movimientos_modalshell",
-      "community": 8,
+      "community": 13,
       "norm_label": "modalshell()"
     },
     {
@@ -13000,7 +13030,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "inventario_movimientos_entradamodal",
-      "community": 8,
+      "community": 13,
       "norm_label": "entradamodal()"
     },
     {
@@ -13010,7 +13040,7 @@
       "source_location": "L135",
       "_origin": "ast",
       "id": "inventario_movimientos_operacionmodal",
-      "community": 8,
+      "community": 13,
       "norm_label": "operacionmodal()"
     },
     {
@@ -13020,7 +13050,7 @@
       "source_location": "L200",
       "_origin": "ast",
       "id": "inventario_movimientos_movimientos",
-      "community": 8,
+      "community": 13,
       "norm_label": "movimientos()"
     },
     {
@@ -13050,7 +13080,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "productos_importcatalogomodal",
-      "community": 36,
+      "community": 13,
       "norm_label": "importcatalogomodal.jsx"
     },
     {
@@ -13090,7 +13120,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "productos_productoslist_productoslist",
-      "community": 72,
+      "community": 28,
       "norm_label": "productoslist()"
     },
     {
@@ -13100,7 +13130,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "proveedores_catalogoproveedor",
-      "community": 36,
+      "community": 45,
       "norm_label": "catalogoproveedor.jsx"
     },
     {
@@ -13110,7 +13140,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "proveedores_catalogoproveedor_catalogoproveedor",
-      "community": 72,
+      "community": 45,
       "norm_label": "catalogoproveedor()"
     },
     {
@@ -13120,7 +13150,7 @@
       "source_location": "L330",
       "_origin": "ast",
       "id": "proveedores_catalogoproveedor_altacatalogomodal",
-      "community": 36,
+      "community": 45,
       "norm_label": "altacatalogomodal()"
     },
     {
@@ -13130,7 +13160,7 @@
       "source_location": "L488",
       "_origin": "ast",
       "id": "proveedores_catalogoproveedor_fechaprecio",
-      "community": 36,
+      "community": 45,
       "norm_label": "fechaprecio()"
     },
     {
@@ -13140,7 +13170,7 @@
       "source_location": "L505",
       "_origin": "ast",
       "id": "proveedores_catalogoproveedor_textoedit",
-      "community": 36,
+      "community": 45,
       "norm_label": "textoedit()"
     },
     {
@@ -13150,7 +13180,7 @@
       "source_location": "L535",
       "_origin": "ast",
       "id": "proveedores_catalogoproveedor_precioedit",
-      "community": 36,
+      "community": 45,
       "norm_label": "precioedit()"
     },
     {
@@ -13510,7 +13540,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "services_api",
-      "community": 36,
+      "community": 11,
       "norm_label": "api.js"
     },
     {
@@ -13520,7 +13550,7 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "services_api_api",
-      "community": 36,
+      "community": 13,
       "norm_label": "api"
     },
     {
@@ -13530,7 +13560,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "services_descargas",
-      "community": 36,
+      "community": 13,
       "norm_label": "descargas.js"
     },
     {
@@ -13540,7 +13570,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "services_descargas_descargararchivo",
-      "community": 36,
+      "community": 13,
       "norm_label": "descargararchivo()"
     },
     {
@@ -13600,7 +13630,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "store_prefsstore",
-      "community": 72,
+      "community": 45,
       "norm_label": "prefsstore.js"
     },
     {
@@ -13610,7 +13640,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "store_prefsstore_rows_per_page_options",
-      "community": 72,
+      "community": 45,
       "norm_label": "rows_per_page_options"
     },
     {
@@ -13620,7 +13650,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "store_prefsstore_useprefsstore",
-      "community": 72,
+      "community": 45,
       "norm_label": "useprefsstore"
     },
     {
@@ -13702,6 +13732,16 @@
       "id": "scripts_setup_local_db_invoke_rootfile",
       "community": 120,
       "norm_label": "invoke-rootfile()"
+    },
+    {
+      "label": "subir_a_github.ps1",
+      "file_type": "code",
+      "source_file": "dismed/subir_a_github.ps1",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "dismed_subir_a_github",
+      "community": 164,
+      "norm_label": "subir_a_github.ps1"
     },
     {
       "label": "fix_apache.py",
@@ -16362,6 +16402,116 @@
       "id": "manual_skill_descarga_sat_6_notas_t\u00e9cnicas_referencia",
       "community": 128,
       "norm_label": "6. notas tecnicas (referencia)"
+    },
+    {
+      "label": "PROPUESTA_POS_FARMACIA.md",
+      "file_type": "document",
+      "source_file": "PROPUESTA_POS_FARMACIA.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "propuesta_pos_farmacia",
+      "community": 80,
+      "norm_label": "propuesta_pos_farmacia.md"
+    },
+    {
+      "label": "Propuesta \u2014 M\u00f3dulo POS Farmacia (conectado a DISMED)",
+      "file_type": "document",
+      "source_file": "PROPUESTA_POS_FARMACIA.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "propuesta_pos_farmacia_propuesta_m\u00f3dulo_pos_farmacia_conectado_a_dismed",
+      "community": 80,
+      "norm_label": "propuesta \u2014 modulo pos farmacia (conectado a dismed)"
+    },
+    {
+      "label": "0. Resumen",
+      "file_type": "document",
+      "source_file": "PROPUESTA_POS_FARMACIA.md",
+      "source_location": "L8",
+      "_origin": "ast",
+      "id": "propuesta_pos_farmacia_0_resumen",
+      "community": 80,
+      "norm_label": "0. resumen"
+    },
+    {
+      "label": "1. Investigaci\u00f3n de mercado",
+      "file_type": "document",
+      "source_file": "PROPUESTA_POS_FARMACIA.md",
+      "source_location": "L21",
+      "_origin": "ast",
+      "id": "propuesta_pos_farmacia_1_investigaci\u00f3n_de_mercado",
+      "community": 80,
+      "norm_label": "1. investigacion de mercado"
+    },
+    {
+      "label": "2. Qu\u00e9 ya tiene DISMED y se reutiliza tal cual",
+      "file_type": "document",
+      "source_file": "PROPUESTA_POS_FARMACIA.md",
+      "source_location": "L39",
+      "_origin": "ast",
+      "id": "propuesta_pos_farmacia_2_qu\u00e9_ya_tiene_dismed_y_se_reutiliza_tal_cual",
+      "community": 80,
+      "norm_label": "2. que ya tiene dismed y se reutiliza tal cual"
+    },
+    {
+      "label": "3. Qu\u00e9 es genuinamente nuevo",
+      "file_type": "document",
+      "source_file": "PROPUESTA_POS_FARMACIA.md",
+      "source_location": "L57",
+      "_origin": "ast",
+      "id": "propuesta_pos_farmacia_3_qu\u00e9_es_genuinamente_nuevo",
+      "community": 80,
+      "norm_label": "3. que es genuinamente nuevo"
+    },
+    {
+      "label": "4. Fases propuestas",
+      "file_type": "document",
+      "source_file": "PROPUESTA_POS_FARMACIA.md",
+      "source_location": "L71",
+      "_origin": "ast",
+      "id": "propuesta_pos_farmacia_4_fases_propuestas",
+      "community": 80,
+      "norm_label": "4. fases propuestas"
+    },
+    {
+      "label": "MVP",
+      "file_type": "document",
+      "source_file": "PROPUESTA_POS_FARMACIA.md",
+      "source_location": "L73",
+      "_origin": "ast",
+      "id": "propuesta_pos_farmacia_mvp",
+      "community": 80,
+      "norm_label": "mvp"
+    },
+    {
+      "label": "Fase 2",
+      "file_type": "document",
+      "source_file": "PROPUESTA_POS_FARMACIA.md",
+      "source_location": "L82",
+      "_origin": "ast",
+      "id": "propuesta_pos_farmacia_fase_2",
+      "community": 80,
+      "norm_label": "fase 2"
+    },
+    {
+      "label": "Fase 3",
+      "file_type": "document",
+      "source_file": "PROPUESTA_POS_FARMACIA.md",
+      "source_location": "L88",
+      "_origin": "ast",
+      "id": "propuesta_pos_farmacia_fase_3",
+      "community": 80,
+      "norm_label": "fase 3"
+    },
+    {
+      "label": "5. Preguntas abiertas para el propietario",
+      "file_type": "document",
+      "source_file": "PROPUESTA_POS_FARMACIA.md",
+      "source_location": "L94",
+      "_origin": "ast",
+      "id": "propuesta_pos_farmacia_5_preguntas_abiertas_para_el_propietario",
+      "community": 80,
+      "norm_label": "5. preguntas abiertas para el propietario"
     },
     {
       "label": "REPORTE_QA_FRONTEND.md",
@@ -20670,6 +20820,48 @@
       "confidence_score": 1.0,
       "source": "backend_migrate_v26",
       "target": "config_db_pool"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "dismed/backend/migrate_v27.js",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "backend_migrate_v27",
+      "target": "backend_migrate_v27_pool",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "dismed/backend/migrate_v27.js",
+      "source_location": "L15",
+      "weight": 1.0,
+      "source": "backend_migrate_v27",
+      "target": "backend_migrate_v27_run",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "dismed/backend/migrate_v27.js",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "backend_migrate_v27",
+      "target": "config_db",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "dismed/backend/migrate_v27.js",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "backend_migrate_v27",
+      "target": "config_db_pool",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -32272,9 +32464,9 @@
       "source_file": "dismed/backend/src/modules/proveedores/proveedores.controller.js",
       "source_location": "L204",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "proveedores_proveedores_controller",
-      "target": "proveedores_proveedores_controller_createcatalogo",
-      "confidence_score": 1.0
+      "target": "proveedores_proveedores_controller_createcatalogo"
     },
     {
       "relation": "contains",
@@ -37811,6 +38003,17 @@
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
+      "source_file": "dismed/frontend/src/pages/Cotizaciones/DetalleCotizacion.jsx",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "cotizaciones_detallecotizacion",
+      "target": "ui_pagination",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
       "source_file": "dismed/frontend/src/pages/Inventario/CatalogosApoyo.jsx",
       "source_location": "L7",
       "weight": 1.0,
@@ -37991,6 +38194,17 @@
       "confidence_score": 1.0,
       "source": "cotizaciones_cotizacioneslist",
       "target": "ui_pagination_pagination"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "dismed/frontend/src/pages/Cotizaciones/DetalleCotizacion.jsx",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "cotizaciones_detallecotizacion",
+      "target": "ui_pagination_pagination",
+      "confidence_score": 1.0
     },
     {
       "relation": "imports",
@@ -38208,6 +38422,17 @@
       "target": "hooks_usepagination"
     },
     {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "dismed/frontend/src/pages/Cotizaciones/DetalleCotizacion.jsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "cotizaciones_detallecotizacion",
+      "target": "hooks_usepagination",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "dismed/frontend/src/hooks/usePagination.js",
@@ -38391,6 +38616,28 @@
       "source_location": "L24",
       "weight": 1.0,
       "source": "cotizaciones_cotizacioneslist_cotizacioneslist",
+      "target": "hooks_usepagination_usepagination"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "dismed/frontend/src/pages/Cotizaciones/DetalleCotizacion.jsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "cotizaciones_detallecotizacion",
+      "target": "hooks_usepagination_usepagination",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "dismed/frontend/src/pages/Cotizaciones/DetalleCotizacion.jsx",
+      "source_location": "L60",
+      "weight": 1.0,
+      "source": "cotizaciones_detallecotizacion_detallecotizacion",
       "target": "hooks_usepagination_usepagination"
     },
     {
@@ -41185,9 +41432,9 @@
       "source_file": "dismed/frontend/src/pages/Proveedores/CatalogoProveedor.jsx",
       "source_location": "L330",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "proveedores_catalogoproveedor",
-      "target": "proveedores_catalogoproveedor_altacatalogomodal",
-      "confidence_score": 1.0
+      "target": "proveedores_catalogoproveedor_altacatalogomodal"
     },
     {
       "relation": "contains",
@@ -44479,6 +44726,106 @@
       "confidence_score": 1.0,
       "source": "manual_skill_descarga_sat_manual_de_usuario_skill_descarga_sat",
       "target": "manual_skill_descarga_sat_6_notas_t\u00e9cnicas_referencia"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "PROPUESTA_POS_FARMACIA.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "propuesta_pos_farmacia",
+      "target": "propuesta_pos_farmacia_propuesta_m\u00f3dulo_pos_farmacia_conectado_a_dismed",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "PROPUESTA_POS_FARMACIA.md",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "propuesta_pos_farmacia_propuesta_m\u00f3dulo_pos_farmacia_conectado_a_dismed",
+      "target": "propuesta_pos_farmacia_0_resumen",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "PROPUESTA_POS_FARMACIA.md",
+      "source_location": "L21",
+      "weight": 1.0,
+      "source": "propuesta_pos_farmacia_propuesta_m\u00f3dulo_pos_farmacia_conectado_a_dismed",
+      "target": "propuesta_pos_farmacia_1_investigaci\u00f3n_de_mercado",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "PROPUESTA_POS_FARMACIA.md",
+      "source_location": "L39",
+      "weight": 1.0,
+      "source": "propuesta_pos_farmacia_propuesta_m\u00f3dulo_pos_farmacia_conectado_a_dismed",
+      "target": "propuesta_pos_farmacia_2_qu\u00e9_ya_tiene_dismed_y_se_reutiliza_tal_cual",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "PROPUESTA_POS_FARMACIA.md",
+      "source_location": "L57",
+      "weight": 1.0,
+      "source": "propuesta_pos_farmacia_propuesta_m\u00f3dulo_pos_farmacia_conectado_a_dismed",
+      "target": "propuesta_pos_farmacia_3_qu\u00e9_es_genuinamente_nuevo",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "PROPUESTA_POS_FARMACIA.md",
+      "source_location": "L71",
+      "weight": 1.0,
+      "source": "propuesta_pos_farmacia_propuesta_m\u00f3dulo_pos_farmacia_conectado_a_dismed",
+      "target": "propuesta_pos_farmacia_4_fases_propuestas",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "PROPUESTA_POS_FARMACIA.md",
+      "source_location": "L94",
+      "weight": 1.0,
+      "source": "propuesta_pos_farmacia_propuesta_m\u00f3dulo_pos_farmacia_conectado_a_dismed",
+      "target": "propuesta_pos_farmacia_5_preguntas_abiertas_para_el_propietario",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "PROPUESTA_POS_FARMACIA.md",
+      "source_location": "L82",
+      "weight": 1.0,
+      "source": "propuesta_pos_farmacia_4_fases_propuestas",
+      "target": "propuesta_pos_farmacia_fase_2",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "PROPUESTA_POS_FARMACIA.md",
+      "source_location": "L88",
+      "weight": 1.0,
+      "source": "propuesta_pos_farmacia_4_fases_propuestas",
+      "target": "propuesta_pos_farmacia_fase_3",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "PROPUESTA_POS_FARMACIA.md",
+      "source_location": "L73",
+      "weight": 1.0,
+      "source": "propuesta_pos_farmacia_4_fases_propuestas",
+      "target": "propuesta_pos_farmacia_mvp",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",

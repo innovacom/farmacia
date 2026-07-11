@@ -35,6 +35,13 @@ import Bancos from './pages/Contabilidad/Bancos';
 import CfdiPorComprobante from './pages/Contabilidad/CfdiPorComprobante';
 import CfdiResumenGeneral from './pages/Contabilidad/CfdiResumenGeneral';
 import Configuracion from './pages/Configuracion/Configuracion';
+import Empresas from './pages/Configuracion/Empresas';
+import PosSucursales from './pages/Pos/Sucursales';
+import PosTurnos from './pages/Pos/Turnos';
+import VentaMostrador from './pages/Pos/VentaMostrador';
+import HistorialVentas from './pages/Pos/HistorialVentas';
+import Bitacora from './pages/Pos/Bitacora';
+import FacturasGlobales from './pages/Pos/FacturasGlobales';
 import ImportarDatos from './pages/Herramientas/ImportarDatos';
 import ExportarDatos from './pages/Herramientas/ExportarDatos';
 import Ayuda from './pages/Ayuda/Ayuda';
@@ -90,6 +97,13 @@ export default function App() {
         <Route path="contabilidad/cfdi-por-comprobante"  element={<CfdiPorComprobante />} />
         <Route path="contabilidad/cfdi-resumen-general"  element={<CfdiResumenGeneral />} />
         <Route path="configuracion"                       element={<Configuracion />} />
+        <Route path="configuracion/empresas"              element={<Empresas />} />
+        <Route path="pos"                                 element={<VentaMostrador />} />
+        <Route path="pos/ventas"                          element={<HistorialVentas />} />
+        <Route path="pos/bitacora"                        element={<Bitacora />} />
+        <Route path="pos/sucursales"                      element={<PosSucursales />} />
+        <Route path="pos/facturas-globales"               element={<FacturasGlobales />} />
+        <Route path="pos/turnos"                          element={<PosTurnos />} />
         <Route path="herramientas/importar"               element={<ImportarDatos />} />
         <Route path="herramientas/exportar"               element={<ExportarDatos />} />
         <Route path="ayuda"                               element={<Ayuda />} />

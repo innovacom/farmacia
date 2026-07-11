@@ -20,6 +20,10 @@ app.use(express.urlencoded({ extended: true }));
 const outputDir = process.env.OUTPUT_DIR || './outputs';
 app.use('/outputs', express.static(path.resolve(outputDir)));
 
+// Logos de branding por empresa (subidos vía /api/empresas/:id/logo)
+const uploadDir = process.env.UPLOAD_DIR || './uploads';
+app.use('/uploads/branding', express.static(path.resolve(uploadDir, 'branding')));
+
 // Rutas
 app.use('/api/auth',                   require('./modules/auth/auth.routes'));
 app.use('/api/clientes',               require('./modules/clientes/clientes.routes'));
@@ -40,6 +44,8 @@ app.use('/api/bancos',                 require('./modules/bancos/bancos.routes')
 app.use('/api/configuracion',          require('./modules/configuracion/configuracion.routes'));
 app.use('/api/herramientas',           require('./modules/herramientas/herramientas.routes'));
 app.use('/api/ingestion',              require('./modules/ingestion/ingestion.routes'));
+app.use('/api/pos',                    require('./modules/pos/pos.routes'));
+app.use('/api/empresas',               require('./modules/empresas/empresas.routes'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', ts: new Date() }));
 

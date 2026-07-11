@@ -3,6 +3,17 @@
 @tailwind utilities;
 
 @layer base {
+  /* Paleta brand como variables RGB (ver tailwind.config.js). Defaults =
+     azul INNOVACOM de siempre; useBranding.js las reemplaza en runtime
+     con el color de la empresa (white-label POS). */
+  :root {
+    --brand-50: 239 246 255;
+    --brand-100: 219 234 254;
+    --brand-500: 26 107 181;
+    --brand-600: 21 88 160;
+    --brand-700: 16 71 138;
+  }
+
   body {
     @apply bg-gray-50 text-gray-900 antialiased;
   }
@@ -54,6 +65,37 @@
   .table-auto tbody tr:hover {
     @apply bg-gray-50;
   }
+
+  /* Botonera táctil del POS (mostrador): teclas grandes, no toca los .btn */
+  .btn-pos {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl
+           text-xl font-semibold transition-colors duration-150
+           focus:outline-none focus:ring-2 focus:ring-offset-2 select-none;
+  }
+  .btn-pos-primary { @apply btn-pos bg-brand-500 text-white hover:bg-brand-600 focus:ring-brand-500; }
+  .btn-pos-secondary { @apply btn-pos bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-gray-300; }
+}
+
+/* ---- Ticket térmico POS (58/80mm vía window.print) ----
+   El ticket vive oculto en pantalla (.ticket-print) y es lo ÚNICO visible
+   al imprimir cuando <body> tiene la clase .imprimiendo-ticket. El ancho
+   lo fija TicketPrint.jsx con una variable CSS según empresas_config. */
+.ticket-print { display: none; }
+
+@media print {
+  body.imprimiendo-ticket * { visibility: hidden; }
+  body.imprimiendo-ticket .ticket-print,
+  body.imprimiendo-ticket .ticket-print * { visibility: visible; }
+  body.imprimiendo-ticket .ticket-print {
+    display: block !important;
+    position: absolute; left: 0; top: 0;
+    width: var(--ticket-ancho, 80mm);
+    font-family: 'Courier New', monospace;
+    font-size: 11px; line-height: 1.25; color: #000;
+  }
+  /* La regla @page (tamaño 58/80mm y margen 0) no puede condicionarse por
+     clase: TicketPrint.jsx la inyecta en un <style> solo mientras imprime,
+     para no afectar la impresión de reportes (tamaño carta). */
 }
 
 /* ---- Impresión: solo el contenido, sin sidebar ni controles ---- */

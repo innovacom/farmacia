@@ -31,6 +31,7 @@ async function login(req, res, next) {
       rol:         user.rol,
       jefe_id:     user.jefe_id,
       jefe_nombre: user.jefe_nombre,
+      empresa_id:  user.empresa_id,
     };
 
     const token = jwt.sign(payload, process.env.JWT_SECRET, {

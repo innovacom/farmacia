@@ -1,7 +1,7 @@
 {
   ".claude/settings.json": {
-    "mtime": 1781964674.4737358,
-    "ast_hash": "ad3b7b4dbad0e3f7543b3474c931abf6",
+    "mtime": 1783715913.2471664,
+    "ast_hash": "9563a84b573ad5026211084d2a4cc294",
     "semantic_hash": ""
   },
   ".claude/settings.local.json": {
@@ -1615,8 +1615,8 @@
     "semantic_hash": ""
   },
   "PROPUESTA_POS_FARMACIA.md": {
-    "mtime": 1783711223.4420881,
-    "ast_hash": "bb763739bb7e670b54962463a47eb7c4",
+    "mtime": 1783711791.8277364,
+    "ast_hash": "27e2208a4c114daf2afc81061aac9294",
     "semantic_hash": ""
   }
 }
