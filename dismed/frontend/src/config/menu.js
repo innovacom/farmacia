@@ -3,7 +3,7 @@ import {
   Layers, Warehouse, Boxes, ArrowLeftRight, ShoppingCart, BookOpen, History,
   HelpCircle, Receipt, SlidersHorizontal, Settings, Download, Upload, Wrench,
   Calculator, TrendingUp, Scale, BookOpenCheck, ListTree, Landmark, BookText,
-  FileSpreadsheet, BarChart3,
+  FileSpreadsheet, BarChart3, Store, Clock, Pill, Building2,
 } from 'lucide-react';
 
 // Catálogo canónico del menú. Debe mantenerse en sincronía con el backend
@@ -57,6 +57,14 @@ export const MENU = {
       ],
     },
     {
+      label: 'POS Farmacia', icon: Store, items: [
+        { key: 'pos-venta',    to: '/pos',            label: 'Venta mostrador',      icon: Store },
+        { key: 'pos-turnos',   to: '/pos/turnos',     label: 'Caja y turnos',        icon: Clock },
+        { key: 'pos-bitacora', to: '/pos/bitacora',   label: 'Bitácora COFEPRIS',    icon: Pill },
+        { key: 'pos-admin',    to: '/pos/sucursales', label: 'Sucursales y cajas',   icon: Warehouse },
+      ],
+    },
+    {
       label: 'Herramientas', icon: Wrench, items: [
         { key: 'herramientas-importar', to: '/herramientas/importar', label: 'Importar datos', icon: Upload },
         { key: 'herramientas-exportar', to: '/herramientas/exportar', label: 'Exportar datos', icon: Download },
@@ -66,6 +74,7 @@ export const MENU = {
       label: 'Configuración', icon: Settings, items: [
         { key: 'preferencias', to: '/configuracion', label: 'Preferencias', icon: SlidersHorizontal, always: true },
         { key: 'usuarios',     to: '/usuarios',      label: 'Usuarios',     icon: UserCog, adminOnly: true },
+        { key: 'empresas',     to: '/configuracion/empresas', label: 'Empresas', icon: Building2, adminOnly: true },
       ],
     },
   ],

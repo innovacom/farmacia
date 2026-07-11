@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { LogOut, X, ChevronDown } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { usePermisos } from '../../hooks/usePermisos';
+import { useBranding } from '../../hooks/useBranding';
 import { MENU } from '../../config/menu';
 
 const itemClass = ({ isActive }) =>
@@ -25,6 +26,7 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
   const { user, logout } = useAuthStore();
   const { pathname } = useLocation();
   const { can, ready } = usePermisos();
+  const branding = useBranding();
 
   // Items visibles para este usuario (admin ve todo; operador según permisos).
   const visibleGroups = MENU.groups
@@ -65,9 +67,15 @@ export default function Sidebar({ open = false, onClose = () => {} }) {
         {/* Logo */}
         <div className="px-4 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
-            <img src="/logo_innovacom.png" alt="INNOVACOM" className="w-10 h-10 object-contain" />
+            <img
+              src={branding?.logo_url || '/logo_innovacom.png'}
+              alt={branding?.nombre_comercial || 'INNOVACOM'}
+              className="w-10 h-10 object-contain"
+            />
             <div className="flex-1">
-              <p className="font-bold text-gray-900 text-sm leading-none">INNOVACOM</p>
+              <p className="font-bold text-gray-900 text-sm leading-none">
+                {branding?.nombre_comercial || 'INNOVACOM'}
+              </p>
               <p className="text-xs text-gray-400 mt-0.5">ERP Distribución Médica</p>
             </div>
             <button

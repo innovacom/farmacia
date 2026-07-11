@@ -15,6 +15,7 @@ const FORM_VACIO = {
   unidad_medida_id: '', unidad_medida: '', unidad_base: 'pieza', factor_empaque: 1,
   control_lote_caducidad: 1, precio_lista: '', precio_publico: '', iva_exento: 0,
   clave_sat: '', clave_unidad_sat: '', fabricante: '', ean: '',
+  clasificacion_cofepris: 'libre',
   cuenta_ingreso_codigo: '', cuenta_costo_codigo: '',
 };
 
@@ -121,6 +122,7 @@ export default function ProductosList() {
       precio_lista: p.precio_lista ?? '', precio_publico: p.precio_publico ?? '',
       iva_exento: p.iva_exento ?? 0, clave_sat: p.clave_sat || '', clave_unidad_sat: p.clave_unidad_sat || '',
       fabricante: p.fabricante || '', ean: p.ean || '',
+      clasificacion_cofepris: p.clasificacion_cofepris || 'libre',
       cuenta_ingreso_codigo: p.cuenta_ingreso_codigo || '', cuenta_costo_codigo: p.cuenta_costo_codigo || '',
     });
     setShowModal(true);
@@ -432,6 +434,25 @@ export default function ProductosList() {
                 <label className="label">EAN / código barras</label>
                 <input className="input font-mono" value={form.ean} onChange={(e) => set('ean', e.target.value)} />
               </div>
+            </div>
+
+            <div>
+              <label className="label">Clasificación COFEPRIS (venta en mostrador)</label>
+              <select
+                className="input"
+                value={form.clasificacion_cofepris}
+                onChange={(e) => set('clasificacion_cofepris', e.target.value)}
+              >
+                <option value="libre">Venta libre (fracción VI)</option>
+                <option value="venta_farmacia">Venta en farmacia sin receta (fracción V)</option>
+                <option value="antibiotico">Antibiótico — receta retenida (fracción IV)</option>
+                <option value="fraccion_iii">Fracción III — receta, hasta 3 surtimientos</option>
+                <option value="fraccion_ii">Fracción II — receta retenida, libro de control</option>
+                <option value="fraccion_i">Fracción I — receta especial, libro de control</option>
+              </select>
+              <p className="text-xs text-gray-400 mt-1">
+                Antibióticos y fracciones I–III exigen receta al vender en el POS y se registran en la bitácora COFEPRIS.
+              </p>
             </div>
 
             {/* Cuentas contables (Código Agrupador SAT) */}

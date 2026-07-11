@@ -30,6 +30,12 @@ export default function UsuariosList() {
     queryFn: () => api.get('/usuarios').then((r) => r.data),
   });
 
+  // Empresas para asignación de tenant (POS multi-empresa)
+  const { data: empresas = [] } = useQuery({
+    queryKey: ['empresas'],
+    queryFn: () => api.get('/empresas').then((r) => r.data),
+  });
+
   const filtrados = useMemo(() => {
     const t = q.trim().toLowerCase();
     if (!t) return data;
@@ -52,6 +58,7 @@ export default function UsuariosList() {
         rol:     d.rol,
         email:   d.email,
         jefe_id: d.jefe_id || null,
+        empresa_id: d.empresa_id || 1,
         activo:  d.activo ? 1 : 0,
       };
       if (d.password) payload.password = d.password;
@@ -86,7 +93,7 @@ export default function UsuariosList() {
 
   function abrirNuevo() {
     setEditando(null);
-    reset({ rol: 'operador', activo: 1 });
+    reset({ rol: 'operador', activo: 1, empresa_id: 1 });
     setVerPassword(false);
     setShowModal(true);
   }
@@ -99,6 +106,7 @@ export default function UsuariosList() {
       rol:      u.rol,
       email:    u.email,
       jefe_id:  u.jefe_id || '',
+      empresa_id: u.empresa_id || 1,
       activo:   !!u.activo,
       password: '',
     });
@@ -279,6 +287,15 @@ export default function UsuariosList() {
                   <option value="">— Sin jefe asignado —</option>
                   {posiblesJefes.map((j) => (
                     <option key={j.id} value={j.id}>{j.nombre}{j.puesto ? ` — ${j.puesto}` : ''}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="col-span-2">
+                <label className="label">Empresa (tenant del POS)</label>
+                <select className="input" {...register('empresa_id')}>
+                  {empresas.map((e) => (
+                    <option key={e.id} value={e.id}>{e.nombre_comercial || e.nombre}</option>
                   ))}
                 </select>
               </div>
