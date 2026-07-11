@@ -102,3 +102,42 @@ Esto es clave: **gran parte de la infraestructura de un POS de farmacia ya está
 | 5 | Cédula del médico | ✅ **Captura libre + catálogo propio de médicos** (tabla `medicos`): autocompletado por cédula en ventas siguientes. Sin validación externa (COFEPRIS exige registrar, no verificar). Verificación contra SEP: opcional, Fase 2. |
 
 **Impacto en el MVP:** estas decisiones no agregan submódulos; concretan los ya listados en §4. La tabla `medicos` se suma al submódulo de recetas (§3.5) y la factura global se suma al submódulo CFDI simplificado (§3.6).
+
+**Adición (revisión del plan, 2026-07-10):** branding por empresa (white-label) — logo, colores, tema y parámetros clave-valor por tenant, con pantalla de configuración multi-empresa. Ver §7.
+
+---
+
+## 6. Estado de implementación (2026-07-10)
+
+**Entrega 1 — Fundación: ✅ IMPLEMENTADA Y VERIFICADA EN LOCAL**
+1. ✅ `migrate_v28.js`: `empresas` (+branding), `empresas_config`, `sucursales` (1:1 almacén), `pos_cajas`, `pos_turnos` (UNIQUE de turno abierto por columna generada), `pos_caja_movimientos`, `medicos`, `pos_recetas`, `pos_ventas`, `pos_ventas_partidas`, `pos_facturas_globales`; ALTERs: `usuarios.empresa_id` (backfill=1), `productos.clasificacion_cofepris`, `cfdi_comprobantes.origen/pos_venta_id/pos_factura_global_id` (entrega_id ahora NULL-able). Corrida + re-corrida idempotente en MariaDB local.
+2. ✅ `middleware/tenant.js` (deny-by-default, fallback a BD para JWT viejos) y `middleware/permisos.js` (`requirePermiso` — primer permiso server-side del repo). Claves `pos-venta/pos-turnos/pos-bitacora/pos-admin` en `menu.keys.js` + frontend.
+3. ✅ Módulo `pos` (sucursales, cajas, turnos: abrir con doble candado, retiros/depósitos, corte, cierre con diferencia registrada — verificado por curl: doble apertura 409, arqueo con diferencia +50, 403 a operador sin permiso).
+4. ✅ Módulo `empresas` + `services/branding.service.js` (caché): `mi-branding`, CRUD admin, config clave-valor (META), upload de logos (png/jpg/webp ≤2MB, nombre generado por server) servidos en `/uploads/branding`.
+5. ✅ Theming: paleta `brand` → CSS variables (defaults INNOVACOM idénticos), `useBranding` genera la escala desde el color de la empresa; Sidebar con logo/nombre del tenant. Pantalla `Configuracion/Empresas.jsx` (datos fiscales, identidad visual con vista previa en vivo, parámetros POS) + select de empresa en usuarios.
+
+**Entrega 2 — Venta mostrador: ✅ IMPLEMENTADA Y VERIFICADA EN LOCAL**
+6. ✅ `registrarSalidaFEFO` extendido con `almacen_id` opcional + desglose de lotes (sin él, comportamiento idéntico — regresión verificada con salida multi-almacén).
+7. ✅ `POST /api/pos/ventas` transaccional: idempotencia `client_uuid` (verificada: reintento devuelve el mismo folio), FEFO del almacén de la sucursal (verificado: caduca-antes primero, no toca otros almacenes), 409 stock con disponible, pagos mixtos con cambio, IVA desglosado del precio público.
+8. ✅ Cancelación mismo-turno con reingreso por lote exacto (verificada en kardex) y 409 fuera de condiciones. Corte cuadra excluyendo canceladas.
+9. ✅ UI: `VentaMostrador.jsx` (input siempre-focus para lector EAN, carrito, F2/F4, `.btn-pos`), `ModalCobro` (mixto, denominaciones, uuid al abrir), `TicketPrint` 58/80mm vía `window.print()` con branding y `@page` inyectado, `HistorialVentas.jsx` (reimpresión, cancelación, facturación).
+
+**Entrega 3 — Recetas/COFEPRIS: ✅ IMPLEMENTADA Y VERIFICADA EN LOCAL**
+10. ✅ Venta de controlado sin receta → 422 backend (verificado); con receta crea/reusa médico por cédula (verificado autocompletado). `ModalReceta` exige domicilio en fracciones II/III.
+11. ✅ Bitácora = vista de consulta con lote/caducidad del FEFO, receta, médico, paciente, dispensó (verificada: la venta cancelada NO aparece; 403 sin permiso `pos-bitacora`). `Bitacora.jsx` exporta Excel (xlsx del frontend, una hoja por clasificación).
+12. ✅ `clasificacion_cofepris` editable en el alta/edición de producto.
+
+**Entrega 4 — CFDI mostrador: ✅ IMPLEMENTADA; PENDIENTE prueba con Facturama sandbox**
+13. ✅ Refactor `cfdi.facturama.js`: extraídos `timbrarComprobante` (PAC + XML, sin BD) e `insertarComprobante` (INSERT con origen); `timbrarEntrega` queda como composición idéntica.
+14. ✅ Factura individual `POST /api/pos/ventas/:id/facturar` (verificado: 422 con faltantes de claves SAT ANTES de llamar al PAC; 409 si ya facturada/global). Captura de RFC en `ModalCobro` y desde el historial.
+15. ✅ Factura global en dos pasos (verificado: el borrador marca tickets transaccionalmente y excluye canceladas; segundo borrador mismo periodo → 422; fallo de timbre → `estatus='error'` re-timbrable; liberar tickets = acción manual con cerrojo). `FacturasGlobales.jsx` con confirmación antes de timbrar.
+16. ✅ Consumidores de `cfdi_comprobantes` auditados: todos filtran `entrega_id = ?` — los registros POS (entrega_id NULL) no los afectan.
+17. ⚠️ **Pendiente del usuario:** probar timbrado real (individual + global con `GlobalInformation`) contra Facturama **sandbox** — requiere `FACTURAMA_URL`/`FACTURAMA_TOKEN` en `.env`, que no están en esta copia. Todos los caminos previos al PAC quedaron verificados.
+
+**Hallazgo pre-existente (no causado por este trabajo):** el repositorio NO incluye `frontend/src/pages/Cfdi/` (ConsultaCfdi, DescargasSat) ni `backend/src/modules/cfdi/` (consulta SAT + sat.cron), aunque `App.jsx`/`app.js` los importan — ni el build ni el arranque funcionaban desde esta copia. Se crearon **stubs marcados como tales** para restaurar build/arranque; hay que restaurar los originales desde la copia de producción/OneDrive y borrar los stubs.
+
+## 7. Branding multi-empresa (white-label) — implementado
+
+- `empresas`: `logo_path`, `logo_ticket_path`, `color_primario/secundario`, `tema`; `empresas_config`: clave-valor por tenant (`ticket_ancho_mm`, `ticket_leyenda_pie`, `ticket_mostrar_leyenda_factura`, `global_periodicidad_default`, `pos_permitir_descuento`) validado contra un `META` extensible sin migraciones.
+- Frontend con CSS variables: sin branding configurado la app se ve idéntica a hoy; con branding, el color primario genera la escala 50–700 y pinta toda la UI; el ticket usa logo/leyendas del tenant.
+- **Límite explícito:** el CFDI se timbra con el perfil Facturama global (un RFC por cuenta del PAC). Los datos fiscales por empresa ya están capturados para el multiemisor de Fase 3 (primera farmacia cliente externa con RFC propio).
