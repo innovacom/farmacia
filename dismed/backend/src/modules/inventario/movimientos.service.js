@@ -168,29 +168,43 @@ async function registrarAjuste(conn, d) {
 
 // Salida por FEFO: descuenta `cantidad` de un producto tomando primero los lotes que
 // caducan antes (null = sin caducidad, al final). No permite quedar negativo.
-async function registrarSalidaFEFO(conn, { producto_id, cantidad, motivo = null, referencia = null, usuario_id = null }) {
+// `almacen_id` (opcional) restringe la salida a los lotes de ese almacén — lo usa la
+// venta de mostrador (POS) para descontar solo del almacén de la sucursal; sin él,
+// el comportamiento es el de siempre (todos los almacenes).
+// Devuelve además el desglose de lotes consumidos (para la bitácora COFEPRIS del POS).
+async function registrarSalidaFEFO(conn, { producto_id, cantidad, motivo = null, referencia = null, usuario_id = null, almacen_id = null }) {
   const cant = parseFloat(cantidad);
   if (!(cant > 0)) throw Object.assign(new Error('Cantidad debe ser > 0'), { status: 400 });
+  const params = [producto_id];
+  let filtroAlmacen = '';
+  if (almacen_id) { filtroAlmacen = ' AND almacen_id = ?'; params.push(almacen_id); }
   const [lotes] = await conn.query(
-    `SELECT id, cantidad_actual FROM inventario_lotes
-     WHERE producto_id = ? AND cantidad_actual > 0
+    `SELECT id, numero_lote, fecha_caducidad, cantidad_actual FROM inventario_lotes
+     WHERE producto_id = ? AND cantidad_actual > 0${filtroAlmacen}
      ORDER BY fecha_caducidad IS NULL, fecha_caducidad ASC, id ASC
-     FOR UPDATE`, [producto_id]
+     FOR UPDATE`, params
   );
   const disponible = lotes.reduce((a, l) => a + Number(l.cantidad_actual), 0);
   if (disponible < cant) {
-    throw Object.assign(new Error(`Existencia insuficiente (disponible: ${disponible}, requerido: ${cant})`), { status: 400 });
+    throw Object.assign(new Error(`Existencia insuficiente (disponible: ${disponible}, requerido: ${cant})`), { status: 400, disponible });
   }
   let resta = cant;
   const folios = [];
+  const lotesConsumidos = [];
   for (const l of lotes) {
     if (resta <= 0) break;
     const toma = Math.min(resta, Number(l.cantidad_actual));
     const out = await registrarSalida(conn, { lote_id: l.id, cantidad: toma, motivo, referencia, usuario_id });
     folios.push(out.folio);
+    lotesConsumidos.push({
+      lote_id: l.id,
+      lote: l.numero_lote,
+      caducidad: l.fecha_caducidad,
+      cantidad: toma,
+    });
     resta -= toma;
   }
-  return { folios };
+  return { folios, lotes: lotesConsumidos };
 }
 
 module.exports = {

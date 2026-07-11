@@ -159,6 +159,83 @@ function urlQrSat({ uuid, rfcEmisor, rfcReceptor, total, selloCfdi }) {
     `?id=${uuid}&re=${rfcEmisor}&rr=${rfcReceptor}&tt=${total}&fe=${fe}`;
 }
 
+// ── Núcleo componible del timbrado (lo usan entregas Y el POS) ────────────────
+/**
+ * Manda el body CFDI a Facturama, deriva UUID/cadenas/QR y descarga el XML
+ * timbrado a /outputs/cfdi/<año>/<folioArchivo>.xml. NO toca la base de datos:
+ * el llamador persiste con insertarComprobante() dentro de su propia transacción.
+ */
+async function timbrarComprobante(body, { folioArchivo }) {
+  const resp = await fPost('/3/cfdis', body);
+
+  const tfd = resp.Complement?.TaxStamp || {};
+  const uuid = tfd.Uuid;
+  if (!uuid) {
+    const e = new Error('Facturama no devolvió UUID en el timbre'); e.status = 422; throw e;
+  }
+  const rfcEmisor = (resp.Issuer?.Rfc || '').toUpperCase();
+  const rfcReceptor = (resp.Receiver?.Rfc || '').toUpperCase();
+  const total = String(resp.Total);
+  const cadenaTfd = cadenaOriginalTfd(tfd, tfd.RfcProvCertif);
+  const qrUrl = urlQrSat({ uuid, rfcEmisor, rfcReceptor, total, selloCfdi: tfd.CfdiSign });
+  const qrDataUrl = await QRCode.toDataURL(qrUrl);
+
+  const anioActual = new Date().getFullYear();
+  const xmlDir = path.resolve(process.env.OUTPUT_DIR || './outputs', 'cfdi', String(anioActual));
+  fs.mkdirSync(xmlDir, { recursive: true });
+  const xmlContent = await descargarXmlFacturama(resp.Id);
+  const xmlFileName = `${folioArchivo}.xml`;
+  fs.writeFileSync(path.join(xmlDir, xmlFileName), xmlContent, 'utf8');
+  const xmlPath = `/outputs/cfdi/${anioActual}/${xmlFileName}`;
+
+  const cfdiData = {
+    uuid,
+    folio: resp.Folio || null,
+    serie: resp.Serie || null,
+    fecha_timbrado: tfd.Date || null,
+    sello_cfdi: tfd.CfdiSign || null,
+    sello_sat: tfd.SatSign || null,
+    cert_emisor: resp.CertNumber || null,
+    cert_sat: tfd.SatCertNumber || null,
+    rfc_prov_certif: tfd.RfcProvCertif || null,
+    cadena_original_tfd: cadenaTfd,
+    cadena_original_comprobante: resp.OriginalString || null,
+    qr_url: qrUrl,
+    qr_dataurl: qrDataUrl,
+    emisor_nombre: resp.Issuer?.TaxName || empresaCfdi().nombre,
+    emisor_rfc: rfcEmisor,
+    total,
+  };
+  return { resp, cfdiData, xmlPath, qrUrl };
+}
+
+/**
+ * INSERT en cfdi_comprobantes con el origen correcto (entrega | pos_venta |
+ * pos_global). Recibe la conexión del llamador para componer su transacción.
+ */
+async function insertarComprobante(conn, {
+  origen = 'entrega', entrega_id = null, pos_venta_id = null, pos_factura_global_id = null,
+  resp, cfdiData, xmlPath, pdfPath = null, qrUrl,
+}) {
+  const [r] = await conn.query(
+    `INSERT INTO cfdi_comprobantes
+       (entrega_id, origen, pos_venta_id, pos_factura_global_id,
+        facturama_id, uuid, serie, folio, fecha_timbrado,
+        sello_cfdi, sello_sat, cert_emisor, cert_sat, rfc_prov_certif,
+        cadena_original_tfd, cadena_original_comprobante, qr_url,
+        xml_path, pdf_path, total, status, raw_response)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'vigente',?)`,
+    [
+      entrega_id, origen, pos_venta_id, pos_factura_global_id,
+      resp.Id, cfdiData.uuid, cfdiData.serie, cfdiData.folio, cfdiData.fecha_timbrado,
+      cfdiData.sello_cfdi, cfdiData.sello_sat, cfdiData.cert_emisor, cfdiData.cert_sat, cfdiData.rfc_prov_certif,
+      cfdiData.cadena_original_tfd, cfdiData.cadena_original_comprobante, qrUrl,
+      xmlPath, pdfPath, resp.Total != null ? Number(resp.Total) : null, JSON.stringify(resp),
+    ]
+  );
+  return r.insertId;
+}
+
 // ── Timbrado de una entrega tipo factura ──────────────────────────────────────
 async function timbrarEntrega(entregaId) {
   // 1) Cargar la entrega con cliente y conceptos.
@@ -182,51 +259,13 @@ async function timbrarEntrega(entregaId) {
     e.status = 422; e.faltantes = v.faltantes; throw e;
   }
 
-  // 4) Timbrar en Facturama (si falla, el Error 422 con el Message ya se propaga).
+  // 4-6) Timbrar, derivar y descargar el XML (núcleo compartido con el POS).
   const body = construirCfdiFacturama(data);
-  const resp = await fPost('/3/cfdis', body);
-
-  // 5) Extraer campos y calcular derivados.
-  const tfd = resp.Complement?.TaxStamp || {};
-  const uuid = tfd.Uuid;
-  if (!uuid) {
-    const e = new Error('Facturama no devolvió UUID en el timbre'); e.status = 422; throw e;
-  }
-  const rfcEmisor = (resp.Issuer?.Rfc || '').toUpperCase();
-  const rfcReceptor = (resp.Receiver?.Rfc || '').toUpperCase();
-  const total = String(resp.Total);
-  const cadenaTfd = cadenaOriginalTfd(tfd, tfd.RfcProvCertif);
-  const qrUrl = urlQrSat({ uuid, rfcEmisor, rfcReceptor, total, selloCfdi: tfd.CfdiSign });
-  const qrDataUrl = await QRCode.toDataURL(qrUrl);
-
-  // 6) Descargar y guardar el XML timbrado.
-  const anioActual = new Date().getFullYear();
-  const xmlDir = path.resolve(process.env.OUTPUT_DIR || './outputs', 'cfdi', String(anioActual));
-  fs.mkdirSync(xmlDir, { recursive: true });
-  const xmlContent = await descargarXmlFacturama(resp.Id);
-  const xmlFileName = `${data.entrega.folio}.xml`;
-  fs.writeFileSync(path.join(xmlDir, xmlFileName), xmlContent, 'utf8');
-  const xmlPath = `/outputs/cfdi/${anioActual}/${xmlFileName}`;
+  const { resp, cfdiData, xmlPath, qrUrl } = await timbrarComprobante(body, {
+    folioArchivo: data.entrega.folio,
+  });
 
   // 7) Generar el PDF (representación impresa) con nuestro generador.
-  const cfdiData = {
-    uuid,
-    folio: resp.Folio || null,
-    serie: resp.Serie || null,
-    fecha_timbrado: tfd.Date || null,
-    sello_cfdi: tfd.CfdiSign || null,
-    sello_sat: tfd.SatSign || null,
-    cert_emisor: resp.CertNumber || null,
-    cert_sat: tfd.SatCertNumber || null,
-    rfc_prov_certif: tfd.RfcProvCertif || null,
-    cadena_original_tfd: cadenaTfd,
-    cadena_original_comprobante: resp.OriginalString || null,
-    qr_url: qrUrl,
-    qr_dataurl: qrDataUrl,
-    emisor_nombre: resp.Issuer?.TaxName || empresaCfdi().nombre,
-    emisor_rfc: rfcEmisor,
-    total,
-  };
   const entregaFull = await cargarEntregaCfdi(entregaId);
   let pdfPath = null;
   try {
@@ -238,25 +277,15 @@ async function timbrarEntrega(entregaId) {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    await conn.query(
-      `INSERT INTO cfdi_comprobantes
-         (entrega_id, facturama_id, uuid, serie, folio, fecha_timbrado,
-          sello_cfdi, sello_sat, cert_emisor, cert_sat, rfc_prov_certif,
-          cadena_original_tfd, cadena_original_comprobante, qr_url,
-          xml_path, pdf_path, total, status, raw_response)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'vigente',?)`,
-      [
-        entregaId, resp.Id, uuid, cfdiData.serie, cfdiData.folio, cfdiData.fecha_timbrado,
-        cfdiData.sello_cfdi, cfdiData.sello_sat, cfdiData.cert_emisor, cfdiData.cert_sat, cfdiData.rfc_prov_certif,
-        cfdiData.cadena_original_tfd, cfdiData.cadena_original_comprobante, qrUrl,
-        xmlPath, pdfPath, resp.Total != null ? Number(resp.Total) : null, JSON.stringify(resp),
-      ]
-    );
+    await insertarComprobante(conn, {
+      origen: 'entrega', entrega_id: entregaId,
+      resp, cfdiData, xmlPath, pdfPath, qrUrl,
+    });
     await conn.query("UPDATE entregas SET estatus_cfdi = 'timbrado' WHERE id = ?", [entregaId]);
     await conn.commit();
   } catch (err) { await conn.rollback(); throw err; } finally { conn.release(); }
 
-  return { uuid, facturama_id: resp.Id, xml_url: xmlPath, pdf_url: pdfPath, qr_url: qrUrl };
+  return { uuid: cfdiData.uuid, facturama_id: resp.Id, xml_url: xmlPath, pdf_url: pdfPath, qr_url: qrUrl };
 }
 
 // ── Cancelación de un CFDI vigente ────────────────────────────────────────────
@@ -311,4 +340,7 @@ async function cargarEntregaCfdi(id) {
   return { ...ent, partidas };
 }
 
-module.exports = { timbrarEntrega, cancelarCfdi, descargarXmlFacturama };
+module.exports = {
+  timbrarEntrega, cancelarCfdi, descargarXmlFacturama,
+  timbrarComprobante, insertarComprobante,
+};
