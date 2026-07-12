@@ -12,7 +12,9 @@ router.use(auth, tenant);
 router.get('/sucursales',     requirePermiso('pos-admin'), c.listSucursales);
 router.post('/sucursales',    requirePermiso('pos-admin'), c.createSucursal);
 router.put('/sucursales/:id', requirePermiso('pos-admin'), c.updateSucursal);
-router.get('/cajas',          requirePermiso('pos-admin'), c.listCajas);
+// Listar cajas requiere solo pos-venta: el cajero necesita elegir su caja
+// para encontrar el turno; crear/editar siguen siendo pos-admin.
+router.get('/cajas',          requirePermiso('pos-venta'), c.listCajas);
 router.post('/cajas',         requirePermiso('pos-admin'), c.createCaja);
 router.put('/cajas/:id',      requirePermiso('pos-admin'), c.updateCaja);
 
