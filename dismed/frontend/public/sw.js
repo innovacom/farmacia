@@ -5,7 +5,7 @@
  *  - Assets con hash (/assets/*.js|css): cache primero — inmutables por nombre.
  *  - /api y /outputs: nunca se cachean ni interceptan.
  */
-const CACHE = 'innovacom-v2';
+const CACHE = 'innovacom-v3';
 const STATIC_PATHS = ['/icon-192.png', '/icon-512.png', '/apple-touch-icon.png', '/logo_innovacom.png'];
 
 self.addEventListener('install', (e) => {
