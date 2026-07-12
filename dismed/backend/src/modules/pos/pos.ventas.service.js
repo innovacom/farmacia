@@ -116,7 +116,7 @@ async function crearVenta(empresaId, payload) {
         throw Object.assign(new Error('Cantidad inválida en una partida'), { status: 400 });
       }
       const [[prod]] = await conn.query(
-        `SELECT id, descripcion, precio_publico, clasificacion_cofepris, ieps
+        `SELECT id, descripcion, precio_publico, clasificacion_cofepris, ieps, iva_exento
          FROM productos WHERE id = ? AND activo = 1`,
         [p.producto_id]
       );
@@ -132,8 +132,9 @@ async function crearVenta(empresaId, payload) {
       if (importe < 0) {
         throw Object.assign(new Error('Descuento mayor que el importe'), { status: 400 });
       }
-      const ivaTasa = 0.16; // medicamentos tasa 0 se modelará con clave SAT en E4; MVP: IVA incluido en precio público
-      // El precio público ya incluye IVA: se desglosa para el ticket.
+      // Medicamentos (iva_exento=1) = TASA 0 (decisión del contador 2026-07-11:
+      // TaxObject 02 Rate 0.000000, NO exento). Resto: 16% incluido en precio público.
+      const ivaTasa = prod.iva_exento ? 0 : 0.16;
       const importeSinIva = Math.round((importe / (1 + ivaTasa)) * 100) / 100;
       subtotal += importeSinIva;
       iva += importe - importeSinIva;

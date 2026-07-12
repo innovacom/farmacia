@@ -24,7 +24,6 @@ const { timbrarComprobante, insertarComprobante } = require('../ventas/cfdi.fact
 const { empresaCfdi } = require('../ventas/cfdi.txt.generator');
 const { getScoped } = require('./pos.tenant.helpers');
 
-const IVA_TASA = 0.16;
 const n2 = (n) => Number(n || 0).toFixed(2);
 const n6 = (n) => Number(n || 0).toFixed(6);
 
@@ -74,9 +73,12 @@ async function facturarVenta(empresaId, ventaId, receptor = {}, usuarioId) {
     }
 
     const items = partidas.map((p) => {
-      // precio público con IVA → base sin IVA para el CFDI
+      // precio público con IVA → base sin IVA para el CFDI. La tasa viene del
+      // snapshot de la venta (iva_tasa): medicamentos TASA 0, resto 0.16.
+      // Ambos son TaxObject 02 (sí objeto) — tasa 0 NO es exento (01).
       const importeConIva = Number(p.importe);
-      const base = importeConIva / (1 + IVA_TASA);
+      const tasa = Number(p.iva_tasa);
+      const base = importeConIva / (1 + tasa);
       const cant = Number(p.cantidad);
       return {
         Quantity: n2(cant),
@@ -90,7 +92,7 @@ async function facturarVenta(empresaId, ventaId, receptor = {}, usuarioId) {
         Discount: '0.00',
         TaxObject: '02',
         Taxes: [{
-          Name: 'IVA', Rate: '0.160000', Total: n2(importeConIva - base),
+          Name: 'IVA', Rate: n6(tasa), Total: n2(importeConIva - base),
           Base: n2(base), IsRetention: false, IsFederalTax: true,
         }],
         Total: n2(importeConIva),
@@ -220,28 +222,46 @@ async function timbrarFacturaGlobal(empresaId, globalId) {
     throw Object.assign(new Error('La global no tiene tickets vigentes (¿se cancelaron?)'), { status: 422 });
   }
 
-  // Un concepto por ticket (regla SAT de factura global).
-  const items = tickets.map((t) => {
-    const conIva = Number(t.total);
-    const base = conIva / (1 + IVA_TASA);
-    return {
-      Quantity: '1.00',
-      ProductCode: '01010101',
-      UnitCode: 'ACT',
-      Unit: 'Actividad',
-      Description: 'Venta',
-      IdentificationNumber: t.folio,
-      UnitPrice: n6(base),
-      Subtotal: n2(base),
-      Discount: '0.00',
-      TaxObject: '02',
-      Taxes: [{
-        Name: 'IVA', Rate: '0.160000', Total: n2(conIva - base),
-        Base: n2(base), IsRetention: false, IsFederalTax: true,
-      }],
-      Total: n2(conIva),
-    };
-  });
+  // Un concepto por ticket (regla SAT de factura global); si el ticket mezcla
+  // tasas (medicamento TASA 0 + gravado 16%), se parte en un concepto por tasa
+  // con el mismo folio en IdentificationNumber. Siempre TaxObject 02.
+  const [grupos] = await pool.query(
+    `SELECT pp.venta_id, pp.iva_tasa, SUM(pp.importe) AS importe
+     FROM pos_ventas_partidas pp
+     JOIN pos_ventas v ON v.id = pp.venta_id
+     WHERE v.factura_global_id = ? AND v.estatus = 'completada'
+     GROUP BY pp.venta_id, pp.iva_tasa`,
+    [globalId]
+  );
+  const porTicket = new Map();
+  for (const g of grupos) {
+    if (!porTicket.has(g.venta_id)) porTicket.set(g.venta_id, []);
+    porTicket.get(g.venta_id).push(g);
+  }
+  const items = tickets.flatMap((t) =>
+    (porTicket.get(t.id) || []).map((g) => {
+      const conIva = Number(g.importe);
+      const tasa = Number(g.iva_tasa);
+      const base = conIva / (1 + tasa);
+      return {
+        Quantity: '1.00',
+        ProductCode: '01010101',
+        UnitCode: 'ACT',
+        Unit: 'Actividad',
+        Description: 'Venta',
+        IdentificationNumber: t.folio,
+        UnitPrice: n6(base),
+        Subtotal: n2(base),
+        Discount: '0.00',
+        TaxObject: '02',
+        Taxes: [{
+          Name: 'IVA', Rate: n6(tasa), Total: n2(conIva - base),
+          Base: n2(base), IsRetention: false, IsFederalTax: true,
+        }],
+        Total: n2(conIva),
+      };
+    })
+  );
 
   const body = {
     Receiver: {
