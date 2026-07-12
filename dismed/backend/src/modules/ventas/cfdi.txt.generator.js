@@ -112,7 +112,8 @@ function construirTxt({ entrega, cliente, partidas }) {
     const cant = Number(p.cantidad || 0);
     const valorUnit = Number(p.precio_unitario || 0);
     const importe = cant * valorUnit;
-    const objetoImp = p.iva_exento ? '01' : '02'; // 01 no objeto / 02 sí objeto de impuesto
+    // Medicamentos (iva_exento=1) = TASA 0, no exento (decisión del contador 2026-07-11).
+    const objetoImp = '02';
     const ivaTasa = p.iva_exento ? 0 : IVA_TASA;
     const ivaImporte = importe * ivaTasa;
     lineas.push(csv('CONCEPTO', p.clave_sat, p.clave_unidad_sat, p.sku_interno,

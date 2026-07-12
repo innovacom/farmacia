@@ -790,8 +790,8 @@
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/ventas/cfdi.txt.generator.js": {
-    "mtime": 1783824038.4442089,
-    "ast_hash": "308b873f06e220b037b72bf657d77e5f",
+    "mtime": 1781744799.7566643,
+    "ast_hash": "0f780a1a5f51dd1d0e9a65906910d63d",
     "semantic_hash": ""
   },
   ".claude/hooks/check-backend-js.py": {
@@ -1050,8 +1050,8 @@
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/ventas/cfdi.facturama.js": {
-    "mtime": 1783824012.8325112,
-    "ast_hash": "e8a1797380e93aebebd4557d0ebd094e",
+    "mtime": 1783797192.3233962,
+    "ast_hash": "21204122f0f29558c23caba22d4e104f",
     "semantic_hash": ""
   },
   "dismed/backend/test_ai_provider.js": {

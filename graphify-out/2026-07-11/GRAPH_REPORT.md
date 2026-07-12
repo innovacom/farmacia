@@ -1,11 +1,11 @@
 # Graph Report - sistema cotizaciones  (2026-07-11)
 
 ## Corpus Check
-- 296 files · ~425,775 words
+- 296 files · ~425,779 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1966 nodes · 3014 edges · 175 communities (147 shown, 28 thin omitted)
+- 1966 nodes · 3014 edges · 176 communities (148 shown, 28 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 38 edges (avg confidence: 0.83)
 - Token cost: 0 input · 0 output
 
@@ -146,6 +146,7 @@
 - [[_COMMUNITY_Community 153|Community 153]]
 - [[_COMMUNITY_Community 154|Community 154]]
 - [[_COMMUNITY_Community 155|Community 155]]
+- [[_COMMUNITY_Community 156|Community 156]]
 - [[_COMMUNITY_Community 157|Community 157]]
 - [[_COMMUNITY_Community 158|Community 158]]
 - [[_COMMUNITY_Community 159|Community 159]]
@@ -198,7 +199,7 @@
 - **Modelo de Inventario por Lotes y Ubicación** — diseno_inventario_existencia_grano, diseno_inventario_kardex, diseno_inventario_fefo, diseno_inventario_unidad_base_mixta [EXTRACTED 1.00]
 - **INNOVACOM Brand Logo Variants** — assets_logo_innovacom, public_apple_touch_icon, public_icon_192, public_icon_512, public_icon_maskable_512, public_logo_innovacom, logo_sin_fondo_4500_pixeles, logo_sin_fondo_500_por_500_pixeles, logo_vectorizado_1024por747 [INFERRED 0.85]
 
-## Communities (175 total, 28 thin omitted)
+## Communities (176 total, 28 thin omitted)
 
 ### Community 0 - "Business Domain & Catalog Data"
 Cohesion: 0.16
@@ -213,8 +214,8 @@ Cohesion: 0.23
 Nodes (9): { parseCatalogo }, { pool }, deducirFactor(), norm(), numOrNull(), parseCatalogo(), up(), XLSX (+1 more)
 
 ### Community 3 - "Sales / Pedidos Controller"
-Cohesion: 0.13
-Nodes (17): cargarEntrega(), cargarOC(), crearPedido(), { ejecutarRecepcion }, entregaPdf(), generarOC(), { generarOcPdf, generarEntregaPdf }, genFolio() (+9 more)
+Cohesion: 0.14
+Nodes (17): cargarEntrega(), cargarOC(), crearEntrega(), crearPedido(), { ejecutarRecepcion }, entregaPdf(), generarOC(), { generarOcPdf, generarEntregaPdf } (+9 more)
 
 ### Community 4 - "Frontend Dependencies"
 Cohesion: 0.07
@@ -400,8 +401,8 @@ Cohesion: 0.13
 Nodes (17): Configuracion(), COLS, COLS_DET, ConsultasHistoricas(), DetalleModal(), EMPTY, fdate(), fechaCol (+9 more)
 
 ### Community 73 - "Community 73"
-Cohesion: 0.09
-Nodes (19): { buildFacturaCfdiHtml }, fs, outDir, path, puppeteer, QRCode, BASE, fs (+11 more)
+Cohesion: 0.13
+Nodes (13): BASE, fs, { generarFacturaCfdiPdf }, path, QRCode, Path, data, fs (+5 more)
 
 ### Community 74 - "Community 74"
 Cohesion: 0.33
@@ -532,16 +533,16 @@ Cohesion: 0.20
 Nodes (9): Acceso a la base de datos de producción (consultas manuales), DESPLIEGUE — Procedimiento ÚNICO y oficial de DISMED, Migraciones de base de datos, Por qué tú lo ejecutas (y no el asistente), Qué hace `deploy.py` (y qué NO), Requisitos (una vez), Scripts antiguos (NO usar), TL;DR (+1 more)
 
 ### Community 112 - "Community 112"
-Cohesion: 0.26
-Nodes (11): cargarFactura(), construirTxt(), csv(), fs, generarCfdiTxt(), n2(), path, { pool } (+3 more)
+Cohesion: 0.27
+Nodes (10): cargarFactura(), construirTxt(), csv(), fs, generarCfdiTxt(), n2(), path, { pool } (+2 more)
 
 ### Community 113 - "Community 113"
 Cohesion: 0.07
 Nodes (18): { pool }, { pool }, { pool }, { pool }, { pool }, { pool }, { pool }, { pool } (+10 more)
 
 ### Community 114 - "Community 114"
-Cohesion: 0.17
-Nodes (15): { empresaCfdi }, facturarVenta(), formaPago(), { getScoped }, { pool }, { timbrarComprobante, insertarComprobante }, timbrarFacturaGlobal(), cadenaOriginalTfd() (+7 more)
+Cohesion: 0.16
+Nodes (16): { empresaCfdi }, facturarVenta(), formaPago(), { getScoped }, { pool }, { timbrarComprobante, insertarComprobante }, timbrarFacturaGlobal(), cadenaOriginalTfd() (+8 more)
 
 ### Community 116 - "Community 116"
 Cohesion: 0.12
@@ -651,6 +652,10 @@ Nodes (5): apiKeyAuth, auth, c, router, upload
 Cohesion: 0.25
 Nodes (6): fs, outDir, PANTALLAS, path, puppeteer, URL
 
+### Community 156 - "Community 156"
+Cohesion: 0.29
+Nodes (6): { buildFacturaCfdiHtml }, fs, outDir, path, puppeteer, QRCode
+
 ### Community 157 - "Community 157"
 Cohesion: 0.43
 Nodes (6): cargarFiel(), fielDir(), findByExt(), fs, path, readPassword()
@@ -702,7 +707,7 @@ _Questions this graph is uniquely positioned to answer:_
 - **Should `Inventory Import (Existencias)` be split into smaller, more focused modules?**
   _Cohesion score 0.07051282051282051 - nodes in this community are weakly interconnected._
 - **Should `Sales / Pedidos Controller` be split into smaller, more focused modules?**
-  _Cohesion score 0.12987012987012986 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.13852813852813853 - nodes in this community are weakly interconnected._
 - **Should `Frontend Dependencies` be split into smaller, more focused modules?**
   _Cohesion score 0.06896551724137931 - nodes in this community are weakly interconnected._
 - **Should `Solicitudes & Web Price Search` be split into smaller, more focused modules?**

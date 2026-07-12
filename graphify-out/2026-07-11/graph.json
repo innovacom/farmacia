@@ -758,7 +758,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_capturar_factura",
-      "community": 73,
+      "community": 156,
       "norm_label": "capturar_factura.js"
     },
     {
@@ -768,7 +768,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "backend_capturar_factura_path",
-      "community": 73,
+      "community": 156,
       "norm_label": "path"
     },
     {
@@ -778,7 +778,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "backend_capturar_factura_fs",
-      "community": 73,
+      "community": 156,
       "norm_label": "fs"
     },
     {
@@ -788,7 +788,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "backend_capturar_factura_qrcode",
-      "community": 73,
+      "community": 156,
       "norm_label": "qrcode"
     },
     {
@@ -798,7 +798,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_capturar_factura_puppeteer",
-      "community": 73,
+      "community": 156,
       "norm_label": "puppeteer"
     },
     {
@@ -808,7 +808,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_capturar_factura_buildfacturacfdihtml",
-      "community": 73,
+      "community": 156,
       "norm_label": "{ buildfacturacfdihtml }"
     },
     {
@@ -818,7 +818,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "backend_capturar_factura_outdir",
-      "community": 73,
+      "community": 156,
       "norm_label": "outdir"
     },
     {
@@ -10985,7 +10985,7 @@
       "label": "descargarXmlFacturama()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/ventas/cfdi.facturama.js",
-      "source_location": "L143",
+      "source_location": "L145",
       "_origin": "ast",
       "id": "ventas_cfdi_facturama_descargarxmlfacturama",
       "community": 114,
@@ -10995,7 +10995,7 @@
       "label": "cadenaOriginalTfd()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/ventas/cfdi.facturama.js",
-      "source_location": "L149",
+      "source_location": "L151",
       "_origin": "ast",
       "id": "ventas_cfdi_facturama_cadenaoriginaltfd",
       "community": 114,
@@ -11005,7 +11005,7 @@
       "label": "urlQrSat()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/ventas/cfdi.facturama.js",
-      "source_location": "L154",
+      "source_location": "L156",
       "_origin": "ast",
       "id": "ventas_cfdi_facturama_urlqrsat",
       "community": 114,
@@ -11015,7 +11015,7 @@
       "label": "timbrarComprobante()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/ventas/cfdi.facturama.js",
-      "source_location": "L166",
+      "source_location": "L168",
       "_origin": "ast",
       "id": "ventas_cfdi_facturama_timbrarcomprobante",
       "community": 114,
@@ -11025,7 +11025,7 @@
       "label": "insertarComprobante()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/ventas/cfdi.facturama.js",
-      "source_location": "L214",
+      "source_location": "L216",
       "_origin": "ast",
       "id": "ventas_cfdi_facturama_insertarcomprobante",
       "community": 114,
@@ -11035,7 +11035,7 @@
       "label": "timbrarEntrega()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/ventas/cfdi.facturama.js",
-      "source_location": "L238",
+      "source_location": "L240",
       "_origin": "ast",
       "id": "ventas_cfdi_facturama_timbrarentrega",
       "community": 114,
@@ -11045,7 +11045,7 @@
       "label": "MOTIVOS_VALIDOS",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/ventas/cfdi.facturama.js",
-      "source_location": "L290",
+      "source_location": "L292",
       "_origin": "ast",
       "id": "ventas_cfdi_facturama_motivos_validos",
       "community": 35,
@@ -11055,7 +11055,7 @@
       "label": "cancelarCfdi()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/ventas/cfdi.facturama.js",
-      "source_location": "L292",
+      "source_location": "L294",
       "_origin": "ast",
       "id": "ventas_cfdi_facturama_cancelarcfdi",
       "community": 35,
@@ -11065,7 +11065,7 @@
       "label": "cargarEntregaCfdi()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/ventas/cfdi.facturama.js",
-      "source_location": "L328",
+      "source_location": "L330",
       "_origin": "ast",
       "id": "ventas_cfdi_facturama_cargarentregacfdi",
       "community": 35,
@@ -11175,7 +11175,7 @@
       "label": "generarCfdiTxt()",
       "file_type": "code",
       "source_file": "dismed/backend/src/modules/ventas/cfdi.txt.generator.js",
-      "source_location": "L130",
+      "source_location": "L129",
       "_origin": "ast",
       "id": "ventas_cfdi_txt_generator_generarcfditxt",
       "community": 112,
@@ -11378,7 +11378,7 @@
       "source_location": "L227",
       "_origin": "ast",
       "id": "ventas_ventas_controller_crearentrega",
-      "community": 112,
+      "community": 3,
       "norm_label": "crearentrega()"
     },
     {
@@ -11418,7 +11418,7 @@
       "source_location": "L352",
       "_origin": "ast",
       "id": "ventas_ventas_controller_timbrarcfdi",
-      "community": 3,
+      "community": 114,
       "norm_label": "timbrarcfdi()"
     },
     {
@@ -11588,7 +11588,7 @@
       "source_location": "L188",
       "_origin": "ast",
       "id": "ventas_ventas_pdf_generarocpdf",
-      "community": 3,
+      "community": 71,
       "norm_label": "generarocpdf()"
     },
     {
@@ -11598,7 +11598,7 @@
       "source_location": "L189",
       "_origin": "ast",
       "id": "ventas_ventas_pdf_generarentregapdf",
-      "community": 71,
+      "community": 3,
       "norm_label": "generarentregapdf()"
     },
     {

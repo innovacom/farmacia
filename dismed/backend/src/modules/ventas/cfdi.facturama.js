@@ -88,11 +88,13 @@ function construirCfdiFacturama({ entrega, cliente, partidas }) {
     const cant = Number(p.cantidad || 0);
     const valorUnit = Number(p.precio_unitario || 0);
     const importe = cant * valorUnit;
-    const grava = !p.iva_exento;
-    const ivaImporte = grava ? importe * IVA_TASA : 0;
+    // Medicamentos (iva_exento=1) = TASA 0 (decisión del contador 2026-07-11:
+    // TaxObject 02 Rate 0.000000, NO exento). Resto: 16%. Mismo criterio que el POS.
+    const ivaTasa = p.iva_exento ? 0 : IVA_TASA;
+    const ivaImporte = importe * ivaTasa;
     const total = importe + ivaImporte;
 
-    const item = {
+    return {
       Quantity: n2(cant),
       ProductCode: p.clave_sat,
       UnitCode: p.clave_unidad_sat,
@@ -102,21 +104,17 @@ function construirCfdiFacturama({ entrega, cliente, partidas }) {
       UnitPrice: n2(valorUnit),
       Subtotal: n2(importe),
       Discount: '0.00',
-      TaxObject: grava ? '02' : '01',
+      TaxObject: '02',
       Total: n2(total),
-    };
-    // Sólo se manda el arreglo de impuestos cuando la partida grava IVA.
-    if (grava) {
-      item.Taxes = [{
+      Taxes: [{
         Name: 'IVA',
-        Rate: '0.160000',
+        Rate: ivaTasa.toFixed(6),
         Total: n2(ivaImporte),
         Base: n2(importe),
         IsRetention: false,
         IsFederalTax: true,
-      }];
-    }
-    return item;
+      }],
+    };
   });
 
   const body = {
