@@ -2,7 +2,7 @@ const { buscarConWeb } = require('../../config/ai.provider');
 
 /**
  * Busca en internet el precio de una partida usando búsqueda web con grounding
- * (Google Search en Gemini, o el tool server-side web_search en Anthropic).
+ * (Google Search en Gemini).
  *
  * Flujo en dos pasos dentro de la misma conversación:
  *  1. Identificar el producto (búsqueda libre en cualquier página del mundo):

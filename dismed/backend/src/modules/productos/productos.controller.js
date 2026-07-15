@@ -21,8 +21,10 @@ const PROD_FIELDS = [
 async function list(req, res, next) {
   try {
     const search = req.query.q ? `%${req.query.q}%` : '%';
-    const where = ['p.activo = 1', '(p.sku_interno LIKE ? OR p.descripcion LIKE ?)'];
+    const estatus = req.query.estatus || 'activos'; // activos | inactivos | todos
+    const where = ['(p.sku_interno LIKE ? OR p.descripcion LIKE ?)'];
     const vals = [search, search];
+    if (estatus !== 'todos') where.push(`p.activo = ${estatus === 'inactivos' ? 0 : 1}`);
     if (req.query.familia_id)    { where.push('p.familia_id = ?');    vals.push(req.query.familia_id); }
     if (req.query.categoria_id)  { where.push('p.categoria_id = ?');  vals.push(req.query.categoria_id); }
     const limit  = Math.min(parseInt(req.query.limit) || 100, 500);
@@ -91,8 +93,8 @@ async function matchIa(req, res, next) {
     if (!descripcion || !String(descripcion).trim()) {
       return res.status(400).json({ error: 'descripcion requerida' });
     }
-    if (!process.env.ANTHROPIC_API_KEY) {
-      return res.status(503).json({ error: 'IA no configurada (ANTHROPIC_API_KEY)' });
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(503).json({ error: 'IA no configurada (GEMINI_API_KEY)' });
     }
     const candidatos = await buscarCandidatos({
       descripcion,

@@ -13,7 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Backend:** Node.js + Express + MySQL 8.0
 - **State Management:** Zustand (frontend), JWT (backend)
 - **PDF Generation:** Puppeteer
-- **AI Parser:** Anthropic API (Claude) for extracting data from PDF solicitations
+- **AI Parser:** Google Gemini (free tier, via `config/ai.provider.js`) for extracting data from PDF solicitations, SKU matching, and web price search
 - **Excel Parsing:** SheetJS (xlsx)
 - **Email:** Nodemailer
 - **Process Management:** PM2 (production)
@@ -68,7 +68,7 @@ Key files: ecosystem.config.js (PM2 config), deploy.sh (Debian 12 automated setu
 
 1. **Login** (auth module) - JWT issued, persisted in Zustand + localStorage, Axios interceptor adds Bearer token
 
-2. **Solicitation Creation** (solicitudes module) - Upload Excel/PDF → SheetJS parses Excel or Anthropic API parses PDF → Backend extracts products → User validates in editable table → Save with line items
+2. **Solicitation Creation** (solicitudes module) - Upload Excel/PDF → SheetJS parses Excel or Gemini (ai.provider) parses PDF → Backend extracts products → User validates in editable table → Save with line items
 
 3. **Supplier Consultation** (cotizaciones/proveedor module) - User selects suppliers → Generate quotation message → Create cotizaciones_proveedor records → Register prices as suppliers respond
 
@@ -105,7 +105,7 @@ Detailed routes: /solicitudes/nueva, /solicitudes/:id, /solicitudes/:id/comparad
 Backend (.env in dismed/backend/):
 - DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME (MySQL 8.0)
 - JWT_SECRET (min 32 chars), JWT_EXPIRES_IN (8h)
-- ANTHROPIC_API_KEY (sk-ant-..., required for PDF parsing)
+- GEMINI_API_KEY (required for PDF parsing, SKU matching, and web price search), GEMINI_MODEL (default gemini-2.5-flash)
 - SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS (email relay)
 - UPLOAD_DIR (./uploads), OUTPUT_DIR (./outputs), BASE_URL (http://localhost:3001)
 - PORT (3001)
@@ -115,9 +115,9 @@ Frontend: vite.config.js already proxies /api and /outputs to http://localhost:3
 
 ## Important Notes for Development
 
-### Anthropic API
+### AI Provider (Gemini)
 
-PDF parser (solicitudes/parser.pdf.js) uses Anthropic Claude API to extract structured data from unstructured PDFs. ANTHROPIC_API_KEY must be set. Users can manually enter items if parsing fails. Always present parsed results in editable table for user validation.
+PDF parser (solicitudes/parser.pdf.js), SKU matcher (solicitudes/matcher.ia.js), and web price search (solicitudes/buscador.web.js) all go through `config/ai.provider.js`, which calls Google Gemini (free tier, GEMINI_API_KEY must be set). No paid AI provider is used — if Gemini's free-tier quota is exhausted after retries, a clear 503 error is returned instead of falling back to a paid API. Users can manually enter items if PDF parsing fails. Always present parsed results in editable table for user validation.
 
 ### Database Connections
 
@@ -162,11 +162,11 @@ Phase 4: Data migration + go-live
 
 4. **Folio Traceability** — SOL → COT → PED → FAC linked through supply chain.
 
-5. **IA as Assistant** — Anthropic parses PDFs, but user validates results in editable table before save.
+5. **IA as Assistant** — Gemini parses PDFs, but user validates results in editable table before save.
 
 ## Troubleshooting
 
-- ANTHROPIC_API_KEY missing: Set in .env before backend startup
+- GEMINI_API_KEY missing: Set in .env before backend startup
 - MySQL connection refused: Verify DB_HOST, DB_USER, DB_PASSWORD
 - Puppeteer crashes: ~170 MB Chromium download during npm install. Ensure disk space and internet.
 - JWT 401 errors: Token expired (8h) or cleared. Re-login.

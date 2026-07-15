@@ -39,7 +39,7 @@ Formato de respuesta:
 }`;
 
 /**
- * Extrae partidas de un PDF usando la API de Anthropic.
+ * Extrae partidas de un PDF usando IA (Gemini vía ai.provider).
  * Retorna array de partidas con: codigo_cliente, descripcion_original, cantidad, unidad_medida.
  */
 async function parsePdf(filePath) {

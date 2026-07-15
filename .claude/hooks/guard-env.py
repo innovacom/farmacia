@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """PreToolUse (Edit|Write): bloquea la escritura sobre secretos y credenciales.
-DISMED guarda en .env el ANTHROPIC_API_KEY, JWT_SECRET y contraseñas de BD, y en
+DISMED guarda en .env el GEMINI_API_KEY, JWT_SECRET y contraseñas de BD, y en
 *.cer/*.key/*.pem los certificados CFDI del SAT. Un sobrescrito accidental rompe
 producción o filtra llaves. Edición manual fuera de Claude sigue siendo posible."""
 import json, sys, os

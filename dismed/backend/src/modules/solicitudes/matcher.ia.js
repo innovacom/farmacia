@@ -5,7 +5,7 @@
  * cerrada de candidatos (o devolver null). No puede inventar SKUs. Sigue siendo
  * una SUGERENCIA: el usuario confirma en la UI (la decisión de negocio no cambia).
  *
- * Reutiliza el cliente Anthropic, igual que buscador.web.js.
+ * Usa la capa ai.provider (Gemini), igual que buscador.web.js.
  */
 const { extraerJSON } = require('../../config/ai.provider');
 

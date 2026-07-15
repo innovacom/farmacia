@@ -2,7 +2,7 @@ require('dotenv').config();
 
 const required = [
   'DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME',
-  'JWT_SECRET', 'ANTHROPIC_API_KEY',
+  'JWT_SECRET', 'GEMINI_API_KEY',
 ];
 
 function validateEnv() {

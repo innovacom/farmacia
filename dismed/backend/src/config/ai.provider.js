@@ -1,18 +1,13 @@
 /**
- * ai.provider.js — Capa de proveedor de IA unificada (sustituye el acceso directo
- * a la API de Anthropic en parser.pdf, matcher.ia y buscador.web).
+ * ai.provider.js — Capa de proveedor de IA (usada por parser.pdf, matcher.ia y
+ * buscador.web en vez de llamar a una API de IA directamente).
  *
- * Motivación: la API de Claude cobra por uso. El ~99.8% del costo provenía del
- * tool server-side `web_search` de Anthropic ($10/1000 búsquedas + tokens). Este
- * módulo permite usar Google Gemini (free tier) con Google Search grounding como
- * reemplazo gratuito. Ya NO hay fallback automático a Anthropic si Gemini falla
- * (ver `despachar`): si se agota la cuota gratis, se informa un error claro en
- * vez de gastar en el proveedor de pago.
+ * Usa Google Gemini (free tier) con Google Search grounding para búsqueda de
+ * precios, y generación normal con salida JSON forzada para extracción/clasificación.
+ * No hay fallback a ningún proveedor de pago: si Gemini agota su cuota gratis
+ * tras los reintentos, se informa un error claro (503) en vez de gastar dinero.
  *
- * Selección de proveedor (variable de entorno AI_PROVIDER):
- *   - "gemini"    -> usa Google Gemini (requiere GEMINI_API_KEY)
- *   - "anthropic" -> usa Claude (requiere ANTHROPIC_API_KEY) — modo explícito, no fallback
- *   - sin definir -> "gemini" si hay GEMINI_API_KEY, si no "anthropic"
+ * Requiere GEMINI_API_KEY en el entorno (.env).
  *
  * Expone dos funciones de alto nivel:
  *   - extraerJSON({ system, user, maxTokens })  -> { text, tokens }   (sin web)
@@ -21,16 +16,7 @@
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-
-const PROVIDER = (
-  process.env.AI_PROVIDER || (GEMINI_API_KEY ? 'gemini' : 'anthropic')
-).toLowerCase();
-
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-
-// -------------------------------------------------------------------------
-// Backend Gemini (REST, sin SDK — usa fetch global de Node 18+)
-// -------------------------------------------------------------------------
 
 // El free tier de Gemini limita a ~20 requests/min (compartido entre búsquedas
 // con grounding y generación normal, y entre TODAS las llamadas de este proceso:
@@ -49,8 +35,7 @@ async function esperarTurnoGemini() {
 
 // Google incluye en el 429 cuánto hay que esperar realmente (p. ej. "retryDelay":"47s"
 // o "...Please retry in 47.37s."). Ese tiempo suele ser bastante mayor que un backoff
-// exponencial corto, así que se respeta tal cual en vez de rendirse y usar el fallback
-// pagado de Anthropic para lo que es, en realidad, solo esperar el turno gratis.
+// exponencial corto, así que se respeta tal cual en vez de rendirse antes de tiempo.
 function extraerEsperaMs(detalle) {
   const m = detalle.match(/"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/)
     || detalle.match(/retry in ([\d.]+)s/i);
@@ -103,12 +88,12 @@ async function geminiGenerate({ system, user, maxTokens, web }) {
   }
 
   if (web) {
-    // Google Search grounding reemplaza al tool web_search de Anthropic.
+    // Google Search grounding para obtener precios reales de internet.
     // No se puede combinar con responseMimeType=application/json en 2.5-flash,
     // así que el JSON se pide en el prompt y se extrae por regex.
     body.tools = [{ google_search: {} }];
   } else {
-    // Salida JSON garantizada (reemplaza la extracción por regex del parser/matcher).
+    // Salida JSON garantizada (evita la extracción por regex del parser/matcher).
     body.generationConfig.responseMimeType = 'application/json';
     // gemini-2.5-flash trae "thinking" activado: con max_tokens bajos el razonamiento
     // consume el presupuesto y deja la respuesta vacía. Estas son tareas de extracción
@@ -130,70 +115,15 @@ async function geminiGenerate({ system, user, maxTokens, web }) {
 }
 
 // -------------------------------------------------------------------------
-// Backend Anthropic (fallback — reutiliza el cliente compartido existente)
-// -------------------------------------------------------------------------
-
-async function anthropicGenerate({ system, user, maxTokens, web }) {
-  const { client, MODEL } = require('./anthropic');
-
-  const params = {
-    model: MODEL,
-    max_tokens: maxTokens || 4096,
-    messages: [{ role: 'user', content: user }],
-  };
-
-  if (system) {
-    params.system = [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }];
-  }
-
-  if (web) {
-    params.tools = [{
-      type: 'web_search_20260209',
-      name: 'web_search',
-      max_uses: 10,
-      user_location: { type: 'approximate', country: 'MX', timezone: 'America/Mexico_City' },
-    }];
-
-    // Los tools server-side pueden devolver pause_turn; reenviar para continuar.
-    let messages = params.messages;
-    let response;
-    for (let intento = 0; intento < 4; intento++) {
-      response = await client.messages.create({ ...params, messages });
-      if (response.stop_reason !== 'pause_turn') break;
-      messages = [
-        { role: 'user', content: user },
-        { role: 'assistant', content: response.content },
-      ];
-    }
-    const text = (response.content || [])
-      .filter((b) => b.type === 'text').map((b) => b.text).join('\n');
-    const tokens = (response.usage?.input_tokens || 0) + (response.usage?.output_tokens || 0);
-    return { text, tokens };
-  }
-
-  const message = await client.messages.create(params);
-  const text = (message.content || [])
-    .filter((b) => b.type === 'text').map((b) => b.text).join('');
-  const tokens = (message.usage?.input_tokens || 0) + (message.usage?.output_tokens || 0);
-  return { text, tokens };
-}
-
-// -------------------------------------------------------------------------
 // API pública
 // -------------------------------------------------------------------------
 
-/**
- * Despacha al backend seleccionado. Ya NO hace fallback automático a Anthropic
- * cuando Gemini falla: bajo ráfagas, agotar los reintentos y pasar a Anthropic
- * solo cambiaba "gratis y lento" por "caro" (y ahora mismo la cuenta Anthropic
- * no tiene saldo, así que el fallback silencioso terminaba en un error confuso
- * de facturación). Si Gemini no responde tras los reintentos, se informa con un
- * mensaje claro para que el usuario reintente en unos minutos.
- */
-async function despachar(args) {
-  if (PROVIDER === 'anthropic') return anthropicGenerate(args);
+// Si Gemini no responde tras los reintentos (cuota agotada bajo ráfaga), se
+// informa con un mensaje claro y un 503 en vez de propagar el error crudo de
+// Google — no hay proveedor de pago al que caer de respaldo.
+async function conMensajeClaro(fn) {
   try {
-    return await geminiGenerate(args);
+    return await fn();
   } catch (e) {
     console.warn('[ai.provider] Gemini no disponible:', e.message);
     const err = new Error('Búsqueda de IA no disponible por el momento (límite de uso alcanzado). Intenta de nuevo en unos minutos.');
@@ -205,10 +135,10 @@ async function despachar(args) {
 
 /**
  * Extracción/clasificación sin web. Devuelve { text, tokens }.
- * text es JSON (con Gemini se fuerza application/json; con Anthropic puede traer texto).
+ * text es JSON (se fuerza application/json en la llamada a Gemini).
  */
 async function extraerJSON({ system, user, maxTokens }) {
-  return despachar({ system, user, maxTokens, web: false });
+  return conMensajeClaro(() => geminiGenerate({ system, user, maxTokens, web: false }));
 }
 
 /**
@@ -216,7 +146,7 @@ async function extraerJSON({ system, user, maxTokens }) {
  * text es texto libre que contiene un bloque JSON (extraer con regex).
  */
 async function buscarConWeb({ prompt, maxTokens }) {
-  return despachar({ user: prompt, maxTokens, web: true });
+  return conMensajeClaro(() => geminiGenerate({ user: prompt, maxTokens, web: true }));
 }
 
-module.exports = { extraerJSON, buscarConWeb, PROVIDER, GEMINI_MODEL };
+module.exports = { extraerJSON, buscarConWeb, GEMINI_MODEL };
