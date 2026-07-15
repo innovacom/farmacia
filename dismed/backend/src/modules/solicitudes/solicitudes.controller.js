@@ -1,3 +1,4 @@
+const XLSX = require('xlsx');
 const { pool } = require('../../config/db');
 const { parseExcel: doParseExcel } = require('./parser.excel');
 const { parsePdf: doParsePdf } = require('./parser.pdf');
@@ -703,6 +704,113 @@ async function comparador(req, res, next) {
   } catch (err) { next(err); }
 }
 
+/**
+ * GET /solicitudes/:id/comparador/exportar
+ * Genera un xlsx con el mismo layout que el Excel de carga (ver parser.excel.js):
+ * filas 1-4 metadatos + proveedores desde col Q, fila 5 encabezados, fila 6+ partidas.
+ * Útil para reenviar/archivar el comparador con los precios ya registrados.
+ */
+async function exportarComparador(req, res, next) {
+  try {
+    const [[sol]] = await pool.query(
+      `SELECT s.*, c.razon_social AS cliente_nombre
+       FROM solicitudes s
+       JOIN clientes c ON c.id = s.cliente_id
+       WHERE s.id = ?`,
+      [req.params.id]
+    );
+    if (!sol) return res.status(404).json({ error: 'Solicitud no encontrada' });
+
+    const [rows] = await pool.query(
+      'SELECT * FROM v_comparador_precios WHERE solicitud_id = ?',
+      [req.params.id]
+    );
+
+    const proveedores = [...new Set(rows.map((r) => r.proveedor).filter(Boolean))].sort();
+    const partidasMap = new Map();
+    for (const r of rows) {
+      if (!partidasMap.has(r.partida_id)) {
+        partidasMap.set(r.partida_id, {
+          linea: r.linea,
+          codigo_cliente: r.codigo_cliente,
+          descripcion_original: r.descripcion_original,
+          cantidad: r.cantidad,
+          unidad_medida: r.unidad_medida,
+          observaciones: r.observaciones,
+          iva_exento: r.iva_exento,
+          precios: {},
+        });
+      }
+      if (r.proveedor) {
+        partidasMap.get(r.partida_id).precios[r.proveedor] = {
+          precio_unitario: r.precio_unitario,
+          disponible: r.disponible,
+          es_mejor_precio: r.es_mejor_precio,
+          observaciones_proveedor: r.observaciones_proveedor,
+        };
+      }
+    }
+    const partidas = [...partidasMap.values()].sort((a, b) => a.linea - b.linea);
+
+    // Fila base de 16 columnas (A..P) igual a las posiciones fijas de parser.excel.js;
+    // los proveedores se agregan desde la columna Q (índice 16) en adelante.
+    const filaBase = () => new Array(16).fill('');
+
+    const aoa = [];
+
+    const f1 = filaBase();
+    f1[1] = 'CLIENTE'; f1[2] = 'DIRIGIR A'; f1[4] = 'ELABORO'; f1[5] = 'AUTORIZO'; f1[6] = 'DESCRIPCION';
+    aoa.push(f1);
+
+    const f2 = filaBase();
+    f2[1] = sol.cliente_nombre; f2[2] = sol.atencion || '';
+    f2[4] = req.user?.nombre || ''; f2[5] = req.user?.jefe_nombre || '';
+    f2[6] = sol.concepto || '';
+    aoa.push(f2);
+
+    const f3 = filaBase();
+    f3[0] = 'COC'; f3[1] = sol.referencia_cliente || '';
+    aoa.push(f3);
+
+    const f4 = filaBase();
+    f4[5] = sol.factor_ganancia != null ? Number(sol.factor_ganancia) : '';
+    proveedores.forEach((prov, i) => { f4[16 + i * 2] = prov; });
+    aoa.push(f4);
+
+    const f5 = filaBase();
+    f5[0] = 'PARTIDA'; f5[1] = 'CODIGO'; f5[2] = 'CODIGO GOBIERNO'; f5[3] = 'CANTIDAD';
+    f5[4] = 'UNIDAD'; f5[5] = 'DESCRIPCION'; f5[9] = 'PROVEEDOR'; f5[12] = 'IVA';
+    f5[14] = 'OBSERVACION INNOVACOM';
+    proveedores.forEach((prov, i) => { f5[16 + i * 2] = prov; f5[17 + i * 2] = 'COMENTARIO'; });
+    aoa.push(f5);
+
+    for (const p of partidas) {
+      const mejor = Object.entries(p.precios).find(([, pr]) => pr.es_mejor_precio && pr.disponible);
+      const fila = filaBase();
+      fila[0] = p.linea; fila[1] = p.codigo_cliente || ''; fila[3] = Number(p.cantidad);
+      fila[4] = p.unidad_medida || ''; fila[5] = p.descripcion_original;
+      fila[9] = mejor ? mejor[0] : '';
+      fila[12] = p.iva_exento ? 0 : '';
+      fila[14] = p.observaciones || '';
+      proveedores.forEach((prov, i) => {
+        const pr = p.precios[prov];
+        fila[16 + i * 2] = pr?.precio_unitario ?? '';
+        fila[17 + i * 2] = pr?.observaciones_proveedor ?? '';
+      });
+      aoa.push(fila);
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Comparador');
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="comparador_${sol.folio}.xlsx"`);
+    res.send(buf);
+  } catch (err) { next(err); }
+}
+
 module.exports = {
   list, getById, create, update,
   parseExcel, parsePdf,
@@ -710,4 +818,5 @@ module.exports = {
   buscarPrecioCatalogoPartida,
   buscarPrecioWebPartida,
   comparador,
+  exportarComparador,
 };

@@ -2,8 +2,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { ArrowLeft, RefreshCw, FileText, Loader2, Pencil, Check, X } from 'lucide-react';
+import { ArrowLeft, RefreshCw, FileText, Loader2, Pencil, Check, X, Download } from 'lucide-react';
 import api from '../../services/api';
+import { descargarArchivo } from '../../services/descargas';
 
 const fmt = (n) =>
   n == null
@@ -220,6 +221,25 @@ export default function ComparadorPrecios() {
 
   const hayMejores = comparador.some((r) => r.es_mejor_precio);
 
+  const [exportando, setExportando] = useState(false);
+  async function exportarExcel() {
+    setExportando(true);
+    try {
+      await descargarArchivo(
+        `/solicitudes/${solicitudId}/comparador/exportar`,
+        `comparador_${sol?.folio || solicitudId}.xlsx`
+      );
+    } catch {
+      toast.error('Error al generar el Excel');
+    } finally {
+      setExportando(false);
+    }
+  }
+
+  function getMejor(p) {
+    return Object.entries(p.precios).find(([, pr]) => pr.es_mejor_precio && pr.disponible);
+  }
+
   return (
     <div className="space-y-5">
 
@@ -235,6 +255,10 @@ export default function ComparadorPrecios() {
             {sol?.referencia_cliente && <> · <span className="font-medium">COC: {sol.referencia_cliente}</span></>}
           </p>
         </div>
+        <button onClick={exportarExcel} disabled={exportando || partidas.length === 0} className="btn-secondary">
+          {exportando ? <Loader2 size={15} className="animate-spin"/> : <Download size={15}/>}
+          Generar Excel
+        </button>
         <button onClick={() => calcularMut.mutate()} disabled={calcularMut.isPending} className="btn-secondary">
           {calcularMut.isPending ? <Loader2 size={15} className="animate-spin"/> : <RefreshCw size={15}/>}
           Recalcular mejor precio
@@ -301,6 +325,8 @@ export default function ComparadorPrecios() {
               <tr className="bg-gray-50">
                 <th className="px-3 py-2 text-left font-semibold text-gray-500 border-b border-gray-200 w-6">#</th>
                 <th className="px-3 py-2 text-left font-semibold text-gray-500 border-b border-gray-200">Descripción / Observación</th>
+                <th className="px-3 py-2 text-center font-semibold text-gray-500 border-b border-gray-200 w-24">Mejor precio</th>
+                <th className="px-3 py-2 text-center font-semibold text-gray-500 border-b border-gray-200 w-28">Proveedor</th>
                 <th className="px-3 py-2 text-center font-semibold text-gray-500 border-b border-gray-200 w-14">Cant.</th>
                 <th className="px-3 py-2 text-center font-semibold text-gray-500 border-b border-gray-200 w-20">% Margen</th>
                 <th className="px-3 py-2 text-center font-semibold text-gray-500 border-b border-gray-200 w-16" title="Marca para calcular IVA (16%) a esta partida">IVA 16%</th>
@@ -312,7 +338,9 @@ export default function ComparadorPrecios() {
               </tr>
             </thead>
             <tbody>
-              {partidas.map((p) => (
+              {partidas.map((p) => {
+                const mejor = getMejor(p);
+                return (
                 <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="px-3 py-2 text-center text-gray-400">{p.linea}</td>
                   <td className="px-3 py-2">
@@ -324,6 +352,12 @@ export default function ComparadorPrecios() {
                     {p.observaciones === 'NO COTIZO' && (
                       <p className="text-amber-500 text-xs font-medium">NO COTIZO</p>
                     )}
+                  </td>
+                  <td className="px-3 py-2 text-center font-medium text-green-700">
+                    {mejor ? fmt(mejor[1].precio_unitario) : <span className="text-gray-300 text-xs">N/D</span>}
+                  </td>
+                  <td className="px-3 py-2 text-center text-gray-700">
+                    {mejor ? mejor[0] : <span className="text-gray-300 text-xs">—</span>}
                   </td>
                   <td className="px-3 py-2 text-center text-gray-600">
                     {Number(p.cantidad).toLocaleString('es-MX')} {p.unidad_medida}
@@ -353,7 +387,8 @@ export default function ComparadorPrecios() {
                     />
                   ))}
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

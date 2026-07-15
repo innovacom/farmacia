@@ -28,5 +28,6 @@ router.post('/:id/partidas/:pid/buscar-precio-web', c.buscarPrecioWebPartida);
 
 // Vista comparador
 router.get('/:id/comparador',             c.comparador);
+router.get('/:id/comparador/exportar',    c.exportarComparador);
 
 module.exports = router;
