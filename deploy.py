@@ -28,6 +28,12 @@ import sys, tarfile, posixpath, subprocess
 from pathlib import Path
 import paramiko
 
+# La consola de Windows suele usar cp1252, que no puede imprimir ✓/✗ y tira
+# UnicodeEncodeError a mitad del despliegue. Forzar UTF-8 en stdout/stderr.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+
 ROOT = Path(__file__).parent.resolve()
 BACK_LOCAL = ROOT / "dismed" / "backend"
 FRONT_LOCAL = ROOT / "dismed" / "frontend"

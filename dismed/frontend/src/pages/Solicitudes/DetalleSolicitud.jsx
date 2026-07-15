@@ -211,12 +211,13 @@ export default function DetalleSolicitud() {
     }
   }
 
-  // Auto-arranque cuando se llega desde NuevaSolicitud con un Excel sin precios
+  // Arranque cuando el usuario pidió explícitamente "Crear y buscar precios web"
+  // en la página de Nueva Solicitud (nunca automático por sí solo).
   useEffect(() => {
     if (searchParams.get('buscarWeb') === '1' && sol?.partidas?.length && !autoStartRef.current) {
       autoStartRef.current = true;
       setSearchParams({}, { replace: true });
-      toast('El Excel no traía precios. Buscando en catálogo y luego en internet…',
+      toast('Buscando precios: primero en catálogo y luego en internet…',
         { icon: '⚡', duration: 6000 });
       buscarPreciosAuto();
     }

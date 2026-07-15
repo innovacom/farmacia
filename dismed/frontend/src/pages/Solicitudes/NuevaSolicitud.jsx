@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import {
   Upload, FileSpreadsheet, FileText, Keyboard,
-  Loader2, CheckCircle, Trash2, Plus, AlertTriangle, X, UserPlus, Link2, Pencil,
+  Loader2, CheckCircle, Trash2, Plus, AlertTriangle, X, UserPlus, Link2, Pencil, Globe,
 } from 'lucide-react';
 import api from '../../services/api';
 import ProductoPicker from '../../components/shared/ProductoPicker';
@@ -28,6 +28,9 @@ export default function NuevaSolicitud() {
   const [clienteNoEncontrado, setClienteNoEncontrado] = useState(null);
   const [showClienteModal, setShowClienteModal]       = useState(false);
   const [creandoCliente, setCreandoCliente]           = useState(false);
+  // El usuario decide explícitamente si además quiere buscar precios en internet
+  // (gasta cuota de IA); ya no se dispara solo porque el Excel no traía precios.
+  const buscarWebAlGuardarRef = useRef(false);
 
   const { data: clientes = [] } = useQuery({
     queryKey: ['clientes', 'activos'],
@@ -218,10 +221,11 @@ export default function NuevaSolicitud() {
       });
 
       toast.success(`Solicitud ${sol.folio} creada — ${partidasLimpias.length} partidas, ${Object.keys(precios_proveedores).length} proveedores`);
-      // Sin ningún precio de proveedor (>0) → disparar búsqueda automática en internet
-      const sinPrecios = !Object.values(precios_proveedores)
-        .some((arr) => arr.some((x) => parseFloat(x.precio) > 0));
-      navigate(`/solicitudes/${sol.id}${sinPrecios ? '?buscarWeb=1' : ''}`);
+      // La búsqueda web solo se dispara si el usuario presionó explícitamente
+      // "Crear y buscar precios web" (botón aparte) — nunca automáticamente.
+      const buscarWeb = buscarWebAlGuardarRef.current;
+      buscarWebAlGuardarRef.current = false;
+      navigate(`/solicitudes/${sol.id}${buscarWeb ? '?buscarWeb=1' : ''}`);
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al guardar');
     } finally {
@@ -492,10 +496,20 @@ export default function NuevaSolicitud() {
         )}
 
         {/* ── Botones ── */}
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <button type="submit" disabled={saving || !parsedPartidas.length} className="btn-primary">
             {saving && <Loader2 size={16} className="animate-spin"/>}
             {saving ? 'Guardando…' : 'Crear solicitud'}
+          </button>
+          <button
+            type="submit"
+            disabled={saving || !parsedPartidas.length}
+            onClick={() => { buscarWebAlGuardarRef.current = true; }}
+            title="Crea la solicitud y de inmediato busca precios en internet (gasta cuota de IA) para las partidas sin precio"
+            className="btn-secondary flex items-center gap-1.5"
+          >
+            {saving ? <Loader2 size={16} className="animate-spin"/> : <Globe size={16}/>}
+            Crear y buscar precios web
           </button>
           <button type="button" onClick={() => navigate(-1)} className="btn-secondary">Cancelar</button>
         </div>
