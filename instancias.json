@@ -1,0 +1,22 @@
+{
+  "dismed": {
+    "dominio": "sistema.innovacom.mx",
+    "puerto": 3001,
+    "pm2": "dismed-api",
+    "app_dir": "/var/www/dismed",
+    "db_name": "dismed_db",
+    "db_user": "dismed_user",
+    "creado": "2026-06-10",
+    "nota": "producción original, mismo VPS"
+  },
+  "farmacia": {
+    "dominio": "farmacia.innovacom.mx",
+    "puerto": 3002,
+    "pm2": "farmacia-api",
+    "app_dir": "/var/www/farmacia",
+    "db_name": "farmacia_db",
+    "db_user": "farmacia_user",
+    "creado": "2026-07-15",
+    "nota": "primera instancia; ahora se despliega desde el mismo código de dismed/ vía deploy_instancia.py (antes era una copia de código aparte)"
+  }
+}

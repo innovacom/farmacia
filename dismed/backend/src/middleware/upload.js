@@ -19,11 +19,13 @@ const fileFilter = (req, file, cb) => {
     'application/vnd.ms-excel',
     'text/csv',
     'application/pdf',
+    'text/xml',
+    'application/xml',
   ];
-  if (allowed.includes(file.mimetype)) {
+  if (allowed.includes(file.mimetype) || /\.xml$/i.test(file.originalname)) {
     cb(null, true);
   } else {
-    cb(new Error('Solo se permiten archivos Excel (.xlsx, .xls, .csv) y PDF'), false);
+    cb(new Error('Solo se permiten archivos Excel (.xlsx, .xls, .csv), PDF y XML'), false);
   }
 };
 

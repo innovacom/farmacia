@@ -13,7 +13,7 @@ import CuentaContableSelect from '../../components/shared/CuentaContableSelect';
 const FORM_VACIO = {
   sku_interno: '', descripcion: '', familia_id: '', categoria_id: '', subcategoria_id: '',
   unidad_medida_id: '', unidad_medida: '', unidad_base: 'pieza', factor_empaque: 1,
-  control_lote_caducidad: 1, precio_lista: '', precio_publico: '', iva_exento: 0,
+  control_lote_caducidad: 1, precio_lista: '', precio_publico: '', precio_costo: '', iva_exento: 0,
   clave_sat: '', clave_unidad_sat: '', fabricante: '', ean: '',
   clasificacion_cofepris: 'libre',
   cuenta_ingreso_codigo: '', cuenta_costo_codigo: '',
@@ -28,12 +28,13 @@ export default function ProductosList() {
   const [busqueda, setBusqueda] = useState('');
   const [busquedaDeb, setBusquedaDeb] = useState('');
   const [filtroFamilia, setFiltroFamilia] = useState('');
+  const [estatus, setEstatus] = useState('activos');
   const [page, setPage] = useState(0);
   const [form, setForm] = useState(FORM_VACIO);
   const [seleccionados, setSeleccionados] = useState(new Set());
   const pageSize = usePrefsStore((s) => s.rowsPerPage);
 
-  useEffect(() => { setPage(0); }, [pageSize, filtroFamilia]);
+  useEffect(() => { setPage(0); }, [pageSize, filtroFamilia, estatus]);
   useEffect(() => {
     const t = setTimeout(() => { setBusquedaDeb(busqueda); setPage(0); }, 300);
     return () => clearTimeout(t);
@@ -61,11 +62,12 @@ export default function ProductosList() {
 
   // ── Lista de productos (paginación en servidor: se ve TODO el catálogo) ──
   const { data, isLoading } = useQuery({
-    queryKey: ['productos', busquedaDeb, filtroFamilia, page, pageSize],
+    queryKey: ['productos', busquedaDeb, filtroFamilia, estatus, page, pageSize],
     queryFn: () => api.get('/productos', {
       params: {
         q: busquedaDeb || undefined,
         familia_id: filtroFamilia || undefined,
+        estatus,
         limit: pageSize,
         offset: page * pageSize,
       },
@@ -109,6 +111,12 @@ export default function ProductosList() {
     bajaMut.mutate(ids);
   }
 
+  const reactivarMut = useMutation({
+    mutationFn: (id) => api.put(`/productos/${id}`, { activo: 1 }),
+    onSuccess: () => { toast.success('Producto reactivado'); qc.invalidateQueries(['productos']); },
+    onError: (e) => toast.error(e.response?.data?.error || 'Error al reactivar'),
+  });
+
   function abrirNuevo() { setEditando(null); setForm(FORM_VACIO); setShowModal(true); }
 
   function abrirEditar(p) {
@@ -116,10 +124,11 @@ export default function ProductosList() {
     setForm({
       sku_interno: p.sku_interno || '', descripcion: p.descripcion || '',
       familia_id: p.familia_id || '', categoria_id: p.categoria_id || '', subcategoria_id: p.subcategoria_id || '',
-      unidad_medida_id: '', unidad_medida: p.unidad_medida || '',
+      unidad_medida_id: p.unidad_medida_id ?? '', unidad_medida: p.unidad_medida || '',
       unidad_base: p.unidad_base || 'pieza', factor_empaque: p.factor_empaque ?? 1,
       control_lote_caducidad: p.control_lote_caducidad ?? 1,
       precio_lista: p.precio_lista ?? '', precio_publico: p.precio_publico ?? '',
+      precio_costo: p.precio_costo ?? '',
       iva_exento: p.iva_exento ?? 0, clave_sat: p.clave_sat || '', clave_unidad_sat: p.clave_unidad_sat || '',
       fabricante: p.fabricante || '', ean: p.ean || '',
       clasificacion_cofepris: p.clasificacion_cofepris || 'libre',
@@ -146,10 +155,16 @@ export default function ProductosList() {
       return toast.error('Familia, categoría y subcategoría son obligatorias');
     if (form.precio_lista === '' || form.precio_lista == null)
       return toast.error('Precio de lista obligatorio');
+    const precioPublico = form.precio_publico === '' ? null : parseFloat(form.precio_publico);
+    const precioLista = parseFloat(form.precio_lista) || 0;
+    if (precioPublico != null && precioPublico > 0 && precioLista > precioPublico)
+      return toast.error('El precio de lista no puede ser mayor al precio público (disposición legal)');
     const payload = {
       ...form,
-      precio_lista: parseFloat(form.precio_lista) || 0,
-      precio_publico: form.precio_publico === '' ? null : parseFloat(form.precio_publico),
+      precio_lista: precioLista,
+      precio_publico: precioPublico,
+      precio_costo: form.precio_costo === '' ? null : parseFloat(form.precio_costo),
+      unidad_medida_id: form.unidad_medida_id === '' ? null : form.unidad_medida_id,
       factor_empaque: parseFloat(form.factor_empaque) || 1,
       cuenta_ingreso_codigo: form.cuenta_ingreso_codigo || null,
       cuenta_costo_codigo: form.cuenta_costo_codigo || null,
@@ -209,6 +224,11 @@ export default function ProductosList() {
           <option value="">Todas las familias</option>
           {familias.map((f) => <option key={f.id} value={f.id}>{f.nombre}</option>)}
         </select>
+        <select className="input w-40" value={estatus} onChange={(e) => setEstatus(e.target.value)}>
+          <option value="activos">Activos</option>
+          <option value="inactivos">Inactivos</option>
+          <option value="todos">Todos</option>
+        </select>
       </div>
 
       {/* Barra de acciones masivas */}
@@ -259,12 +279,14 @@ export default function ProductosList() {
                   <th className="text-center">Lote/Cad.</th>
                   <th className="text-center">IVA</th>
                   <th className="text-right">P. Lista</th>
+                  <th className="text-right">Margen</th>
+                  <th className="text-center">Estado</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
                 {pageItems.map((p) => (
-                  <tr key={p.id} className={seleccionados.has(p.id) ? 'bg-red-50' : ''}>
+                  <tr key={p.id} className={seleccionados.has(p.id) ? 'bg-red-50' : !p.activo ? 'opacity-50' : ''}>
                     <td>
                       <input
                         type="checkbox"
@@ -292,16 +314,33 @@ export default function ProductosList() {
                     <td className="text-right">{p.precio_lista != null
                       ? Number(p.precio_lista).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
                       : '—'}</td>
+                    <td className="text-right text-xs">{p.margen_ganancia != null ? `${Number(p.margen_ganancia).toFixed(2)}%` : '—'}</td>
+                    <td className="text-center">
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${p.activo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                        {p.activo ? 'Activo' : 'Inactivo'}
+                      </span>
+                      {!p.vendible && (
+                        <span className="block mt-1 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700" title="Sin precio de venta: no se puede vender en POS ni cotizaciones">
+                          No vendible
+                        </span>
+                      )}
+                    </td>
                     <td>
                       <div className="flex items-center gap-3">
                         <button onClick={() => abrirEditar(p)} className="text-xs text-brand-500 hover:underline">Editar</button>
-                        <button
-                          onClick={() => darDeBaja([p.id])}
-                          className="text-xs text-red-400 hover:text-red-600"
-                          title="Dar de baja"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        {p.activo ? (
+                          <button
+                            onClick={() => darDeBaja([p.id])}
+                            className="text-xs text-red-400 hover:text-red-600"
+                            title="Dar de baja"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        ) : (
+                          <button onClick={() => reactivarMut.mutate(p.id)} className="text-xs text-green-600 hover:underline">
+                            Reactivar
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -397,28 +436,41 @@ export default function ProductosList() {
             {/* Precios + flags */}
             <div className="grid grid-cols-3 gap-4">
               <div>
+                <label className="label">Precio de costo</label>
+                <input type="number" min="0" step="0.01" className="input" value={form.precio_costo}
+                  onChange={(e) => set('precio_costo', e.target.value)} />
+                <p className="text-xs text-gray-400 mt-0.5">Precio de compra al proveedor</p>
+              </div>
+              <div>
                 <label className="label">Precio de lista *</label>
                 <input type="number" min="0" step="0.01" className="input" value={form.precio_lista}
                   onChange={(e) => set('precio_lista', e.target.value)} />
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {form.precio_costo !== '' && form.precio_lista !== '' && Number(form.precio_lista) > 0
+                    ? `Margen: ${(((Number(form.precio_lista) - Number(form.precio_costo)) / Number(form.precio_lista)) * 100).toFixed(2)}%`
+                    : 'Margen: —'}
+                </p>
               </div>
               <div>
                 <label className="label">Precio público</label>
                 <input type="number" min="0" step="0.01" className="input" value={form.precio_publico}
                   onChange={(e) => set('precio_publico', e.target.value)} />
+                <p className="text-xs text-gray-400 mt-0.5">Vacío o 0 = sin tope (999,999.99). El de lista nunca puede excederlo.</p>
               </div>
-              <div className="flex flex-col gap-2 pt-6">
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" className="h-4 w-4 accent-brand-500"
-                    checked={!form.iva_exento} onChange={(e) => set('iva_exento', e.target.checked ? 0 : 1)} />
-                  Calcula IVA 16%
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" className="h-4 w-4 accent-brand-500"
-                    checked={!!form.control_lote_caducidad}
-                    onChange={(e) => set('control_lote_caducidad', e.target.checked ? 1 : 0)} />
-                  Control de lote y caducidad
-                </label>
-              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" className="h-4 w-4 accent-brand-500"
+                  checked={!form.iva_exento} onChange={(e) => set('iva_exento', e.target.checked ? 0 : 1)} />
+                Calcula IVA 16%
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" className="h-4 w-4 accent-brand-500"
+                  checked={!!form.control_lote_caducidad}
+                  onChange={(e) => set('control_lote_caducidad', e.target.checked ? 1 : 0)} />
+                Control de lote y caducidad
+              </label>
             </div>
 
             <div className="grid grid-cols-3 gap-4">

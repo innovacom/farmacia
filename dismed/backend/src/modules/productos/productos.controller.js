@@ -4,6 +4,7 @@ const { parseCatalogo } = require('../inventario/import.catalogo');
 const { buscarCandidatos, normalizar } = require('../solicitudes/matcher');
 const { desempatarConIA } = require('../solicitudes/matcher.ia');
 const fs = require('fs');
+const { normalizarPrecioPublico, validarPrecios, tienePrecioLista } = require('./productos.pricing');
 
 // Campos editables de producto (alta/edición)
 const PROD_FIELDS = [
@@ -11,12 +12,28 @@ const PROD_FIELDS = [
   'unidad_medida', 'unidad_medida_id', 'clave_sat', 'clave_unidad_sat', 'stock_minimo',
   'familia_id', 'categoria_id', 'subcategoria_id',
   'unidad_base', 'factor_empaque', 'control_lote_caducidad',
-  'precio_lista', 'precio_publico', 'iva_exento', 'ieps',
+  'precio_lista', 'precio_publico', 'precio_costo', 'iva_exento', 'ieps',
   'fabricante', 'ean', 'sustancia_activa', 'tamano', 'calibre', 'especificacion',
   'clave_cuadro_basico', 'clasificacion_cofepris',
   'cuenta_ingreso_codigo', 'cuenta_costo_codigo',
-  'activo',
+  'activo', 'vendible',
 ];
+
+// Campos que se guardan como 0/1 (checkboxes), no como el valor crudo del body.
+const CAMPOS_BOOLEANOS = new Set(['iva_exento', 'control_lote_caducidad', 'vendible']);
+
+// Alta: si no mandan `vendible` explícito, se deduce de si viene precio_lista.
+function autoVendibleCreate(body) {
+  if (body.vendible !== undefined) return;
+  body.vendible = tienePrecioLista(body.precio_lista) ? 1 : 0;
+}
+
+// Edición: solo se recalcula si esta petición está tocando precio_lista
+// (si no la toca, no se pisa un `vendible` que el admin ya haya fijado a mano).
+function autoVendibleUpdate(body) {
+  if (body.precio_lista === undefined || body.vendible !== undefined) return;
+  body.vendible = tienePrecioLista(body.precio_lista) ? 1 : 0;
+}
 
 async function list(req, res, next) {
   try {
@@ -37,7 +54,7 @@ async function list(req, res, next) {
       `SELECT p.id, p.sku_interno, p.descripcion, p.descripcion_corta,
               p.unidad_medida, p.stock_minimo, p.activo,
               p.control_lote_caducidad, p.unidad_base, p.factor_empaque,
-              p.precio_lista, p.precio_publico, p.iva_exento,
+              p.precio_lista, p.precio_publico, p.precio_costo, p.margen_ganancia, p.iva_exento, p.vendible,
               p.familia_id, p.categoria_id, p.subcategoria_id, p.fabricante,
               p.clave_sat, p.clave_unidad_sat, p.ean, p.clasificacion_cofepris,
               p.cuenta_ingreso_codigo, p.cuenta_costo_codigo,
@@ -124,6 +141,16 @@ async function create(req, res, next) {
       return res.status(400).json({ error: 'descripcion requerida' });
     }
 
+    if (req.body.precio_publico !== undefined) {
+      req.body.precio_publico = normalizarPrecioPublico(req.body.precio_publico);
+    }
+    const errorPrecios = validarPrecios(req.body.precio_lista, req.body.precio_publico);
+    if (errorPrecios) {
+      await conn.rollback();
+      return res.status(400).json({ error: errorPrecios });
+    }
+    autoVendibleCreate(req.body);
+
     // SKU: usar el código INNOVACOM si viene; si no, autogenerar DM-#####
     let sku = (req.body.sku_interno || '').toString().trim();
     if (!sku) {
@@ -142,8 +169,7 @@ async function create(req, res, next) {
     PROD_FIELDS.forEach((f) => {
       if (req.body[f] !== undefined) {
         cols.push(f); ph.push('?');
-        vals.push(f === 'iva_exento' || f === 'control_lote_caducidad'
-          ? (req.body[f] ? 1 : 0) : req.body[f]);
+        vals.push(CAMPOS_BOOLEANOS.has(f) ? (req.body[f] ? 1 : 0) : req.body[f]);
       }
     });
     // descripcion_norm para la búsqueda FULLTEXT
@@ -165,12 +191,26 @@ async function create(req, res, next) {
 
 async function update(req, res, next) {
   try {
+    if (req.body.precio_publico !== undefined) {
+      req.body.precio_publico = normalizarPrecioPublico(req.body.precio_publico);
+    }
+    if (req.body.precio_lista !== undefined || req.body.precio_publico !== undefined) {
+      const [[actual]] = await pool.query(
+        'SELECT precio_lista, precio_publico FROM productos WHERE id = ?', [req.params.id]
+      );
+      if (!actual) return res.status(404).json({ error: 'Producto no encontrado' });
+      const precioLista   = req.body.precio_lista   !== undefined ? req.body.precio_lista   : actual.precio_lista;
+      const precioPublico = req.body.precio_publico !== undefined ? req.body.precio_publico : actual.precio_publico;
+      const errorPrecios = validarPrecios(precioLista, precioPublico);
+      if (errorPrecios) return res.status(400).json({ error: errorPrecios });
+    }
+    autoVendibleUpdate(req.body);
+
     const sets = []; const vals = [];
     PROD_FIELDS.forEach((f) => {
       if (req.body[f] !== undefined) {
         sets.push(`${f} = ?`);
-        vals.push(f === 'iva_exento' || f === 'control_lote_caducidad'
-          ? (req.body[f] ? 1 : 0) : req.body[f]);
+        vals.push(CAMPOS_BOOLEANOS.has(f) ? (req.body[f] ? 1 : 0) : req.body[f]);
       }
     });
     // Recalcular descripcion_norm si cambió la descripción
@@ -244,6 +284,15 @@ async function importConfirm(req, res, next) {
         continue;
       }
 
+      // Regla legal: precio_lista nunca mayor a precio_publico (0/vacío = sin tope)
+      p.precio_publico = normalizarPrecioPublico(p.precio_publico);
+      const errorPrecios = validarPrecios(p.precio_lista, p.precio_publico);
+      if (errorPrecios) {
+        omitidos++;
+        if (errores.length < 20) errores.push({ sku, motivo: errorPrecios });
+        continue;
+      }
+
       // Resolver taxonomía (crea lo que falte, aunque la precarga debería cubrir todo)
       const familiaId = await resolverId(conn, cache, 'familias',
         ['nombre'], [p.familia], ['nombre'], [p.familia]);
@@ -258,10 +307,10 @@ async function importConfirm(req, res, next) {
         `INSERT INTO productos
            (sku_interno, descripcion, descripcion_norm, familia_id, categoria_id, subcategoria_id,
             unidad_medida, unidad_medida_id, unidad_base, factor_empaque,
-            control_lote_caducidad, precio_lista, precio_publico, iva_exento, ieps,
+            control_lote_caducidad, precio_lista, precio_publico, precio_costo, iva_exento, ieps,
             clave_sat, clave_unidad_sat, clave_cuadro_basico, fabricante, ean,
             sustancia_activa, tamano, calibre, especificacion)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
          ON DUPLICATE KEY UPDATE
            descripcion = VALUES(descripcion), descripcion_norm = VALUES(descripcion_norm),
            familia_id = VALUES(familia_id),
@@ -270,6 +319,7 @@ async function importConfirm(req, res, next) {
            factor_empaque = VALUES(factor_empaque),
            control_lote_caducidad = VALUES(control_lote_caducidad),
            precio_lista = VALUES(precio_lista), precio_publico = VALUES(precio_publico),
+           precio_costo = VALUES(precio_costo),
            iva_exento = VALUES(iva_exento), ieps = VALUES(ieps),
            clave_sat = VALUES(clave_sat), clave_unidad_sat = VALUES(clave_unidad_sat),
            clave_cuadro_basico = VALUES(clave_cuadro_basico),
@@ -280,7 +330,7 @@ async function importConfirm(req, res, next) {
          familiaId, categoriaId, subcatId,
          p.unidad_medida, unidadId, p.unidad_base || 'pieza', p.factor_empaque ?? 1,
          p.control_lote_caducidad ? 1 : 0,
-         p.precio_lista, p.precio_publico ?? null, p.iva_exento ? 1 : 0, p.ieps ?? null,
+         p.precio_lista, p.precio_publico ?? null, p.precio_costo ?? null, p.iva_exento ? 1 : 0, p.ieps ?? null,
          p.clave_sat || null, p.clave_unidad_sat || null, p.clave_cuadro_basico || null,
          p.fabricante || null, p.ean || null,
          p.sustancia_activa || null, p.tamano || null, p.calibre || null, p.especificacion || null]
@@ -320,14 +370,14 @@ function plantillaCatalogo(req, res, next) {
   try {
     const headers = [
       'EAN', 'Id', 'DESCRIPCION', 'FAMILIA', 'CATEGORIA', 'SUBCATEGORIA', 'UNIDAD_VENTA',
-      'PRECIO_PUBLICO', 'PRECIO_LISTA', 'IVA', 'IEPS', 'codigo_sat', 'unidad_sat',
+      'PRECIO_PUBLICO', 'PRECIO_LISTA', 'PRECIO_COSTO', 'IVA', 'IEPS', 'codigo_sat', 'unidad_sat',
       'SUSTANCIA ACTIVA', 'TAMAÑO', 'LARGO', 'ANCHO', 'CALIBRE', 'ESPECIFICACION', 'LABORATORIO',
     ];
     const ejemplos = [
       ['7501001234567', 'INAP00238', 'CANULA NASAL ADULTO', 'MATERIAL DE CURACION', 'OXIGENOTERAPIA',
-        'CANULAS', 'PIEZA', 25.00, 12.50, 0.16, 0, '42271707', 'H87', '', '2 M', '', '', '', 'PUNTA SUAVE', 'AMBU'],
+        'CANULAS', 'PIEZA', 25.00, 12.50, 8.00, 0.16, 0, '42271707', 'H87', '', '2 M', '', '', '', 'PUNTA SUAVE', 'AMBU'],
       [0, 'DM-00042', 'GASA ESTERIL 10X10', 'MATERIAL DE CURACION', 'GASAS',
-        'ESTERILES', 'CAJA C/100', 120.00, 85.00, 0, 0, '42311505', 'XBX', '', '10X10 CM', '', '', '', '', 'DEGASA'],
+        'ESTERILES', 'CAJA C/100', 120.00, 85.00, 55.00, 0, 0, '42311505', 'XBX', '', '10X10 CM', '', '', '', '', 'DEGASA'],
     ];
     const ws = XLSX.utils.aoa_to_sheet([headers, ...ejemplos]);
     const wb = XLSX.utils.book_new();

@@ -2,10 +2,12 @@ const { pool } = require('../../config/db');
 
 async function listAlmacenes(req, res, next) {
   try {
+    const estatus = req.query.estatus || 'activos'; // activos | inactivos | todos
+    const where = estatus === 'todos' ? '' : `WHERE a.activo = ${estatus === 'inactivos' ? 0 : 1}`;
     const [rows] = await pool.query(
       `SELECT a.id, a.codigo, a.nombre, a.direccion, a.activo,
               (SELECT COUNT(*) FROM ubicaciones u WHERE u.almacen_id = a.id AND u.activo = 1) AS ubicaciones
-       FROM almacenes a WHERE a.activo = 1 ORDER BY a.nombre`
+       FROM almacenes a ${where} ORDER BY a.nombre`
     );
     res.json(rows);
   } catch (err) { next(err); }
@@ -39,11 +41,20 @@ async function updateAlmacen(req, res, next) {
   } catch (err) { next(err); }
 }
 
+async function removeAlmacen(req, res, next) {
+  try {
+    await pool.query('UPDATE almacenes SET activo = 0 WHERE id = ?', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+}
+
 async function listUbicaciones(req, res, next) {
   try {
+    const estatus = req.query.estatus || 'activos'; // activos | inactivos | todos
+    const cond = estatus === 'todos' ? '' : `AND activo = ${estatus === 'inactivos' ? 0 : 1}`;
     const [rows] = await pool.query(
       `SELECT id, almacen_id, codigo, descripcion, tipo, activo
-       FROM ubicaciones WHERE almacen_id = ? AND activo = 1 ORDER BY codigo`,
+       FROM ubicaciones WHERE almacen_id = ? ${cond} ORDER BY codigo`,
       [req.params.id]
     );
     res.json(rows);
@@ -78,7 +89,14 @@ async function updateUbicacion(req, res, next) {
   } catch (err) { next(err); }
 }
 
+async function removeUbicacion(req, res, next) {
+  try {
+    await pool.query('UPDATE ubicaciones SET activo = 0 WHERE id = ? AND almacen_id = ?', [req.params.uid, req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+}
+
 module.exports = {
-  listAlmacenes, createAlmacen, updateAlmacen,
-  listUbicaciones, createUbicacion, updateUbicacion,
+  listAlmacenes, createAlmacen, updateAlmacen, removeAlmacen,
+  listUbicaciones, createUbicacion, updateUbicacion, removeUbicacion,
 };

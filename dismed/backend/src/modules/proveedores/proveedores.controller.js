@@ -2,6 +2,7 @@ const { pool } = require('../../config/db');
 
 async function list(req, res, next) {
   try {
+    const soloActivos = req.query.activos === '1';
     const [rows] = await pool.query(
       `SELECT p.id, p.nombre_empresa, p.nombre_contacto, p.puesto_contacto, p.rfc,
               p.email_cotizaciones, p.telefono, p.whatsapp, p.dias_entrega_prom, p.notas, p.activo,
@@ -9,7 +10,7 @@ async function list(req, res, next) {
               GROUP_CONCAT(pc.categoria ORDER BY pc.categoria) AS categorias
        FROM proveedores p
        LEFT JOIN proveedores_categorias pc ON pc.proveedor_id = p.id
-       WHERE p.activo = 1
+       ${soloActivos ? 'WHERE p.activo = 1' : ''}
        GROUP BY p.id
        ORDER BY p.nombre_empresa`
     );

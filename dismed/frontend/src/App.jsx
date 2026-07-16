@@ -19,6 +19,7 @@ import CatalogosApoyo from './pages/Inventario/CatalogosApoyo';
 import Almacenes from './pages/Inventario/Almacenes';
 import Existencias from './pages/Inventario/Existencias';
 import Movimientos from './pages/Inventario/Movimientos';
+import CargaFacturas from './pages/Inventario/CargaFacturas';
 import PedidosList from './pages/Ventas/PedidosList';
 import CrearPedido from './pages/Ventas/CrearPedido';
 import DetallePedido from './pages/Ventas/DetallePedido';
@@ -81,6 +82,7 @@ export default function App() {
         <Route path="inventario/almacenes"                element={<Almacenes />} />
         <Route path="inventario/existencias"              element={<Existencias />} />
         <Route path="inventario/movimientos"              element={<Movimientos />} />
+        <Route path="inventario/carga-facturas"           element={<CargaFacturas />} />
         <Route path="ventas/pedidos"                       element={<PedidosList />} />
         <Route path="ventas/pedidos/nuevo/:cotizacionId"   element={<CrearPedido />} />
         <Route path="ventas/pedidos/:id"                   element={<DetallePedido />} />

@@ -1,12 +1,26 @@
 const { pool } = require('../../config/db');
 
 // ── Familias ────────────────────────────────────────────────────────────────
+function condActivo(req) {
+  const estatus = req.query.estatus || 'activos'; // activos | inactivos | todos
+  if (estatus === 'todos') return '';
+  return `activo = ${estatus === 'inactivos' ? 0 : 1}`;
+}
+
 async function listFamilias(req, res, next) {
   try {
+    const cond = condActivo(req);
     const [rows] = await pool.query(
-      'SELECT id, nombre, activo FROM familias WHERE activo = 1 ORDER BY nombre'
+      `SELECT id, nombre, activo FROM familias ${cond ? `WHERE ${cond}` : ''} ORDER BY nombre`
     );
     res.json(rows);
+  } catch (err) { next(err); }
+}
+
+async function removeFamilia(req, res, next) {
+  try {
+    await pool.query('UPDATE familias SET activo = 0 WHERE id = ?', [req.params.id]);
+    res.json({ ok: true });
   } catch (err) { next(err); }
 }
 
@@ -39,16 +53,24 @@ async function updateFamilia(req, res, next) {
 async function listCategorias(req, res, next) {
   try {
     const { familia_id } = req.query;
-    const where = ['c.activo = 1'];
+    const cond = condActivo(req);
+    const where = cond ? [`c.${cond}`] : [];
     const vals = [];
     if (familia_id) { where.push('c.familia_id = ?'); vals.push(familia_id); }
     const [rows] = await pool.query(
       `SELECT c.id, c.familia_id, c.nombre, c.activo, f.nombre AS familia_nombre
        FROM categorias_prod c JOIN familias f ON f.id = c.familia_id
-       WHERE ${where.join(' AND ')} ORDER BY c.nombre`,
+       ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY c.nombre`,
       vals
     );
     res.json(rows);
+  } catch (err) { next(err); }
+}
+
+async function removeCategoria(req, res, next) {
+  try {
+    await pool.query('UPDATE categorias_prod SET activo = 0 WHERE id = ?', [req.params.id]);
+    res.json({ ok: true });
   } catch (err) { next(err); }
 }
 
@@ -82,16 +104,24 @@ async function updateCategoria(req, res, next) {
 async function listSubcategorias(req, res, next) {
   try {
     const { categoria_id } = req.query;
-    const where = ['s.activo = 1'];
+    const cond = condActivo(req);
+    const where = cond ? [`s.${cond}`] : [];
     const vals = [];
     if (categoria_id) { where.push('s.categoria_id = ?'); vals.push(categoria_id); }
     const [rows] = await pool.query(
       `SELECT s.id, s.categoria_id, s.nombre, s.activo
        FROM subcategorias_prod s
-       WHERE ${where.join(' AND ')} ORDER BY s.nombre`,
+       ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY s.nombre`,
       vals
     );
     res.json(rows);
+  } catch (err) { next(err); }
+}
+
+async function removeSubcategoria(req, res, next) {
+  try {
+    await pool.query('UPDATE subcategorias_prod SET activo = 0 WHERE id = ?', [req.params.id]);
+    res.json({ ok: true });
   } catch (err) { next(err); }
 }
 
@@ -124,10 +154,18 @@ async function updateSubcategoria(req, res, next) {
 // ── Unidades de medida ───────────────────────────────────────────────────────
 async function listUnidades(req, res, next) {
   try {
+    const cond = condActivo(req);
     const [rows] = await pool.query(
-      'SELECT id, nombre, factor_sugerido, activo FROM unidades_medida WHERE activo = 1 ORDER BY nombre'
+      `SELECT id, nombre, factor_sugerido, activo FROM unidades_medida ${cond ? `WHERE ${cond}` : ''} ORDER BY nombre`
     );
     res.json(rows);
+  } catch (err) { next(err); }
+}
+
+async function removeUnidad(req, res, next) {
+  try {
+    await pool.query('UPDATE unidades_medida SET activo = 0 WHERE id = ?', [req.params.id]);
+    res.json({ ok: true });
   } catch (err) { next(err); }
 }
 
@@ -158,8 +196,8 @@ async function updateUnidad(req, res, next) {
 }
 
 module.exports = {
-  listFamilias, createFamilia, updateFamilia,
-  listCategorias, createCategoria, updateCategoria,
-  listSubcategorias, createSubcategoria, updateSubcategoria,
-  listUnidades, createUnidad, updateUnidad,
+  listFamilias, createFamilia, updateFamilia, removeFamilia,
+  listCategorias, createCategoria, updateCategoria, removeCategoria,
+  listSubcategorias, createSubcategoria, updateSubcategoria, removeSubcategoria,
+  listUnidades, createUnidad, updateUnidad, removeUnidad,
 };

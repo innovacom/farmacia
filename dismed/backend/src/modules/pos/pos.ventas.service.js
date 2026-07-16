@@ -29,7 +29,7 @@ async function buscarProductos(empresaId, { q, sucursal_id }) {
              COALESCE((SELECT SUM(l.cantidad_actual) FROM inventario_lotes l
                        WHERE l.producto_id = p.id AND l.almacen_id = ?), 0) AS existencia
       FROM productos p
-      WHERE p.activo = 1 AND `;
+      WHERE p.activo = 1 AND p.vendible = 1 AND `;
 
     // 1º match exacto por EAN (lector de código de barras) o SKU
     const [exactos] = await conn.query(
@@ -116,12 +116,15 @@ async function crearVenta(empresaId, payload) {
         throw Object.assign(new Error('Cantidad inválida en una partida'), { status: 400 });
       }
       const [[prod]] = await conn.query(
-        `SELECT id, descripcion, precio_publico, clasificacion_cofepris, ieps, iva_exento
+        `SELECT id, descripcion, precio_publico, clasificacion_cofepris, ieps, iva_exento, vendible
          FROM productos WHERE id = ? AND activo = 1`,
         [p.producto_id]
       );
       if (!prod) {
         throw Object.assign(new Error(`Producto ${p.producto_id} no existe o está inactivo`), { status: 400 });
+      }
+      if (!prod.vendible) {
+        throw Object.assign(new Error(`"${prod.descripcion}" no está marcado como vendible (sin precio de venta capturado)`), { status: 400 });
       }
       const precio = Number(p.precio_unitario ?? prod.precio_publico);
       if (!(precio > 0)) {

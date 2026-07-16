@@ -6,7 +6,7 @@ const PERMISSIONABLE_KEYS = [
   'dashboard',
   'clientes', 'solicitudes', 'cotizaciones', 'pedidos',
   'existencias', 'movimientos', 'almacenes', 'productos', 'proveedores',
-  'catalogo-proveedor', 'catalogos-apoyo',
+  'catalogo-proveedor', 'catalogos-apoyo', 'carga-facturas',
   'consultas', 'cfdi',
   'contabilidad-estado-resultados', 'contabilidad-balance-general', 'contabilidad-balanza',
   'contabilidad-catalogo-cuentas', 'contabilidad-polizas', 'contabilidad-bancos',

@@ -7,8 +7,11 @@ const XLSX = require('xlsx');
  *
  * Encabezados esperados (fila 1):
  *   EAN, Id, DESCRIPCION, FAMILIA, CATEGORIA, SUBCATEGORIA, UNIDAD_VENTA,
- *   PRECIO_PUBLICO, PRECIO_LISTA, IVA, IEPS, codigo_sat, unidad_sat,
+ *   PRECIO_PUBLICO, PRECIO_LISTA, PRECIO_COSTO, IVA, IEPS, codigo_sat, unidad_sat,
  *   SUSTANCIA ACTIVA, TAMAÑO, LARGO, ANCHO, CALIBRE, ESPECIFICACION, LABORATORIO
+ *
+ * PRECIO_COSTO es opcional (columna nueva); si no viene en el archivo, precio_costo
+ * queda NULL y el margen no se calcula hasta que se capture manualmente.
  */
 
 const norm = (s) => (s == null ? '' : String(s).trim());
@@ -50,6 +53,7 @@ function parseCatalogo(filePath) {
     unidad:        col('UNIDAD_VENTA'),
     precio_publico:col('PRECIO_PUBLICO'),
     precio_lista:  col('PRECIO_LISTA'),
+    precio_costo:  col('PRECIO_COSTO'),
     iva:           col('IVA'),
     ieps:          col('IEPS'),
     codigo_sat:    col('codigo_sat'),
@@ -91,6 +95,7 @@ function parseCatalogo(filePath) {
       unidad_base:    'pieza',
       precio_lista:   numOrNull(val(r, idx.precio_lista)),
       precio_publico: numOrNull(val(r, idx.precio_publico)),
+      precio_costo:   numOrNull(val(r, idx.precio_costo)),
       iva_exento:     ivaNum > 0 ? 0 : 1,                  // IVA 0.16 → no exento; 0 → exento
       ieps:           numOrNull(val(r, idx.ieps)),
       clave_sat:      norm(val(r, idx.codigo_sat)) || null,

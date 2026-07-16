@@ -88,6 +88,12 @@ export default function ProveedoresList() {
     bajaMut.mutate(ids);
   }
 
+  const reactivarMut = useMutation({
+    mutationFn: (id) => api.put(`/proveedores/${id}`, { activo: 1 }),
+    onSuccess: () => { toast.success('Proveedor reactivado'); qc.invalidateQueries(['proveedores']); },
+    onError: (e) => toast.error(e.response?.data?.error || 'Error al reactivar'),
+  });
+
   function abrirNuevo() {
     setEditando(null);
     reset({});
@@ -200,12 +206,13 @@ export default function ProveedoresList() {
                 <th>Email cotizaciones</th>
                 <th>WhatsApp</th>
                 <th>Categorías</th>
+                <th className="text-center">Estado</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               {pageItems.map((p) => (
-                <tr key={p.id} className={seleccionados.has(p.id) ? 'bg-red-50' : ''}>
+                <tr key={p.id} className={seleccionados.has(p.id) ? 'bg-red-50' : !p.activo ? 'opacity-50' : ''}>
                   <td>
                     <input
                       type="checkbox"
@@ -231,18 +238,29 @@ export default function ProveedoresList() {
                       ))}
                     </div>
                   </td>
+                  <td className="text-center">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${p.activo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {p.activo ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </td>
                   <td>
                     <div className="flex items-center gap-3">
                       <button onClick={() => abrirEditar(p)} className="text-xs text-brand-500 hover:underline">
                         Editar
                       </button>
-                      <button
-                        onClick={() => darDeBaja([p.id])}
-                        className="text-xs text-red-400 hover:text-red-600"
-                        title="Dar de baja"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      {p.activo ? (
+                        <button
+                          onClick={() => darDeBaja([p.id])}
+                          className="text-xs text-red-400 hover:text-red-600"
+                          title="Dar de baja"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      ) : (
+                        <button onClick={() => reactivarMut.mutate(p.id)} className="text-xs text-green-600 hover:underline">
+                          Reactivar
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
