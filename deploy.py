@@ -143,7 +143,7 @@ def main():
     if back_tgz:
         print("== Backend: sincronizando + npm install ==")
         run(
-            f"cp -a '{BACK}/src' '{BACK}/src.bak.$(date +%Y%m%d-%H%M%S)' 2>/dev/null || true; "
+            f"cp -a '{BACK}/src' \"{BACK}/src.bak.$(date +%Y%m%d-%H%M%S)\" 2>/dev/null || true; "
             f"tar -xzf /tmp/_deploy_backend.tgz -C '{BACK}'; rm -f /tmp/_deploy_backend.tgz; "
             f"cd '{BACK}' && PUPPETEER_SKIP_DOWNLOAD=true npm install --omit=dev 2>&1 | tail -4; echo 'backend OK'"
         )
@@ -157,7 +157,7 @@ def main():
     if dist_tgz:
         print("== Frontend: reemplazando dist ==")
         run(
-            f"cp -a '{DOCROOT}' '{DOCROOT}.bak.$(date +%Y%m%d-%H%M%S)' 2>/dev/null || true; "
+            f"cp -a '{DOCROOT}' \"{DOCROOT}.bak.$(date +%Y%m%d-%H%M%S)\" 2>/dev/null || true; "
             f"rm -rf '{DOCROOT}'/*; tar -xzf /tmp/_deploy_dist.tgz -C '{DOCROOT}'; rm -f /tmp/_deploy_dist.tgz; echo 'dist OK'"
         )
 
