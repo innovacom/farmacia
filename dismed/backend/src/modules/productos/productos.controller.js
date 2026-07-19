@@ -225,6 +225,36 @@ async function update(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// PATCH /productos/:id/venta — pantalla admin-only de precios y estatus vendible en masa.
+// Solo toca precio_lista, precio_publico y vendible (nunca precio_costo ni el resto de PROD_FIELDS).
+async function updateVenta(req, res, next) {
+  try {
+    const { precio_lista, precio_publico, vendible } = req.body;
+    const [[actual]] = await pool.query(
+      'SELECT precio_lista, precio_publico FROM productos WHERE id = ?', [req.params.id]
+    );
+    if (!actual) return res.status(404).json({ error: 'Producto no encontrado' });
+
+    const precioPublico = precio_publico !== undefined
+      ? normalizarPrecioPublico(precio_publico)
+      : actual.precio_publico;
+    const precioLista = precio_lista !== undefined ? precio_lista : actual.precio_lista;
+
+    const errorPrecios = validarPrecios(precioLista, precioPublico);
+    if (errorPrecios) return res.status(400).json({ error: errorPrecios });
+
+    const sets = []; const vals = [];
+    if (precio_lista !== undefined)   { sets.push('precio_lista = ?');   vals.push(precio_lista); }
+    if (precio_publico !== undefined) { sets.push('precio_publico = ?'); vals.push(precioPublico); }
+    if (vendible !== undefined)       { sets.push('vendible = ?');      vals.push(vendible ? 1 : 0); }
+    if (!sets.length) return res.status(400).json({ error: 'Sin campos para actualizar' });
+
+    vals.push(req.params.id);
+    await pool.query(`UPDATE productos SET ${sets.join(', ')} WHERE id = ?`, vals);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+}
+
 // ── Importación del catálogo (preview) ────────────────────────────────────────
 async function importPreview(req, res, next) {
   try {
@@ -389,4 +419,4 @@ function plantillaCatalogo(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { list, match, matchIa, getById, create, update, importPreview, importConfirm, plantillaCatalogo, remove, removeMultiple };
+module.exports = { list, match, matchIa, getById, create, update, updateVenta, importPreview, importConfirm, plantillaCatalogo, remove, removeMultiple };

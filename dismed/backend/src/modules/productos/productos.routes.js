@@ -3,6 +3,9 @@ const auth = require('../../middleware/auth');
 const upload = require('../../middleware/upload');
 const c = require('./productos.controller');
 
+const adminOnly = (req, res, next) =>
+  req.user?.rol === 'admin' ? next() : res.status(403).json({ error: 'Se requiere rol admin' });
+
 router.use(auth);
 router.get('/',       c.list);
 router.get('/match',  c.match);   // antes de /:id para que no lo capture
@@ -14,6 +17,9 @@ router.post('/import-catalogo',         upload.single('archivo'), c.importPrevie
 router.post('/import-catalogo/confirmar', c.importConfirm);
 
 router.post('/baja-masiva', c.removeMultiple);
+
+// Pantalla admin-only de precios y estatus vendible en masa.
+router.patch('/:id/venta', adminOnly, c.updateVenta);
 
 router.get('/:id',    c.getById);
 router.post('/',      c.create);

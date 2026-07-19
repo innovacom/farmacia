@@ -3,7 +3,7 @@ import {
   Layers, Warehouse, Boxes, ArrowLeftRight, ShoppingCart, BookOpen, History,
   HelpCircle, Receipt, SlidersHorizontal, Settings, Download, Upload, Wrench,
   Calculator, TrendingUp, Scale, BookOpenCheck, ListTree, Landmark, BookText,
-  FileSpreadsheet, BarChart3, Store, Clock, Pill, Building2, FileUp,
+  FileSpreadsheet, BarChart3, Store, Clock, Pill, Building2, FileUp, Tags,
 } from 'lucide-react';
 
 // Catálogo canónico del menú. Debe mantenerse en sincronía con el backend
@@ -33,6 +33,7 @@ export const MENU = {
         { key: 'carga-facturas',     to: '/inventario/carga-facturas', label: 'Carga automática de facturas', icon: FileUp },
         { key: 'almacenes',          to: '/inventario/almacenes',   label: 'Almacenes',             icon: Warehouse },
         { key: 'productos',          to: '/productos',              label: 'Catálogo de productos', icon: Package },
+        { key: 'precios-venta',      to: '/productos/precios',      label: 'Precios y estatus de venta', icon: Tags, adminOnly: true },
         { key: 'proveedores',        to: '/proveedores',            label: 'Proveedores',           icon: Truck },
         { key: 'catalogo-proveedor', to: '/catalogo-proveedores',   label: 'Catálogo por proveedor', icon: BookOpen },
         { key: 'catalogos-apoyo',    to: '/inventario/catalogos',   label: 'Catálogos de apoyo',    icon: Layers },

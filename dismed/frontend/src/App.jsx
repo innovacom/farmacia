@@ -15,6 +15,7 @@ import ClientesList from './pages/Clientes/ClientesList';
 import ProveedoresList from './pages/Proveedores/ProveedoresList';
 import CatalogoProveedor from './pages/Proveedores/CatalogoProveedor';
 import ProductosList from './pages/Productos/ProductosList';
+import PreciosVenta from './pages/Productos/PreciosVenta';
 import CatalogosApoyo from './pages/Inventario/CatalogosApoyo';
 import Almacenes from './pages/Inventario/Almacenes';
 import Existencias from './pages/Inventario/Existencias';
@@ -78,6 +79,7 @@ export default function App() {
         <Route path="proveedores"                         element={<ProveedoresList />} />
         <Route path="catalogo-proveedores"                element={<CatalogoProveedor />} />
         <Route path="productos"                           element={<ProductosList />} />
+        <Route path="productos/precios"                   element={<PreciosVenta />} />
         <Route path="inventario/catalogos"                element={<CatalogosApoyo />} />
         <Route path="inventario/almacenes"                element={<Almacenes />} />
         <Route path="inventario/existencias"              element={<Existencias />} />
