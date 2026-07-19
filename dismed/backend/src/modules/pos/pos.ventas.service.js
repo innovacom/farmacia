@@ -24,7 +24,7 @@ async function buscarProductos(empresaId, { q, sucursal_id }) {
     if (!texto) return [];
 
     const base = `
-      SELECT p.id, p.sku_interno, p.descripcion, p.ean, p.precio_publico,
+      SELECT p.id, p.sku_interno, p.descripcion, p.ean, p.precio_lista, p.precio_publico,
              p.clasificacion_cofepris, p.control_lote_caducidad,
              COALESCE((SELECT SUM(l.cantidad_actual) FROM inventario_lotes l
                        WHERE l.producto_id = p.id AND l.almacen_id = ?), 0) AS existencia
@@ -116,7 +116,7 @@ async function crearVenta(empresaId, payload) {
         throw Object.assign(new Error('Cantidad inválida en una partida'), { status: 400 });
       }
       const [[prod]] = await conn.query(
-        `SELECT id, descripcion, precio_publico, clasificacion_cofepris, ieps, iva_exento, vendible
+        `SELECT id, descripcion, precio_lista, clasificacion_cofepris, ieps, iva_exento, vendible
          FROM productos WHERE id = ? AND activo = 1`,
         [p.producto_id]
       );
@@ -126,9 +126,9 @@ async function crearVenta(empresaId, payload) {
       if (!prod.vendible) {
         throw Object.assign(new Error(`"${prod.descripcion}" no está marcado como vendible (sin precio de venta capturado)`), { status: 400 });
       }
-      const precio = Number(p.precio_unitario ?? prod.precio_publico);
+      const precio = Number(p.precio_unitario ?? prod.precio_lista);
       if (!(precio > 0)) {
-        throw Object.assign(new Error(`El producto "${prod.descripcion}" no tiene precio público`), { status: 400 });
+        throw Object.assign(new Error(`El producto "${prod.descripcion}" no tiene precio de venta`), { status: 400 });
       }
       const descuento = Number(p.descuento || 0);
       const importe = Math.round((cantidad * precio - descuento) * 100) / 100;
@@ -136,7 +136,7 @@ async function crearVenta(empresaId, payload) {
         throw Object.assign(new Error('Descuento mayor que el importe'), { status: 400 });
       }
       // Medicamentos (iva_exento=1) = TASA 0 (decisión del contador 2026-07-11:
-      // TaxObject 02 Rate 0.000000, NO exento). Resto: 16% incluido en precio público.
+      // TaxObject 02 Rate 0.000000, NO exento). Resto: 16% incluido en precio de lista.
       const ivaTasa = prod.iva_exento ? 0 : 0.16;
       const importeSinIva = Math.round((importe / (1 + ivaTasa)) * 100) / 100;
       subtotal += importeSinIva;

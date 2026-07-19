@@ -31,7 +31,7 @@ function carritoReducer(state, action) {
         producto_id: action.producto.id,
         descripcion: action.producto.descripcion,
         sku: action.producto.sku_interno,
-        precio: Number(action.producto.precio_publico),
+        precio: Number(action.producto.precio_lista),
         clasificacion: action.producto.clasificacion_cofepris,
         existencia: Number(action.producto.existencia),
         cantidad: 1,
@@ -130,8 +130,8 @@ export default function VentaMostrador() {
   }
 
   function agregarProducto(p) {
-    if (!(Number(p.precio_publico) > 0)) {
-      toast.error(`"${p.descripcion}" no tiene precio público configurado`);
+    if (!(Number(p.precio_lista) > 0)) {
+      toast.error(`"${p.descripcion}" no tiene precio de venta configurado`);
       return;
     }
     if (!(Number(p.existencia) > 0)) {
@@ -261,7 +261,7 @@ export default function VentaMostrador() {
                 <span className={`text-xs ${Number(p.existencia) > 0 ? 'text-gray-500' : 'text-red-500'}`}>
                   Exist: {Number(p.existencia)}
                 </span>
-                <span className="text-sm font-semibold">{money(p.precio_publico)}</span>
+                <span className="text-sm font-semibold">{money(p.precio_lista)}</span>
               </button>
             ))}
           </div>

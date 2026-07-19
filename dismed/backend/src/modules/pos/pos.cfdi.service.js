@@ -2,7 +2,7 @@
  * pos.cfdi.service.js — CFDI del mostrador (Entrega 4 del MVP POS).
  *
  * - Factura INDIVIDUAL: el cliente da su RFC en caja; receptor capturado,
- *   conceptos con las claves SAT del producto. El precio público YA incluye
+ *   conceptos con las claves SAT del producto. El precio de lista YA incluye
  *   IVA → se desglosa (UnitPrice sin IVA).
  * - Factura GLOBAL: agrupa tickets sin factura del periodo al RFC genérico
  *   XAXX010101000 con GlobalInformation (Periodicity/Months/Year), un
@@ -73,7 +73,7 @@ async function facturarVenta(empresaId, ventaId, receptor = {}, usuarioId) {
     }
 
     const items = partidas.map((p) => {
-      // precio público con IVA → base sin IVA para el CFDI. La tasa viene del
+      // precio de lista con IVA → base sin IVA para el CFDI. La tasa viene del
       // snapshot de la venta (iva_tasa): medicamentos TASA 0, resto 0.16.
       // Ambos son TaxObject 02 (sí objeto) — tasa 0 NO es exento (01).
       const importeConIva = Number(p.importe);
