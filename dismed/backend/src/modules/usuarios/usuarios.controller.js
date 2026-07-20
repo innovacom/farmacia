@@ -7,7 +7,8 @@ async function list(req, res, next) {
     const [rows] = await pool.query(
       `SELECT u.id, u.nombre, u.puesto, u.email, u.rol, u.activo,
               u.jefe_id, j.nombre AS jefe_nombre,
-              u.empresa_id, e.nombre AS empresa_nombre
+              u.empresa_id, e.nombre AS empresa_nombre,
+              (u.clave_supervisor_hash IS NOT NULL) AS tiene_clave_supervisor
        FROM usuarios u
        LEFT JOIN usuarios j ON j.id = u.jefe_id
        LEFT JOIN empresas e ON e.id = u.empresa_id
@@ -22,7 +23,8 @@ async function getById(req, res, next) {
     const [[u]] = await pool.query(
       `SELECT u.id, u.nombre, u.puesto, u.email, u.rol, u.activo,
               u.jefe_id, j.nombre AS jefe_nombre,
-              u.empresa_id, e.nombre AS empresa_nombre
+              u.empresa_id, e.nombre AS empresa_nombre,
+              (u.clave_supervisor_hash IS NOT NULL) AS tiene_clave_supervisor
        FROM usuarios u
        LEFT JOIN usuarios j ON j.id = u.jefe_id
        LEFT JOIN empresas e ON e.id = u.empresa_id
@@ -57,24 +59,41 @@ async function create(req, res, next) {
 
 async function update(req, res, next) {
   try {
-    const { nombre, puesto, email, rol, jefe_id, activo, password, empresa_id } = req.body;
+    const { nombre, puesto, email, rol, jefe_id, activo, password, empresa_id, clave_supervisor } = req.body;
+    const rolFinal = rol || 'operador';
+
+    const sets = ['nombre=?', 'puesto=?', 'email=?', 'rol=?', 'jefe_id=?', 'activo=?', 'empresa_id=?'];
+    const vals = [nombre, puesto || null, email, rolFinal,
+      jefe_id || null, activo !== undefined ? activo : 1, empresa_id || 1];
 
     if (password) {
-      const hash = await bcrypt.hash(password, 10);
-      await pool.query(
-        `UPDATE usuarios SET nombre=?, puesto=?, email=?, rol=?, jefe_id=?, activo=?, empresa_id=?, password_hash=?
-         WHERE id = ?`,
-        [nombre, puesto || null, email, rol || 'operador',
-         jefe_id || null, activo !== undefined ? activo : 1, empresa_id || 1, hash, req.params.id]
-      );
-    } else {
-      await pool.query(
-        `UPDATE usuarios SET nombre=?, puesto=?, email=?, rol=?, jefe_id=?, activo=?, empresa_id=?
-         WHERE id = ?`,
-        [nombre, puesto || null, email, rol || 'operador',
-         jefe_id || null, activo !== undefined ? activo : 1, empresa_id || 1, req.params.id]
-      );
+      sets.push('password_hash=?');
+      vals.push(await bcrypt.hash(password, 10));
     }
+
+    if (clave_supervisor !== undefined) {
+      if (rolFinal !== 'admin') {
+        return res.status(400).json({ error: 'La clave de supervisor solo aplica a usuarios administradores' });
+      }
+      if (clave_supervisor) {
+        if (clave_supervisor.length < 4) {
+          return res.status(400).json({ error: 'La clave de supervisor debe tener al menos 4 caracteres' });
+        }
+        // Debe ser distinta al password de login (nuevo si se está cambiando, o el actual).
+        const [[actual]] = await pool.query('SELECT password_hash FROM usuarios WHERE id = ?', [req.params.id]);
+        const hashLogin = password ? vals[vals.length - 1] : actual?.password_hash;
+        if (hashLogin && await bcrypt.compare(clave_supervisor, hashLogin)) {
+          return res.status(400).json({ error: 'La clave de supervisor debe ser diferente al password de login' });
+        }
+        sets.push('clave_supervisor_hash=?');
+        vals.push(await bcrypt.hash(clave_supervisor, 10));
+      } else {
+        sets.push('clave_supervisor_hash=NULL');
+      }
+    }
+
+    vals.push(req.params.id);
+    await pool.query(`UPDATE usuarios SET ${sets.join(', ')} WHERE id = ?`, vals);
     res.json({ ok: true });
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY') {

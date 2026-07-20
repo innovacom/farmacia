@@ -4,10 +4,18 @@
  *  - Máximo un turno abierto por caja: candado transaccional (SELECT ... FOR UPDATE)
  *    + índice UNIQUE uq_turno_abierto (columna generada, ver migrate_v28.js).
  *  - La diferencia de arqueo se REGISTRA (contado - esperado), jamás se ajusta sola.
+ *  - Arqueo ciego (migrate_v32): el cajero no ve `efectivo_esperado` mientras
+ *    cuenta. Si el conteo no cuadra exacto, el cierre se rechaza y se cuenta
+ *    el intento; al 3er fallo se exige autorizarSupervisor() antes de poder
+ *    cerrar con diferencia. corte()/efectivo_esperado solo se exponen al
+ *    front para rol=admin (ver pos.controller.js).
  * Todas las funciones reciben empresaId primero (convención del módulo pos).
  */
+const bcrypt = require('bcryptjs');
 const { pool } = require('../../config/db');
 const { getScoped } = require('./pos.tenant.helpers');
+
+const MAX_INTENTOS_CIERRE = 3;
 
 /** Turno abierto de una caja (o null). Valida que la caja sea del tenant. */
 async function turnoActual(empresaId, cajaId) {
@@ -125,6 +133,14 @@ async function corte(conn, empresaId, turnoId) {
   };
 }
 
+/**
+ * Cierra el turno con arqueo ciego. El llamador (controller) NUNCA debe
+ * conocer efectivo_esperado antes de invocar esto.
+ * Si el conteo no cuadra y el turno no está autorizado por un supervisor,
+ * NO se cierra: se cuenta el intento y se devuelve { cerrado: false, ... }
+ * sin revelar la cifra esperada. Al 3er fallo hay que pasar por
+ * autorizarSupervisor() antes de poder reintentar con éxito.
+ */
 async function cerrarTurno(empresaId, turnoId, { efectivo_contado, notas, usuario_id }) {
   const conn = await pool.getConnection();
   try {
@@ -136,6 +152,21 @@ async function cerrarTurno(empresaId, turnoId, { efectivo_contado, notas, usuari
     const c = await corte(conn, empresaId, turnoId);
     const contado = Number(efectivo_contado);
     const diferencia = Math.round((contado - c.efectivo_esperado) * 100) / 100;
+    const autorizado = !!turno.autorizado_por;
+
+    if (diferencia !== 0 && !autorizado) {
+      const intentos = turno.intentos_cierre + 1;
+      await conn.query(`UPDATE pos_turnos SET intentos_cierre = ? WHERE id = ?`, [intentos, turnoId]);
+      await conn.commit();
+      const requiereSupervisor = intentos >= MAX_INTENTOS_CIERRE;
+      return {
+        cerrado: false,
+        requiereSupervisor,
+        intentos,
+        intentosRestantes: Math.max(0, MAX_INTENTOS_CIERRE - intentos),
+      };
+    }
+
     await conn.query(
       `UPDATE pos_turnos
        SET estatus = 'cerrado', cerrado_en = NOW(), cerrado_por = ?,
@@ -145,7 +176,7 @@ async function cerrarTurno(empresaId, turnoId, { efectivo_contado, notas, usuari
       [usuario_id, c.efectivo_esperado, contado, c.ventas_tarjeta, diferencia, notas || null, turnoId]
     );
     await conn.commit();
-    return { ...c, estatus: 'cerrado', efectivo_contado: contado, diferencia };
+    return { ...c, cerrado: true, estatus: 'cerrado', efectivo_contado: contado, diferencia };
   } catch (err) {
     await conn.rollback();
     throw err;
@@ -154,4 +185,44 @@ async function cerrarTurno(empresaId, turnoId, { efectivo_contado, notas, usuari
   }
 }
 
-module.exports = { turnoActual, abrirTurno, registrarMovimiento, corte, cerrarTurno };
+/**
+ * Autoriza el cierre de un turno bloqueado tras 3 conteos fallidos.
+ * `clave` se compara contra clave_supervisor_hash de los admins activos de
+ * la empresa (nunca contra su password de login). Al validar, marca el
+ * turno como autorizado (permite cerrar aunque no cuadre) y devuelve el
+ * corte COMPLETO —incluye efectivo_esperado— para que el cajero lo capture.
+ */
+async function autorizarSupervisor(empresaId, turnoId, { clave, usuario_id }) {
+  const conn = await pool.getConnection();
+  try {
+    const turno = await getScoped(conn, 'pos_turnos', turnoId, empresaId);
+    if (turno.estatus !== 'abierto') {
+      const err = new Error('El turno ya está cerrado'); err.status = 409; throw err;
+    }
+    if (turno.intentos_cierre < MAX_INTENTOS_CIERRE) {
+      const err = new Error('Aún no se requiere autorización de supervisor'); err.status = 400; throw err;
+    }
+    const [admins] = await conn.query(
+      `SELECT id, clave_supervisor_hash FROM usuarios
+       WHERE empresa_id = ? AND rol = 'admin' AND activo = 1 AND clave_supervisor_hash IS NOT NULL`,
+      [empresaId]
+    );
+    let adminId = null;
+    for (const a of admins) {
+      if (await bcrypt.compare(clave || '', a.clave_supervisor_hash)) { adminId = a.id; break; }
+    }
+    if (!adminId) {
+      const err = new Error('Clave de supervisor incorrecta'); err.status = 401; throw err;
+    }
+    await conn.query(
+      `UPDATE pos_turnos SET autorizado_por = ?, autorizado_en = NOW() WHERE id = ?`,
+      [adminId, turnoId]
+    );
+    const c = await corte(conn, empresaId, turnoId);
+    return { ...c, autorizado: true };
+  } finally {
+    conn.release();
+  }
+}
+
+module.exports = { turnoActual, abrirTurno, registrarMovimiento, corte, cerrarTurno, autorizarSupervisor };

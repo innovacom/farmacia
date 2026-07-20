@@ -193,11 +193,13 @@
         "Menú “Usuarios” → “Nuevo”.",
         "Asigna nombre, correo, contraseña y rol (operador o administrador).",
         "Comparte las credenciales con la persona y pídele que cambie su contraseña al entrar.",
-        "Para un operador, define a qué módulos puede entrar desde Configuración → Permisos de acceso."
+        "Para un operador, define a qué módulos puede entrar desde Configuración → Permisos de acceso.",
+        "Si el usuario es administrador y va a autorizar cierres de caja del POS, edítalo y captura su “Clave de supervisor” (mínimo 4 caracteres, distinta a su contraseña de acceso)."
       ],
       "tips": [
         "Los administradores siempre tienen acceso a todo; los permisos por módulo solo aplican a operadores.",
-        "Un operador nuevo no verá ningún módulo hasta que le asignes permisos."
+        "Un operador nuevo no verá ningún módulo hasta que le asignes permisos.",
+        "La clave de supervisor NO es la contraseña de inicio de sesión: es un PIN aparte que solo se usa para autorizar un cierre de caja que no cuadra."
       ]
     },
     {
@@ -216,8 +218,26 @@
       ]
     },
     {
+      "id": "pos",
+      "titulo": "15. Caja y turnos (Punto de Venta / Farmacia)",
+      "intro": "El módulo de venta de mostrador trabaja por turnos de caja: se abre con un fondo, se vende, y se cierra contando el efectivo físico. El cierre usa arqueo ciego para evitar que se copie la cifra del sistema sin contar.",
+      "pasos": [
+        "Menú “Caja y turnos” → elige tu caja. Si no hay turno abierto, captura el fondo inicial (efectivo con el que arrancas) y “Abrir turno”.",
+        "Durante el turno, usa “Retiro” o “Depósito” para registrar movimientos de efectivo (envíos a bóveda, pagos, reposición de fondo), con motivo.",
+        "Para cerrar: “Cerrar turno”. El sistema NO muestra el total esperado ni el desglose (fondo, ventas, movimientos): cuenta el efectivo físicamente y captura lo que contaste.",
+        "Si el conteo no cuadra, el cierre se rechaza y se pide contar de nuevo; tienes 3 intentos en total.",
+        "Al 3er intento fallido, el sistema pide la “Clave de supervisor” de un administrador. Un administrador la captura ahí mismo (no comparte su contraseña de acceso).",
+        "Con la clave correcta, el sistema revela el efectivo esperado para que lo captures y completes el cierre."
+      ],
+      "tips": [
+        "Solo un administrador puede autorizar un cierre que no cuadra, y solo con su clave de supervisor (configurada en Usuarios), nunca con su contraseña de acceso al sistema.",
+        "Los administradores sí ven el desglose completo (fondo, ventas, cambio, tarjeta, depósitos, retiros) mientras el turno está abierto.",
+        "En “Turnos cerrados”, los administradores tienen un botón “Desglose” por turno con el detalle completo del arqueo, incluyendo quién cerró y quién autorizó si hubo diferencia."
+      ]
+    },
+    {
       "id": "faq",
-      "titulo": "15. Preguntas frecuentes",
+      "titulo": "16. Preguntas frecuentes",
       "intro": "Situaciones comunes y cómo resolverlas:",
       "pasos": [
         "“Me pide datos al timbrar”: completa los datos fiscales del cliente o las claves SAT del producto que indica el mensaje, y vuelve a timbrar.",

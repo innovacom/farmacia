@@ -47,5 +47,8 @@ router.post('/turnos/abrir',           requirePermiso('pos-turnos'), c.abrirTurn
 router.post('/turnos/:id/movimientos', requirePermiso('pos-turnos'), c.crearMovimiento);
 router.get('/turnos/:id/corte',        requirePermiso('pos-turnos'), c.corteTurno);
 router.post('/turnos/:id/cerrar',      requirePermiso('pos-turnos'), c.cerrarTurno);
+router.post('/turnos/:id/autorizar',   requirePermiso('pos-turnos'), c.autorizarSupervisorCierre);
+// Desglose completo del arqueo (fondo/ventas/salidas): solo rol=admin, ver desgloseTurno.
+router.get('/turnos/:id/desglose',     requirePermiso('pos-turnos'), c.desgloseTurno);
 
 module.exports = router;

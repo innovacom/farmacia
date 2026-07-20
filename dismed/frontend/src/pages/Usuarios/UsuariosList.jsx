@@ -62,6 +62,9 @@ export default function UsuariosList() {
         activo:  d.activo ? 1 : 0,
       };
       if (d.password) payload.password = d.password;
+      if (esEdicion && d.rol === 'admin' && d.clave_supervisor !== undefined && d.clave_supervisor !== '') {
+        payload.clave_supervisor = d.clave_supervisor;
+      }
       return esEdicion
         ? api.put(`/usuarios/${editando.id}`, payload)
         : api.post('/usuarios', payload);
@@ -280,6 +283,28 @@ export default function UsuariosList() {
                 </div>
                 {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password.message}</p>}
               </div>
+
+              {esEdicion && watch('rol') === 'admin' && (
+                <div className="col-span-2">
+                  <label className="label">
+                    Clave de supervisor (arqueos de caja){' '}
+                    {editando?.tiene_clave_supervisor
+                      ? <span className="text-xs text-green-600 font-normal">— configurada, dejar en blanco para no cambiar</span>
+                      : <span className="text-xs text-amber-600 font-normal">— sin configurar</span>}
+                  </label>
+                  <input
+                    type="password"
+                    className="input"
+                    autoComplete="new-password"
+                    placeholder="Mínimo 4 caracteres, distinta a su password de login"
+                    {...register('clave_supervisor', { minLength: { value: 4, message: 'Mínimo 4 caracteres' } })}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Se pide en el POS al cerrar caja cuando el arqueo no cuadra tras 3 intentos.
+                  </p>
+                  {errors.clave_supervisor && <p className="text-xs text-red-500 mt-1">{errors.clave_supervisor.message}</p>}
+                </div>
+              )}
 
               <div className="col-span-2">
                 <label className="label">Jefe directo (quien autoriza sus cotizaciones)</label>

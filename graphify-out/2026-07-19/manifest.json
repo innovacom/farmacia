@@ -100,8 +100,8 @@
     "semantic_hash": "03bfe8db4ab59f28e6c68896d32be745"
   },
   "dismed/backend/package.json": {
-    "mtime": 1784089480.800836,
-    "ast_hash": "c12424b71bcbe3b0e5445c51791bef26",
+    "mtime": 1781884655.3885484,
+    "ast_hash": "95b25a48cba03683fa4bc4f0df4db938",
     "semantic_hash": ""
   },
   "dismed/backend/seed_inventario.js": {
@@ -125,9 +125,9 @@
     "semantic_hash": "dfaef2ec589c5e2a81657834bbec377d"
   },
   "dismed/backend/src/config/env.js": {
-    "mtime": 1784089396.643793,
-    "ast_hash": "1b62f2e2ebc28b7da6adef8a6b23609a",
-    "semantic_hash": ""
+    "mtime": 1777698820.9445949,
+    "ast_hash": "b8acb94a78532cddf7d982be91cc6a6b",
+    "semantic_hash": "b8acb94a78532cddf7d982be91cc6a6b"
   },
   "dismed/backend/src/middleware/auth.js": {
     "mtime": 1777698826.3373668,
@@ -135,9 +135,9 @@
     "semantic_hash": "c19818f8ec0e477e6e7a48889f57304d"
   },
   "dismed/backend/src/middleware/upload.js": {
-    "mtime": 1784215211.5188186,
-    "ast_hash": "577780183cffbd8a5cdb92afd97768a6",
-    "semantic_hash": ""
+    "mtime": 1777698830.6894274,
+    "ast_hash": "10974646905034e15f8a9d338c12abf1",
+    "semantic_hash": "10974646905034e15f8a9d338c12abf1"
   },
   "dismed/backend/src/modules/auth/auth.controller.js": {
     "mtime": 1783797192.3233962,
@@ -190,29 +190,29 @@
     "semantic_hash": "c43ef8ba9c830b36b1841352d62cf8e1"
   },
   "dismed/backend/src/modules/inventario/almacenes.controller.js": {
-    "mtime": 1783826971.6542373,
-    "ast_hash": "5e9dc23f7bc5df705efa41504ed78b2f",
-    "semantic_hash": ""
+    "mtime": 1781465687.5663629,
+    "ast_hash": "089269fdcf9809f7b6d5fb55d2d09999",
+    "semantic_hash": "089269fdcf9809f7b6d5fb55d2d09999"
   },
   "dismed/backend/src/modules/inventario/almacenes.routes.js": {
-    "mtime": 1783826977.4566505,
-    "ast_hash": "a6dd088323fb1f851c36c26ee2cb7695",
-    "semantic_hash": ""
+    "mtime": 1781465743.7842665,
+    "ast_hash": "a15ad6b55f281bd5cfe4f8bb6fc1fc9a",
+    "semantic_hash": "a15ad6b55f281bd5cfe4f8bb6fc1fc9a"
   },
   "dismed/backend/src/modules/inventario/catalogos.controller.js": {
-    "mtime": 1783827028.0609818,
-    "ast_hash": "4c27fed7d25292e787342f0c55f680f4",
-    "semantic_hash": ""
+    "mtime": 1781463775.8187983,
+    "ast_hash": "15a982b58a7fb8433a9221dea2a5343f",
+    "semantic_hash": "15a982b58a7fb8433a9221dea2a5343f"
   },
   "dismed/backend/src/modules/inventario/catalogos.routes.js": {
-    "mtime": 1783827040.454072,
-    "ast_hash": "ff601e286b73ee7cfa7d6ff0ab67e5b8",
-    "semantic_hash": ""
+    "mtime": 1781463781.8884745,
+    "ast_hash": "46c2987ad4b0a9fefc1601a1f95bb86c",
+    "semantic_hash": "46c2987ad4b0a9fefc1601a1f95bb86c"
   },
   "dismed/backend/src/modules/inventario/import.catalogo.js": {
-    "mtime": 1784197580.8727894,
-    "ast_hash": "4853aedb4ff10ddd83412917279c7b9b",
-    "semantic_hash": ""
+    "mtime": 1781465247.3675241,
+    "ast_hash": "35afa8e2acf916b13ac941e28d8d831d",
+    "semantic_hash": "35afa8e2acf916b13ac941e28d8d831d"
   },
   "dismed/backend/src/modules/inventario/import.existencias.js": {
     "mtime": 1781465703.4021838,
@@ -225,8 +225,8 @@
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/inventario/inventario.routes.js": {
-    "mtime": 1784215595.7770736,
-    "ast_hash": "f7b0724442726f810095c59db76941d2",
+    "mtime": 1783025050.5990837,
+    "ast_hash": "e30f9287e17f98689f87d701caeb3afb",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/inventario/movimientos.service.js": {
@@ -235,18 +235,18 @@
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/productos/productos.controller.js": {
-    "mtime": 1784493089.2042792,
-    "ast_hash": "91676626ac58f9543f1a287db3bd4185",
+    "mtime": 1783797192.3233962,
+    "ast_hash": "95b1755299563e0b67f65df4a94500a2",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/productos/productos.routes.js": {
-    "mtime": 1784493097.8488598,
-    "ast_hash": "7c6859c437756d30de0316c9109b239d",
+    "mtime": 1783025030.1010728,
+    "ast_hash": "46d29c7dc610a2c99b4087238bcdb754",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/proveedores/proveedores.controller.js": {
-    "mtime": 1783827052.5686753,
-    "ast_hash": "b07f9dc0b5cf6db839fc4d32822b449d",
+    "mtime": 1783050007.3232222,
+    "ast_hash": "87c5b33350009ac68b658e913d5321e4",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/proveedores/proveedores.routes.js": {
@@ -255,19 +255,19 @@
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/solicitudes/buscador.web.js": {
-    "mtime": 1784089423.9687037,
-    "ast_hash": "269d7299a56b746839913e140a7485bf",
+    "mtime": 1782140528.4216688,
+    "ast_hash": "1d5f944d632c4fa21af0446de9316f7f",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/solicitudes/matcher.ia.js": {
-    "mtime": 1784089410.5413842,
-    "ast_hash": "f8946c96bf571a5cb1d3b24c52e1a4e5",
+    "mtime": 1782140503.0265477,
+    "ast_hash": "dcf90a2fbc8743db6125232cc553d8e3",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/solicitudes/matcher.js": {
-    "mtime": 1784215536.8274693,
-    "ast_hash": "acf39a8124849a54390b9108a0b5bd02",
-    "semantic_hash": ""
+    "mtime": 1781633184.5959384,
+    "ast_hash": "f6ca68e0fd1f9f3c5d52ae6614695082",
+    "semantic_hash": "f6ca68e0fd1f9f3c5d52ae6614695082"
   },
   "dismed/backend/src/modules/solicitudes/parser.excel.js": {
     "mtime": 1783453150.665179,
@@ -275,23 +275,23 @@
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/solicitudes/parser.pdf.js": {
-    "mtime": 1784089430.0382543,
-    "ast_hash": "cf7c2b2a302da9aea7d6510018fe34fe",
+    "mtime": 1782140487.221616,
+    "ast_hash": "ef2a79678355d15dfaebcd28f9d26816",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/solicitudes/solicitudes.controller.js": {
-    "mtime": 1784090291.5268598,
-    "ast_hash": "69df0c89361c600b024915601c3be90d",
+    "mtime": 1783361195.5544727,
+    "ast_hash": "622cf648987432f112c1984db8d89b8f",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/solicitudes/solicitudes.routes.js": {
-    "mtime": 1784090296.3377872,
-    "ast_hash": "362ea7c2e1fac4fc13ead9862b6103ac",
-    "semantic_hash": ""
+    "mtime": 1781668528.528026,
+    "ast_hash": "fbfd8971db317bd0807c923c37a50787",
+    "semantic_hash": "fbfd8971db317bd0807c923c37a50787"
   },
   "dismed/backend/src/modules/usuarios/usuarios.controller.js": {
-    "mtime": 1784510831.905926,
-    "ast_hash": "3db1bcd7c996a3517379f0332deae64b",
+    "mtime": 1783797192.3233962,
+    "ast_hash": "10a307a66aa33f897da9de432aa55ffb",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/usuarios/usuarios.routes.js": {
@@ -355,8 +355,8 @@
     "semantic_hash": ""
   },
   "dismed/frontend/src/App.jsx": {
-    "mtime": 1784493178.0786283,
-    "ast_hash": "0861ecc6904627b596eb82e41ea57c95",
+    "mtime": 1783797192.3391426,
+    "ast_hash": "ae0ab361103e7c7ee61ea674dfaa4772",
     "semantic_hash": ""
   },
   "dismed/frontend/src/components/layout/Layout.jsx": {
@@ -405,13 +405,13 @@
     "semantic_hash": "fa907de5bf0709b9ce0927da7e2512ce"
   },
   "dismed/frontend/src/pages/Inventario/Almacenes.jsx": {
-    "mtime": 1783828189.8848906,
-    "ast_hash": "30053d857c417b303c9c3035bcf37b90",
-    "semantic_hash": ""
+    "mtime": 1781465900.8829708,
+    "ast_hash": "1ea6e4f8cf3d38c48a58b2a0cfff52b0",
+    "semantic_hash": "1ea6e4f8cf3d38c48a58b2a0cfff52b0"
   },
   "dismed/frontend/src/pages/Inventario/CatalogosApoyo.jsx": {
-    "mtime": 1783830772.8697257,
-    "ast_hash": "481d816efedbfe6fb48fd0b2eecf8762",
+    "mtime": 1781967028.6189237,
+    "ast_hash": "8293a2a4bf94fc1d10935bef0a006029",
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Inventario/Existencias.jsx": {
@@ -440,8 +440,8 @@
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Productos/ProductosList.jsx": {
-    "mtime": 1784215718.2250147,
-    "ast_hash": "7350ca7f817861e01f1c239ae339a136",
+    "mtime": 1783797192.3465889,
+    "ast_hash": "65d63a645801e70de2b3d3c6fd092c1c",
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Proveedores/CatalogoProveedor.jsx": {
@@ -450,13 +450,13 @@
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Proveedores/ComparadorPrecios.jsx": {
-    "mtime": 1784090350.6511447,
-    "ast_hash": "4241fd43c273b53791a189dada53d873",
+    "mtime": 1783024970.7411668,
+    "ast_hash": "2e9396941f7f32d0e44cc5296173a44f",
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Proveedores/ProveedoresList.jsx": {
-    "mtime": 1783827095.3271174,
-    "ast_hash": "376a89a22358051fc90cc3c5595bdc49",
+    "mtime": 1783032975.0740995,
+    "ast_hash": "77127999e6a18854b9d1ed9eb4e50891",
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Proveedores/RegistrarPrecios.jsx": {
@@ -465,13 +465,13 @@
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Solicitudes/DetalleSolicitud.jsx": {
-    "mtime": 1784073120.678394,
-    "ast_hash": "ab22fc871f1ff2ce529cb590e5843567",
+    "mtime": 1783049458.4794312,
+    "ast_hash": "bc61d174f555615cd92bcae180ecba5d",
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Solicitudes/NuevaSolicitud.jsx": {
-    "mtime": 1784073111.2359016,
-    "ast_hash": "19aa3590e25d07e303a9b7c60fb76d99",
+    "mtime": 1783049411.7035186,
+    "ast_hash": "dd83dfd915a05dfdf48138e87adac14e",
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Solicitudes/SolicitudesList.jsx": {
@@ -480,8 +480,8 @@
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Usuarios/UsuariosList.jsx": {
-    "mtime": 1784510847.1650915,
-    "ast_hash": "2132d82963fcdfc28c6dc4fa1dba0466",
+    "mtime": 1783797192.3465889,
+    "ast_hash": "58b14979c91e62e3e6cb265e5a0c9300",
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Ventas/CrearPedido.jsx": {
@@ -580,9 +580,9 @@
     "semantic_hash": "7b2c90e57dd3e6a5efe8eeaab1dc17d7"
   },
   "CLAUDE.md": {
-    "mtime": 1784089529.4075644,
-    "ast_hash": "91aa27e5bf6a8fd132e8ab043a04924c",
-    "semantic_hash": ""
+    "mtime": 1781737130.4890797,
+    "ast_hash": "f0928382d683f1144af5ffaeacdb7d17",
+    "semantic_hash": "f0928382d683f1144af5ffaeacdb7d17"
   },
   "DICCIONARIO_TECNICO.md": {
     "mtime": 1782239876.1810632,
@@ -809,6 +809,11 @@
     "ast_hash": "41a9c38529b18ce0a1c1ea3dfe805547",
     "semantic_hash": ""
   },
+  "dismed/backend/src/config/anthropic.js": {
+    "mtime": 1781809519.3602712,
+    "ast_hash": "8fa12cf8053f923e8641359dab692af9",
+    "semantic_hash": ""
+  },
   ".claude/agents/code-reviewer.md": {
     "mtime": 1781798512.2407093,
     "ast_hash": "625ad9c87416c893cfe5b3f37f6311da",
@@ -835,8 +840,8 @@
     "semantic_hash": ""
   },
   ".claude/hooks/guard-env.py": {
-    "mtime": 1784089576.78013,
-    "ast_hash": "8c0945f44b6866ee588d8561e2512990",
+    "mtime": 1781964610.4931192,
+    "ast_hash": "498b0db1f62a4c2a85500b67bbe009a2",
     "semantic_hash": ""
   },
   "abrir-tunel-dismed.ps1": {
@@ -845,8 +850,8 @@
     "semantic_hash": ""
   },
   "deploy.py": {
-    "mtime": 1784482320.8540106,
-    "ast_hash": "837f6f8a77f808d91ff9d4c7ab92a242",
+    "mtime": 1781923562.2265184,
+    "ast_hash": "53dd614d44dca5802c6527f91b36abf8",
     "semantic_hash": ""
   },
   "deploy_cfdi.py": {
@@ -985,8 +990,8 @@
     "semantic_hash": ""
   },
   "dismed/backend/src/config/ai.provider.js": {
-    "mtime": 1784089338.887539,
-    "ast_hash": "f32c28a9f907939b06c3626a18417e5b",
+    "mtime": 1782147614.9199367,
+    "ast_hash": "817fec623f2cb5e6cf8c1cb491d1869d",
     "semantic_hash": ""
   },
   "dismed/backend/src/config/precios.js": {
@@ -1040,8 +1045,8 @@
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/usuarios/menu.keys.js": {
-    "mtime": 1784215604.274402,
-    "ast_hash": "998f6410ce94a09252257f33e15feeb7",
+    "mtime": 1783797192.3233962,
+    "ast_hash": "34fd3af0b2d50bb3a8bfaae7dd547c51",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/ventas/cfdi.facturama.js": {
@@ -1070,8 +1075,8 @@
     "semantic_hash": ""
   },
   "dismed/frontend/src/config/menu.js": {
-    "mtime": 1784493188.471887,
-    "ast_hash": "251a037688655f04faaf7212a181e07b",
+    "mtime": 1783797192.3391426,
+    "ast_hash": "756409801df9cf608b007047aaec3ff8",
     "semantic_hash": ""
   },
   "dismed/frontend/src/hooks/usePagination.js": {
@@ -1640,18 +1645,18 @@
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/pos/pos.cfdi.service.js": {
-    "mtime": 1784479736.3560164,
-    "ast_hash": "fbf01c86b5285344a1b9b507c2c2aae1",
+    "mtime": 1783822206.8065248,
+    "ast_hash": "07fb1e08e609bc8a15d8472bd2890bf8",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/pos/pos.controller.js": {
-    "mtime": 1784510790.2680705,
-    "ast_hash": "5bcb7e46c4e28e030055943814dd4edf",
+    "mtime": 1783797192.3233962,
+    "ast_hash": "c43f31a04faf7a02c2dce39be6b2dabb",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/pos/pos.routes.js": {
-    "mtime": 1784510800.5809424,
-    "ast_hash": "4aa0606ecab14cf205f9cad261dc9a40",
+    "mtime": 1783819906.506888,
+    "ast_hash": "687eccbb87654a9e5fdd140d881382bd",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/pos/pos.tenant.helpers.js": {
@@ -1660,13 +1665,13 @@
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/pos/pos.turnos.service.js": {
-    "mtime": 1784510753.3061912,
-    "ast_hash": "89336d4732d91f70ea646b7609326a00",
+    "mtime": 1783797192.3233962,
+    "ast_hash": "3d5e3c49edc1a3101b318e7e755a27ac",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/pos/pos.ventas.service.js": {
-    "mtime": 1784479743.886941,
-    "ast_hash": "9c58bf840a4d1facb4bcbb50fa8747d8",
+    "mtime": 1783822133.8767898,
+    "ast_hash": "be3377c122d27e132c08bd5b4ebcdd54",
     "semantic_hash": ""
   },
   "dismed/backend/src/services/branding.service.js": {
@@ -1705,13 +1710,13 @@
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Pos/Turnos.jsx": {
-    "mtime": 1784510964.8026743,
-    "ast_hash": "c87aa7563c470e8472aa92ae5dabea69",
+    "mtime": 1783797192.3465889,
+    "ast_hash": "b3aa6a82a269d0c2578ea2dc277901e3",
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Pos/VentaMostrador.jsx": {
-    "mtime": 1784479430.355266,
-    "ast_hash": "07f0ca08e3d607cd1426c5db3e67f1dc",
+    "mtime": 1783797192.3465889,
+    "ast_hash": "b55d96df3cd55fed1e947fdc5bba6569",
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Pos/components/ModalCobro.jsx": {
@@ -1727,61 +1732,6 @@
   "dismed/frontend/src/pages/Pos/components/TicketPrint.jsx": {
     "mtime": 1783797192.3465889,
     "ast_hash": "f6a59ef7bf655f7c18c40d36f9ca4f21",
-    "semantic_hash": ""
-  },
-  "deploy_instancia.py": {
-    "mtime": 1784482336.4125185,
-    "ast_hash": "e19dd9a30839df3ee84aa72c6ec1654a",
-    "semantic_hash": ""
-  },
-  "dismed/backend/migrate_v29.js": {
-    "mtime": 1783826948.7093227,
-    "ast_hash": "91527e72cd6b4f179e42414218ceeae3",
-    "semantic_hash": ""
-  },
-  "dismed/backend/migrate_v30.js": {
-    "mtime": 1784195914.6171515,
-    "ast_hash": "0f9f370401b88b329e3a6baf5d8ae53d",
-    "semantic_hash": ""
-  },
-  "dismed/backend/migrate_v31.js": {
-    "mtime": 1784215409.0845957,
-    "ast_hash": "86149588d081ae809fdc04d4b2b2be55",
-    "semantic_hash": ""
-  },
-  "dismed/backend/migrate_v32.js": {
-    "mtime": 1784510719.8261094,
-    "ast_hash": "e912ee7ee360b4cedfda0a9aae98c9bc",
-    "semantic_hash": ""
-  },
-  "dismed/backend/src/modules/inventario/facturas.controller.js": {
-    "mtime": 1784224703.7948122,
-    "ast_hash": "c90b2ffac19dd14f2d81762b68dfef83",
-    "semantic_hash": ""
-  },
-  "dismed/backend/src/modules/productos/productos.pricing.js": {
-    "mtime": 1784221398.4270272,
-    "ast_hash": "5fbf41758251c11a29558655f2bcc6ea",
-    "semantic_hash": ""
-  },
-  "dismed/frontend/src/pages/Inventario/CargaFacturas.jsx": {
-    "mtime": 1784224695.954791,
-    "ast_hash": "417964d8c461df32956294a0becbee89",
-    "semantic_hash": ""
-  },
-  "dismed/frontend/src/pages/Productos/PreciosVenta.jsx": {
-    "mtime": 1784493166.3555243,
-    "ast_hash": "1cac81406b776635a382bfc87e78ac96",
-    "semantic_hash": ""
-  },
-  "instancias.json": {
-    "mtime": 1784199503.3673086,
-    "ast_hash": "189656fe99339ea3fb4e09e17d5716b1",
-    "semantic_hash": ""
-  },
-  "DESPLIEGUE_INSTANCIAS.md": {
-    "mtime": 1784200613.2168458,
-    "ast_hash": "768e3b261a6df5c4a142f0619042c7d9",
     "semantic_hash": ""
   }
 }

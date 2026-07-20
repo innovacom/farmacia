@@ -128,6 +128,12 @@ async function turnoActual(req, res, next) {
     if (!req.query.caja_id) return res.status(400).json({ error: 'caja_id requerido' });
     const turno = await turnos.turnoActual(req.empresaId, req.query.caja_id);
     if (!turno) return res.status(404).json({ error: 'Sin turno abierto en esta caja' });
+    // Arqueo ciego: fondo_inicial es un componente del cálculo del esperado,
+    // así que también se oculta al cajero (ver ocultarCorte más abajo).
+    if (req.user.rol !== 'admin') {
+      const { fondo_inicial, ...resto } = turno;
+      return res.json(resto);
+    }
     res.json(turno);
   } catch (err) { next(err); }
 }
@@ -160,10 +166,26 @@ async function crearMovimiento(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// Arqueo ciego (migrate_v32): NINGÚN componente del cálculo del esperado
+// (fondo, ventas en efectivo, cambio, depósitos, retiros) se expone al
+// cajero mientras el turno está abierto — no solo el total, porque con las
+// partes también se puede reconstruir la suma. Solo rol=admin ve el corte
+// completo. El cajero ve "***" en el front hasta que un supervisor autoriza
+// el cierre tras 3 intentos fallidos (ver cerrarTurno/autorizarSupervisor).
+function ocultarCorte(c, req) {
+  if (req.user.rol === 'admin') return c;
+  return { turno_id: c.turno_id, estatus: c.estatus, ventas_tarjeta: c.ventas_tarjeta };
+}
+
 async function corteTurno(req, res, next) {
   const conn = await pool.getConnection();
   try {
     const c = await turnos.corte(conn, req.empresaId, req.params.id);
+    if (req.user.rol !== 'admin') {
+      // Los movimientos (retiros/depósitos) también son insumo del cálculo;
+      // se ocultan junto con el resto del desglose.
+      return res.json(ocultarCorte(c, req));
+    }
     const [movs] = await conn.query(
       `SELECT m.id, m.tipo, m.monto, m.motivo, m.created_at, u.nombre AS usuario
        FROM pos_caja_movimientos m JOIN usuarios u ON u.id = m.usuario_id
@@ -184,8 +206,46 @@ async function cerrarTurno(req, res, next) {
     const r = await turnos.cerrarTurno(req.empresaId, req.params.id, {
       efectivo_contado: contado, notas: req.body.notas, usuario_id: req.user.id,
     });
+    // Si no cerró (no cuadró el arqueo), nunca se revela efectivo_esperado.
+    res.json(r.cerrado ? r : { cerrado: false, requiereSupervisor: r.requiereSupervisor, intentosRestantes: r.intentosRestantes });
+  } catch (err) { next(err); }
+}
+
+async function autorizarSupervisorCierre(req, res, next) {
+  try {
+    const r = await turnos.autorizarSupervisor(req.empresaId, req.params.id, {
+      clave: req.body.clave, usuario_id: req.user.id,
+    });
     res.json(r);
   } catch (err) { next(err); }
+}
+
+// Desglose de un turno (abierto o cerrado) SOLO para rol=admin: fondo
+// inicial, ventas, cambio, depósitos/retiros y esperado — el historial
+// normal de cajero solo trae esperado/contado/diferencia del turno cerrado.
+async function desgloseTurno(req, res, next) {
+  if (req.user.rol !== 'admin') return res.status(403).json({ error: 'Solo administradores' });
+  const conn = await pool.getConnection();
+  try {
+    const c = await turnos.corte(conn, req.empresaId, req.params.id);
+    const [movs] = await conn.query(
+      `SELECT m.id, m.tipo, m.monto, m.motivo, m.created_at, u.nombre AS usuario
+       FROM pos_caja_movimientos m JOIN usuarios u ON u.id = m.usuario_id
+       WHERE m.turno_id = ? AND m.empresa_id = ? ORDER BY m.created_at`,
+      [req.params.id, req.empresaId]
+    );
+    const [[t]] = await conn.query(
+      `SELECT tu.efectivo_contado, tu.diferencia, tu.cerrado_en, tu.notas_cierre,
+              cierre.nombre AS cerrado_por, autoriza.nombre AS autorizado_por
+       FROM pos_turnos tu
+       LEFT JOIN usuarios cierre  ON cierre.id  = tu.cerrado_por
+       LEFT JOIN usuarios autoriza ON autoriza.id = tu.autorizado_por
+       WHERE tu.id = ? AND tu.empresa_id = ?`,
+      [req.params.id, req.empresaId]
+    );
+    res.json({ ...c, ...t, movimientos: movs });
+  } catch (err) { next(err); }
+  finally { conn.release(); }
 }
 
 async function listTurnos(req, res, next) {
@@ -401,6 +461,7 @@ module.exports = {
   listSucursales, createSucursal, updateSucursal,
   listCajas, createCaja, updateCaja,
   turnoActual, abrirTurno, crearMovimiento, corteTurno, cerrarTurno, listTurnos,
+  autorizarSupervisorCierre, desgloseTurno,
   buscarProductos, crearVenta, listarVentas, detalleVenta, cancelarVenta,
   listMedicos, createMedico, updateMedico, bitacora,
   facturarVenta, crearFacturaGlobal, timbrarFacturaGlobal, liberarFacturaGlobal, listarFacturasGlobales,
