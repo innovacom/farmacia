@@ -32,5 +32,6 @@ router.post('/pacientes/:id/consultas',   c.createConsulta);
 router.get('/pacientes/:id/recetas',      c.listRecetas);
 router.post('/pacientes/:id/recetas',     c.createReceta);
 router.get('/recetas/:id',                c.getReceta);
+router.post('/recetas/:id/pdf',           c.generarRecetaPdf);
 
 module.exports = router;

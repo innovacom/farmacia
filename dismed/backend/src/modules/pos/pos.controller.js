@@ -329,7 +329,7 @@ async function listMedicos(req, res, next) {
       params.push(`${q}%`, `%${q}%`);
     }
     const [rows] = await pool.query(
-      `SELECT id, nombre, cedula_profesional, especialidad, institucion, telefono, activo
+      `SELECT id, nombre, cedula_profesional, registro_ssa, especialidad, institucion, telefono, activo
        FROM medicos WHERE empresa_id = ? ${filtro} ${admin ? '' : 'AND activo = 1'}
        ORDER BY nombre ${admin ? '' : 'LIMIT 10'}`,
       params
@@ -340,15 +340,15 @@ async function listMedicos(req, res, next) {
 
 async function createMedico(req, res, next) {
   try {
-    const { nombre, cedula_profesional, especialidad, institucion, telefono } = req.body;
+    const { nombre, cedula_profesional, registro_ssa, especialidad, institucion, telefono } = req.body;
     if (!nombre?.trim() || !cedula_profesional?.trim()) {
       return res.status(400).json({ error: 'nombre y cedula_profesional requeridos' });
     }
     const [r] = await pool.query(
-      `INSERT INTO medicos (empresa_id, nombre, cedula_profesional, especialidad, institucion, telefono)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO medicos (empresa_id, nombre, cedula_profesional, registro_ssa, especialidad, institucion, telefono)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [req.empresaId, nombre.trim(), cedula_profesional.trim(),
-       especialidad || null, institucion || null, telefono || null]
+       registro_ssa || null, especialidad || null, institucion || null, telefono || null]
     );
     res.status(201).json({ id: r.insertId });
   } catch (err) {
@@ -361,7 +361,7 @@ async function updateMedico(req, res, next) {
   try {
     await getScoped(pool, 'medicos', req.params.id, req.empresaId);
     const sets = []; const vals = [];
-    ['nombre', 'cedula_profesional', 'especialidad', 'institucion', 'telefono', 'activo'].forEach((f) => {
+    ['nombre', 'cedula_profesional', 'registro_ssa', 'especialidad', 'institucion', 'telefono', 'activo'].forEach((f) => {
       if (req.body[f] !== undefined) {
         sets.push(`${f} = ?`);
         vals.push(f === 'activo' ? (req.body[f] ? 1 : 0) : req.body[f]);

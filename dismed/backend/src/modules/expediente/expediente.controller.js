@@ -1,6 +1,7 @@
 const { pool } = require('../../config/db');
 const { getScoped } = require('../pos/pos.tenant.helpers');
 const ventas = require('../pos/pos.ventas.service');
+const { generarPdfReceta } = require('./receta.pdf.generator');
 
 // ── Turnos de consultorio (médico + sucursal, sin arqueo) ───────────────────
 
@@ -352,10 +353,42 @@ async function createReceta(req, res, next) {
   }
 }
 
+async function generarRecetaPdf(req, res, next) {
+  try {
+    const receta = await getScoped(pool, 'recetas_medicas', req.params.id, req.empresaId);
+
+    const [[datos]] = await pool.query(
+      `SELECT p.nombre AS paciente_nombre, p.apellido_paterno AS paciente_apellido_paterno,
+              p.apellido_materno AS paciente_apellido_materno, p.fecha_nacimiento AS paciente_fecha_nacimiento,
+              m.cedula_profesional AS medico_cedula, m.registro_ssa AS medico_registro_ssa,
+              m.especialidad AS medico_especialidad, m.institucion AS medico_institucion,
+              m.telefono AS medico_telefono,
+              s.direccion AS sucursal_direccion, c.signos_vitales
+       FROM recetas_medicas r
+       JOIN pacientes p ON p.id = r.paciente_id
+       JOIN medicos m ON m.id = r.medico_id
+       LEFT JOIN expediente_turnos t ON t.id = r.turno_id
+       LEFT JOIN sucursales s ON s.id = t.sucursal_id
+       LEFT JOIN consultas_medicas c ON c.id = r.consulta_id
+       WHERE r.id = ?`,
+      [req.params.id]
+    );
+
+    const [partidas] = await pool.query(
+      'SELECT * FROM recetas_medicas_partidas WHERE receta_id = ? ORDER BY linea',
+      [req.params.id]
+    );
+
+    const { relativePath, filename } = await generarPdfReceta({ ...receta, ...datos, partidas });
+
+    res.json({ url: `${process.env.BASE_URL}${relativePath}`, filename });
+  } catch (err) { next(err); }
+}
+
 module.exports = {
   listTurnosAbiertos, abrirTurno, cerrarTurno, buscarMedicamentos,
   listPacientes, getPaciente, createPaciente, updatePaciente, removePaciente,
   upsertAntecedentes,
   listConsultas, createConsulta,
-  listRecetas, getReceta, createReceta,
+  listRecetas, getReceta, createReceta, generarRecetaPdf,
 };

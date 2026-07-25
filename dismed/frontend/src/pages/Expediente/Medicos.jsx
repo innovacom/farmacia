@@ -82,7 +82,7 @@ export default function Medicos() {
           <table className="table-auto w-full">
             <thead>
               <tr>
-                <th>Nombre</th><th>Cédula profesional</th><th>Especialidad</th><th>Teléfono</th>
+                <th>Nombre</th><th>Cédula profesional</th><th>S.S.A.</th><th>Especialidad</th><th>Teléfono</th>
                 <th className="text-center">Estado</th><th></th>
               </tr>
             </thead>
@@ -91,6 +91,7 @@ export default function Medicos() {
                 <tr key={m.id} className={!m.activo ? 'opacity-50' : ''}>
                   <td className="font-medium">{m.nombre}</td>
                   <td className="font-mono text-xs">{m.cedula_profesional}</td>
+                  <td className="font-mono text-xs">{m.registro_ssa || '—'}</td>
                   <td>{m.especialidad || '—'}</td>
                   <td>{m.telefono || '—'}</td>
                   <td className="text-center">
@@ -127,10 +128,16 @@ export default function Medicos() {
               <input className="input" {...register('nombre', { required: 'Requerido' })} />
               {errors.nombre && <p className="text-xs text-red-500 mt-1">{errors.nombre.message}</p>}
             </div>
-            <div>
-              <label className="label">Cédula profesional *</label>
-              <input className="input" {...register('cedula_profesional', { required: 'Requerido' })} />
-              {errors.cedula_profesional && <p className="text-xs text-red-500 mt-1">{errors.cedula_profesional.message}</p>}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">Cédula profesional *</label>
+                <input className="input" {...register('cedula_profesional', { required: 'Requerido' })} />
+                {errors.cedula_profesional && <p className="text-xs text-red-500 mt-1">{errors.cedula_profesional.message}</p>}
+              </div>
+              <div>
+                <label className="label">Registro S.S.A.</label>
+                <input className="input" {...register('registro_ssa')} />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -138,7 +145,7 @@ export default function Medicos() {
                 <input className="input" {...register('especialidad')} />
               </div>
               <div>
-                <label className="label">Teléfono</label>
+                <label className="label">Teléfono (se imprime como CEL. en la receta)</label>
                 <input className="input" {...register('telefono')} />
               </div>
             </div>

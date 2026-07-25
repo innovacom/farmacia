@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import {
   ArrowLeft, Loader2, Plus, Stethoscope, FileText, ClipboardList,
-  ChevronDown, ChevronUp, Link2,
+  ChevronDown, ChevronUp, Link2, Printer,
 } from 'lucide-react';
 import api from '../../services/api';
 import { useTurnoActivo } from '../../hooks/useTurnoActivo';
@@ -535,6 +535,12 @@ function RecetaCard({ receta }) {
     enabled: abierta,
   });
 
+  const pdfMut = useMutation({
+    mutationFn: () => api.post(`/expediente/recetas/${receta.id}/pdf`),
+    onSuccess: (r) => window.open(r.data.url, '_blank'),
+    onError: (e) => toast.error(e.response?.data?.error || 'No se pudo generar el PDF'),
+  });
+
   return (
     <div className="card">
       <button onClick={() => setAbierta((a) => !a)} className="w-full flex items-center justify-between text-left">
@@ -542,7 +548,17 @@ function RecetaCard({ receta }) {
           <p className="text-sm font-semibold text-gray-800">{receta.folio} · {fmt(receta.fecha)}</p>
           <p className="text-xs text-gray-400">{receta.medico_nombre}{receta.medico_cedula ? ` · Cédula ${receta.medico_cedula}` : ''}</p>
         </div>
-        {abierta ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={(e) => { e.stopPropagation(); pdfMut.mutate(); }}
+            disabled={pdfMut.isPending}
+            className="flex items-center gap-1 text-xs text-brand-500 hover:underline"
+          >
+            {pdfMut.isPending ? <Loader2 size={13} className="animate-spin" /> : <Printer size={13} />}
+            Imprimir
+          </button>
+          {abierta ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+        </div>
       </button>
 
       {abierta && (
