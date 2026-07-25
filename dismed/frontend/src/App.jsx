@@ -44,6 +44,8 @@ import VentaMostrador from './pages/Pos/VentaMostrador';
 import HistorialVentas from './pages/Pos/HistorialVentas';
 import Bitacora from './pages/Pos/Bitacora';
 import FacturasGlobales from './pages/Pos/FacturasGlobales';
+import PacientesList from './pages/Expediente/PacientesList';
+import DetallePaciente from './pages/Expediente/DetallePaciente';
 import ImportarDatos from './pages/Herramientas/ImportarDatos';
 import ExportarDatos from './pages/Herramientas/ExportarDatos';
 import Ayuda from './pages/Ayuda/Ayuda';
@@ -88,6 +90,8 @@ export default function App() {
         <Route path="ventas/pedidos"                       element={<PedidosList />} />
         <Route path="ventas/pedidos/nuevo/:cotizacionId"   element={<CrearPedido />} />
         <Route path="ventas/pedidos/:id"                   element={<DetallePedido />} />
+        <Route path="expediente"                          element={<PacientesList />} />
+        <Route path="expediente/:id"                      element={<DetallePaciente />} />
         <Route path="usuarios"                            element={<UsuariosList />} />
         <Route path="consultas"                           element={<ConsultasHistoricas />} />
         <Route path="cfdi"                                element={<ConsultaCfdi />} />

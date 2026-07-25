@@ -13,6 +13,7 @@ const PERMISSIONABLE_KEYS = [
   'contabilidad-cfdi-por-comprobante', 'contabilidad-cfdi-resumen-general',
   'herramientas-importar', 'herramientas-exportar',
   'pos-venta', 'pos-turnos', 'pos-bitacora', 'pos-admin',
+  'expediente-medico',
 ];
 
 module.exports = { PERMISSIONABLE_KEYS };

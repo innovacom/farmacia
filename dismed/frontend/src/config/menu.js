@@ -4,6 +4,7 @@ import {
   HelpCircle, Receipt, SlidersHorizontal, Settings, Download, Upload, Wrench,
   Calculator, TrendingUp, Scale, BookOpenCheck, ListTree, Landmark, BookText,
   FileSpreadsheet, BarChart3, Store, Clock, Pill, Building2, FileUp, Tags,
+  HeartPulse,
 } from 'lucide-react';
 
 // Catálogo canónico del menú. Debe mantenerse en sincronía con el backend
@@ -37,6 +38,11 @@ export const MENU = {
         { key: 'proveedores',        to: '/proveedores',            label: 'Proveedores',           icon: Truck },
         { key: 'catalogo-proveedor', to: '/catalogo-proveedores',   label: 'Catálogo por proveedor', icon: BookOpen },
         { key: 'catalogos-apoyo',    to: '/inventario/catalogos',   label: 'Catálogos de apoyo',    icon: Layers },
+      ],
+    },
+    {
+      label: 'Expediente Médico', icon: HeartPulse, items: [
+        { key: 'expediente-medico', to: '/expediente', label: 'Pacientes', icon: HeartPulse },
       ],
     },
     {

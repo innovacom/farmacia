@@ -46,6 +46,7 @@ app.use('/api/herramientas',           require('./modules/herramientas/herramien
 app.use('/api/ingestion',              require('./modules/ingestion/ingestion.routes'));
 app.use('/api/pos',                    require('./modules/pos/pos.routes'));
 app.use('/api/empresas',               require('./modules/empresas/empresas.routes'));
+app.use('/api/expediente',             require('./modules/expediente/expediente.routes'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', ts: new Date() }));
 
