@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const auth = require('../../middleware/auth');
 const tenant = require('../../middleware/tenant');
-const { requirePermiso } = require('../../middleware/permisos');
+const { requirePermiso, requireAnyPermiso } = require('../../middleware/permisos');
 const c = require('./pos.controller');
 
 // Deny-by-default: nada del POS es alcanzable sin usuario autenticado
@@ -32,10 +32,12 @@ router.post('/facturas-globales',             requirePermiso('pos-admin'), c.cre
 router.post('/facturas-globales/:id/timbrar', requirePermiso('pos-admin'), c.timbrarFacturaGlobal);
 router.post('/facturas-globales/:id/liberar', requirePermiso('pos-admin'), c.liberarFacturaGlobal);
 
-// Médicos (los usa el modal de receta en la venta)
-router.get('/medicos',     requirePermiso('pos-venta'), c.listMedicos);
-router.post('/medicos',    requirePermiso('pos-venta'), c.createMedico);
-router.put('/medicos/:id', requirePermiso('pos-venta'), c.updateMedico);
+// Médicos (catálogo compartido: modal de receta en la venta + admin de
+// Expediente Médico). ?admin=1 en GET devuelve el listado completo (activos
+// e inactivos, sin límite) para la pantalla de alta/baja/modificación.
+router.get('/medicos',     requireAnyPermiso(['pos-venta', 'expediente-medico']), c.listMedicos);
+router.post('/medicos',    requireAnyPermiso(['pos-venta', 'expediente-medico']), c.createMedico);
+router.put('/medicos/:id', requireAnyPermiso(['pos-venta', 'expediente-medico']), c.updateMedico);
 
 // Bitácora COFEPRIS (controlados/antibióticos)
 router.get('/bitacora', requirePermiso('pos-bitacora'), c.bitacora);

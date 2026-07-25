@@ -120,9 +120,9 @@ def main():
     # Detección de rutas (un solo canal).
     det = run(
         'for d in /var/www/dismed/backend /root/dismed/backend; do [ -d "$d" ] && echo "BACK=$d" && break; done; '
-        'DR=$(grep -rhI DocumentRoot /etc/apache2/sites-enabled/ 2>/dev/null | awk "{print \\$2}" | grep -i dist | head -1); '
+        'DR=$(grep -hI DocumentRoot /etc/apache2/sites-enabled/dismed*.conf 2>/dev/null | awk "{print \\$2}" | grep -i dist | head -1); '
         'echo "DOCROOT=${DR:-/var/www/dismed/frontend/dist}"; '
-        'APP=$(pm2 jlist 2>/dev/null | tr "," "\\n" | grep -o "\\"name\\":\\"[^\\"]*\\"" | head -1 | cut -d "\\"" -f4); '
+        'APP=$(pm2 jlist 2>/dev/null | tr "," "\\n" | grep -o "\\"name\\":\\"[^\\"]*dismed[^\\"]*\\"" | head -1 | cut -d "\\"" -f4); '
         'echo "PM2=${APP:-dismed-api}"',
         show=False,
     )

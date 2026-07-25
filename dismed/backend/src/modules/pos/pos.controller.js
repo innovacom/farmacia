@@ -320,6 +320,7 @@ async function cancelarVenta(req, res, next) {
 
 async function listMedicos(req, res, next) {
   try {
+    const admin = req.query.admin === '1';
     const q = (req.query.q || '').trim();
     const params = [req.empresaId];
     let filtro = '';
@@ -329,8 +330,8 @@ async function listMedicos(req, res, next) {
     }
     const [rows] = await pool.query(
       `SELECT id, nombre, cedula_profesional, especialidad, institucion, telefono, activo
-       FROM medicos WHERE empresa_id = ? ${filtro} AND activo = 1
-       ORDER BY nombre LIMIT 10`,
+       FROM medicos WHERE empresa_id = ? ${filtro} ${admin ? '' : 'AND activo = 1'}
+       ORDER BY nombre ${admin ? '' : 'LIMIT 10'}`,
       params
     );
     res.json(rows);
