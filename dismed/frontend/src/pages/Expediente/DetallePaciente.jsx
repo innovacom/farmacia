@@ -327,6 +327,13 @@ function Recetas({ pacienteId, turno }) {
     queryFn: () => api.get('/pos/medicos', { params: { admin: '1' } }).then((r) => r.data),
   });
 
+  // Mismas consultas que la pestaña Consultas (ordenadas desc por fecha_hora)
+  // para poder ligar la receta y así arrastrar los signos vitales al PDF.
+  const { data: consultas = [] } = useQuery({
+    queryKey: ['expediente-consultas', pacienteId],
+    queryFn: () => api.get(`/expediente/pacientes/${pacienteId}/consultas`).then((r) => r.data),
+  });
+
   const crearMut = useMutation({
     mutationFn: (d) => api.post(`/expediente/pacientes/${pacienteId}/recetas`, {
       ...d,
@@ -350,7 +357,7 @@ function Recetas({ pacienteId, turno }) {
   function quitarPartida(idx) { setPartidas((ps) => ps.filter((_, i) => i !== idx)); }
 
   function abrirModal() {
-    reset({ medico_id: turno?.medico_id || '' });
+    reset({ medico_id: turno?.medico_id || '', consulta_id: consultas[0]?.id || '' });
     setPartidas([{ ...PARTIDA_VACIA }]);
     setShowModal(true);
   }
@@ -396,6 +403,20 @@ function Recetas({ pacienteId, turno }) {
                 <label className="label">Vigencia (días)</label>
                 <input type="number" className="input" defaultValue={30} {...register('vigencia_dias')} />
               </div>
+            </div>
+            <div>
+              <label className="label">Consulta relacionada</label>
+              <select className="input" {...register('consulta_id')}>
+                <option value="">Sin ligar a una consulta</option>
+                {consultas.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {fmt(c.fecha_hora)}{c.motivo_consulta ? ` — ${c.motivo_consulta}` : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-400 mt-1">
+                Ligarla trae los signos vitales de esa consulta al PDF de la receta.
+              </p>
             </div>
             <div>
               <label className="label">Indicaciones generales</label>
