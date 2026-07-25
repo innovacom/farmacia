@@ -6,8 +6,10 @@ import toast from 'react-hot-toast';
 import { Plus, Loader2, HeartPulse, Search } from 'lucide-react';
 import api from '../../services/api';
 import { usePagination } from '../../hooks/usePagination';
+import { useTurnoActivo } from '../../hooks/useTurnoActivo';
 import Pagination from '../../components/ui/Pagination';
 import Modal from '../../components/ui/Modal';
+import TurnoBar from './TurnoBar';
 
 const SEXOS = [
   { value: 'M', label: 'Masculino' },
@@ -28,17 +30,14 @@ function edad(fechaNacimiento) {
 export default function PacientesList() {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const turnoState = useTurnoActivo();
+  const { turno } = turnoState;
   const [showModal, setShowModal] = useState(false);
   const [q, setQ] = useState('');
 
   const { data: pacientes = [], isLoading } = useQuery({
     queryKey: ['expediente-pacientes'],
     queryFn: () => api.get('/expediente/pacientes').then((r) => r.data),
-  });
-
-  const { data: clientes = [] } = useQuery({
-    queryKey: ['clientes'],
-    queryFn: () => api.get('/clientes', { params: { activos: '1' } }).then((r) => r.data),
   });
 
   const filtrados = useMemo(() => {
@@ -55,7 +54,7 @@ export default function PacientesList() {
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
   const crearMut = useMutation({
-    mutationFn: (data) => api.post('/expediente/pacientes', data),
+    mutationFn: (data) => api.post('/expediente/pacientes', { ...data, turno_id: turno?.id }),
     onSuccess: () => {
       toast.success('Paciente creado');
       qc.invalidateQueries(['expediente-pacientes']);
@@ -70,12 +69,19 @@ export default function PacientesList() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Expediente Médico</h1>
-          <p className="text-sm text-gray-400">Pacientes de los clientes (hospitales/clínicas) de DISMED</p>
+          <p className="text-sm text-gray-400">Pacientes del consultorio</p>
         </div>
-        <button onClick={() => { reset({}); setShowModal(true); }} className="btn-primary">
+        <button
+          onClick={() => { reset({}); setShowModal(true); }}
+          disabled={!turno}
+          title={!turno ? 'Abre un turno para dar de alta pacientes' : ''}
+          className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+        >
           <Plus size={16} /> Nuevo paciente
         </button>
       </div>
+
+      <TurnoBar turnoState={turnoState} />
 
       <div className="flex gap-3 mb-4 flex-wrap">
         <div className="relative">
@@ -92,9 +98,6 @@ export default function PacientesList() {
           <div className="text-center py-12">
             <HeartPulse size={40} className="mx-auto text-gray-300 mb-3" />
             <p className="text-gray-400">Sin pacientes registrados</p>
-            <button onClick={() => { reset({}); setShowModal(true); }} className="btn-primary mt-4">
-              Agregar primero
-            </button>
           </div>
         ) : filtrados.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-10">Sin resultados con la búsqueda</p>
@@ -103,7 +106,7 @@ export default function PacientesList() {
             <thead>
               <tr>
                 <th>Paciente</th>
-                <th>Cliente (hospital/clínica)</th>
+                <th>Médico de cabecera</th>
                 <th className="text-center">Edad</th>
                 <th>CURP</th>
                 <th>Contacto</th>
@@ -122,7 +125,7 @@ export default function PacientesList() {
                       {p.nombre} {p.apellido_paterno} {p.apellido_materno}
                     </p>
                   </td>
-                  <td className="text-sm text-gray-600">{p.cliente_nombre}</td>
+                  <td className="text-sm text-gray-600">{p.medico_nombre || '—'}</td>
                   <td className="text-center">{edad(p.fecha_nacimiento) ?? '—'}</td>
                   <td className="font-mono text-xs">{p.curp || '—'}</td>
                   <td className="text-sm text-gray-600">{p.telefono || p.email || '—'}</td>
@@ -144,16 +147,9 @@ export default function PacientesList() {
       {showModal && (
         <Modal title="Nuevo paciente" onClose={() => setShowModal(false)}>
           <form onSubmit={handleSubmit((d) => crearMut.mutate(d))} className="space-y-4">
-            <div>
-              <label className="label">Cliente (hospital/clínica) *</label>
-              <select className="input" {...register('cliente_id', { required: 'Requerido' })}>
-                <option value="">Selecciona…</option>
-                {clientes.map((c) => (
-                  <option key={c.id} value={c.id}>{c.razon_social}</option>
-                ))}
-              </select>
-              {errors.cliente_id && <p className="text-xs text-red-500 mt-1">{errors.cliente_id.message}</p>}
-            </div>
+            <p className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
+              Médico en servicio: <strong>{turno?.medico_nombre}</strong> · {turno?.sucursal_nombre}
+            </p>
             <div className="grid grid-cols-3 gap-4">
               <div className="col-span-3 md:col-span-1">
                 <label className="label">Nombre(s) *</label>

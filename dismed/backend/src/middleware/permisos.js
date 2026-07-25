@@ -26,4 +26,25 @@ function requirePermiso(menuKey) {
   };
 }
 
-module.exports = { requirePermiso };
+// Igual que requirePermiso pero deja pasar si el usuario tiene CUALQUIERA de
+// las claves — usado por catálogos compartidos entre módulos (p. ej. médicos,
+// que usan tanto el POS como el Expediente Médico).
+function requireAnyPermiso(menuKeys) {
+  return async function (req, res, next) {
+    try {
+      if (req.user?.rol === 'admin') return next();
+      const [rows] = await pool.query(
+        `SELECT 1 FROM usuarios_permisos WHERE usuario_id = ? AND menu_key IN (?) LIMIT 1`,
+        [req.user?.id, menuKeys]
+      );
+      if (!rows.length) {
+        return res.status(403).json({ error: 'Sin permiso para esta operación' });
+      }
+      next();
+    } catch (err) {
+      next(err);
+    }
+  };
+}
+
+module.exports = { requirePermiso, requireAnyPermiso };

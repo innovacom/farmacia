@@ -4,7 +4,7 @@ import {
   HelpCircle, Receipt, SlidersHorizontal, Settings, Download, Upload, Wrench,
   Calculator, TrendingUp, Scale, BookOpenCheck, ListTree, Landmark, BookText,
   FileSpreadsheet, BarChart3, Store, Clock, Pill, Building2, FileUp, Tags,
-  HeartPulse,
+  HeartPulse, Stethoscope,
 } from 'lucide-react';
 
 // Catálogo canónico del menú. Debe mantenerse en sincronía con el backend
@@ -43,6 +43,7 @@ export const MENU = {
     {
       label: 'Expediente Médico', icon: HeartPulse, items: [
         { key: 'expediente-medico', to: '/expediente', label: 'Pacientes', icon: HeartPulse },
+        { key: 'expediente-medico', to: '/expediente/medicos', label: 'Médicos', icon: Stethoscope },
       ],
     },
     {

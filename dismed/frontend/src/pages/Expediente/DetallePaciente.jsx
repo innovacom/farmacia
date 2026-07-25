@@ -1,15 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import {
   ArrowLeft, Loader2, Plus, Stethoscope, FileText, ClipboardList,
-  ChevronDown, ChevronUp, Link2, ShoppingCart,
+  ChevronDown, ChevronUp, Link2,
 } from 'lucide-react';
 import api from '../../services/api';
+import { useTurnoActivo } from '../../hooks/useTurnoActivo';
 import Modal from '../../components/ui/Modal';
-import ProductoPicker from '../../components/shared/ProductoPicker';
+import TurnoBar from './TurnoBar';
 
 const TABS = [
   { key: 'datos', label: 'Datos generales', icon: ClipboardList },
@@ -28,6 +29,7 @@ export default function DetallePaciente() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [tab, setTab] = useState('datos');
+  const turnoState = useTurnoActivo();
 
   const { data: paciente, isLoading } = useQuery({
     queryKey: ['expediente-paciente', id],
@@ -43,14 +45,16 @@ export default function DetallePaciente() {
         <ArrowLeft size={15} /> Volver a pacientes
       </button>
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
             {paciente.nombre} {paciente.apellido_paterno} {paciente.apellido_materno}
           </h1>
-          <p className="text-sm text-gray-400">{paciente.cliente_nombre}</p>
+          <p className="text-sm text-gray-400">Médico de cabecera: {paciente.medico_nombre || '—'}</p>
         </div>
       </div>
+
+      <TurnoBar turnoState={turnoState} />
 
       <div className="flex gap-1 border-b border-gray-200 mb-6">
         {TABS.map((t) => (
@@ -67,8 +71,8 @@ export default function DetallePaciente() {
 
       {tab === 'datos' && <DatosGenerales paciente={paciente} qc={qc} />}
       {tab === 'antecedentes' && <Antecedentes paciente={paciente} qc={qc} />}
-      {tab === 'consultas' && <Consultas pacienteId={id} />}
-      {tab === 'recetas' && <Recetas pacienteId={id} clienteId={paciente.cliente_id} />}
+      {tab === 'consultas' && <Consultas pacienteId={id} turno={turnoState.turno} />}
+      {tab === 'recetas' && <Recetas pacienteId={id} turno={turnoState.turno} />}
     </div>
   );
 }
@@ -114,6 +118,7 @@ function DatosGenerales({ paciente, qc }) {
 
   return (
     <div className="card max-w-xl space-y-3">
+      <Campo label="Médico de cabecera" valor={paciente.medico_nombre} />
       <Campo label="Fecha de nacimiento" valor={paciente.fecha_nacimiento?.slice?.(0, 10)} />
       <Campo label="Sexo" valor={{ M: 'Masculino', F: 'Femenino', X: 'Otro / sin especificar' }[paciente.sexo]} />
       <Campo label="CURP" valor={paciente.curp} />
@@ -175,7 +180,7 @@ function Antecedentes({ paciente, qc }) {
 
 // ── Consultas (notas de evolución, inmutables) ──────────────────────────────
 
-function Consultas({ pacienteId }) {
+function Consultas({ pacienteId, turno }) {
   const qc = useQueryClient();
   const [showModal, setShowModal] = useState(false);
   const { register, handleSubmit, reset } = useForm();
@@ -189,7 +194,7 @@ function Consultas({ pacienteId }) {
     mutationFn: (d) => {
       const { ta, fc, fr, temp, peso, talla, spo2, ...resto } = d;
       const signos_vitales = { ta, fc, fr, temp, peso, talla, spo2 };
-      return api.post(`/expediente/pacientes/${pacienteId}/consultas`, { ...resto, signos_vitales });
+      return api.post(`/expediente/pacientes/${pacienteId}/consultas`, { ...resto, signos_vitales, turno_id: turno?.id });
     },
     onSuccess: () => {
       toast.success('Consulta registrada');
@@ -203,7 +208,12 @@ function Consultas({ pacienteId }) {
   return (
     <div>
       <div className="flex justify-end mb-3">
-        <button onClick={() => { reset({}); setShowModal(true); }} className="btn-primary">
+        <button
+          onClick={() => { reset({}); setShowModal(true); }}
+          disabled={!turno}
+          title={!turno ? 'Abre un turno para registrar consultas' : ''}
+          className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+        >
           <Plus size={16} /> Nueva consulta
         </button>
       </div>
@@ -218,7 +228,7 @@ function Consultas({ pacienteId }) {
             <div key={c.id} className="card">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-semibold text-gray-800">{fmt(c.fecha_hora)}</p>
-                <p className="text-xs text-gray-400">{c.medico_nombre || c.capturado_por}{c.medico_cedula ? ` · Cédula ${c.medico_cedula}` : ''}</p>
+                <p className="text-xs text-gray-400">{c.medico_nombre}{c.medico_cedula ? ` · Cédula ${c.medico_cedula}` : ''}{c.sucursal_nombre ? ` · ${c.sucursal_nombre}` : ''}</p>
               </div>
               {c.motivo_consulta && <p className="text-sm text-gray-700 mb-1"><strong>Motivo:</strong> {c.motivo_consulta}</p>}
               {c.padecimiento_actual && <p className="text-sm text-gray-700 mb-1"><strong>Padecimiento actual:</strong> {c.padecimiento_actual}</p>}
@@ -241,6 +251,9 @@ function Consultas({ pacienteId }) {
       {showModal && (
         <Modal title="Nueva consulta" onClose={() => setShowModal(false)} size="lg">
           <form onSubmit={handleSubmit((d) => crearMut.mutate(d))} className="space-y-4">
+            <p className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
+              Atiende: <strong>{turno?.medico_nombre}</strong> · {turno?.sucursal_nombre}
+            </p>
             <div>
               <label className="label">Motivo de la consulta</label>
               <input className="input" {...register('motivo_consulta')} />
@@ -270,10 +283,9 @@ function Consultas({ pacienteId }) {
               <label className="label">Plan de tratamiento</label>
               <textarea className="input min-h-[50px]" {...register('plan_tratamiento')} />
             </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div><label className="label">Pronóstico</label><input className="input" {...register('pronostico')} /></div>
-              <div><label className="label">Médico (si no es el usuario que captura)</label><input className="input" {...register('medico_nombre')} /></div>
-              <div><label className="label">Cédula profesional</label><input className="input" {...register('medico_cedula')} /></div>
+            <div>
+              <label className="label">Pronóstico</label>
+              <input className="input" {...register('pronostico')} />
             </div>
             <p className="text-xs text-gray-400">
               Esta nota queda inmutable una vez guardada (trazabilidad NOM-004); cualquier corrección se captura como una nueva consulta.
@@ -298,11 +310,11 @@ const PARTIDA_VACIA = {
   dosis: '', via_administracion: '', frecuencia: '', duracion: '', cantidad: 1, indicaciones: '',
 };
 
-function Recetas({ pacienteId, clienteId }) {
+function Recetas({ pacienteId, turno }) {
   const qc = useQueryClient();
   const [showModal, setShowModal] = useState(false);
   const [partidas, setPartidas] = useState([{ ...PARTIDA_VACIA }]);
-  const [pickerIdx, setPickerIdx] = useState(null);
+  const [buscandoIdx, setBuscandoIdx] = useState(null);
   const { register, handleSubmit, reset } = useForm();
 
   const { data: recetas = [], isLoading } = useQuery({
@@ -310,9 +322,15 @@ function Recetas({ pacienteId, clienteId }) {
     queryFn: () => api.get(`/expediente/pacientes/${pacienteId}/recetas`).then((r) => r.data),
   });
 
+  const { data: medicos = [] } = useQuery({
+    queryKey: ['medicos'],
+    queryFn: () => api.get('/pos/medicos', { params: { admin: '1' } }).then((r) => r.data),
+  });
+
   const crearMut = useMutation({
     mutationFn: (d) => api.post(`/expediente/pacientes/${pacienteId}/recetas`, {
       ...d,
+      turno_id: turno?.id,
       partidas: partidas.filter((p) => p.medicamento_nombre.trim()),
     }),
     onSuccess: () => {
@@ -331,10 +349,21 @@ function Recetas({ pacienteId, clienteId }) {
   function agregarPartida() { setPartidas((ps) => [...ps, { ...PARTIDA_VACIA }]); }
   function quitarPartida(idx) { setPartidas((ps) => ps.filter((_, i) => i !== idx)); }
 
+  function abrirModal() {
+    reset({ medico_id: turno?.medico_id || '' });
+    setPartidas([{ ...PARTIDA_VACIA }]);
+    setShowModal(true);
+  }
+
   return (
     <div>
       <div className="flex justify-end mb-3">
-        <button onClick={() => { reset({}); setPartidas([{ ...PARTIDA_VACIA }]); setShowModal(true); }} className="btn-primary">
+        <button
+          onClick={abrirModal}
+          disabled={!turno}
+          title={!turno ? 'Abre un turno para emitir recetas' : ''}
+          className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+        >
           <Plus size={16} /> Nueva receta
         </button>
       </div>
@@ -345,17 +374,28 @@ function Recetas({ pacienteId, clienteId }) {
         <p className="text-sm text-gray-400 text-center py-10 card">Sin recetas registradas</p>
       ) : (
         <div className="space-y-3">
-          {recetas.map((r) => <RecetaCard key={r.id} receta={r} pacienteId={pacienteId} />)}
+          {recetas.map((r) => <RecetaCard key={r.id} receta={r} />)}
         </div>
       )}
 
       {showModal && (
         <Modal title="Nueva receta" onClose={() => setShowModal(false)} size="xl">
           <form onSubmit={handleSubmit((d) => crearMut.mutate(d))} className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
-              <div><label className="label">Médico (si no es el usuario que captura)</label><input className="input" {...register('medico_nombre')} /></div>
-              <div><label className="label">Cédula profesional</label><input className="input" {...register('medico_cedula')} /></div>
-              <div><label className="label">Vigencia (días)</label><input type="number" className="input" defaultValue={30} {...register('vigencia_dias')} /></div>
+            <p className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
+              Medicamentos disponibles en: <strong>{turno?.sucursal_nombre}</strong>
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">Médico que expide *</label>
+                <select className="input" {...register('medico_id', { required: true })}>
+                  <option value="">Selecciona…</option>
+                  {medicos.map((m) => <option key={m.id} value={m.id}>{m.nombre} — {m.cedula_profesional}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">Vigencia (días)</label>
+                <input type="number" className="input" defaultValue={30} {...register('vigencia_dias')} />
+              </div>
             </div>
             <div>
               <label className="label">Indicaciones generales</label>
@@ -369,22 +409,39 @@ function Recetas({ pacienteId, clienteId }) {
                   <div key={idx} className="border border-gray-200 rounded-lg p-3">
                     <div className="flex items-start gap-2">
                       <div className="flex-1 grid grid-cols-2 gap-2">
-                        <div className="col-span-2 flex items-center gap-2">
-                          <input
-                            className="input flex-1"
-                            placeholder="Medicamento / insumo *"
-                            value={p.medicamento_nombre}
-                            onChange={(e) => actualizarPartida(idx, 'medicamento_nombre', e.target.value)}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setPickerIdx(idx)}
-                            className={`shrink-0 text-xs flex items-center gap-1 px-2 py-1.5 rounded-lg border ${
-                              p.producto_id ? 'border-green-200 bg-green-50 text-green-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
-                            title="Vincular con el catálogo DISMED"
-                          >
-                            <Link2 size={13} /> {p.sku_interno || 'Vincular'}
-                          </button>
+                        <div className="col-span-2 relative">
+                          <div className="flex items-center gap-2">
+                            <input
+                              className="input flex-1"
+                              placeholder="Buscar medicamento en existencias de la sucursal…"
+                              value={p.medicamento_nombre}
+                              onChange={(e) => {
+                                actualizarPartida(idx, 'medicamento_nombre', e.target.value);
+                                actualizarPartida(idx, 'producto_id', null);
+                                actualizarPartida(idx, 'sku_interno', '');
+                                setBuscandoIdx(idx);
+                              }}
+                              onFocus={() => setBuscandoIdx(idx)}
+                            />
+                            {p.producto_id && (
+                              <span className="shrink-0 text-xs flex items-center gap-1 px-2 py-1.5 rounded-lg border border-green-200 bg-green-50 text-green-700">
+                                <Link2 size={13} /> {p.sku_interno}
+                              </span>
+                            )}
+                          </div>
+                          {buscandoIdx === idx && (
+                            <BuscadorMedicamentos
+                              turnoId={turno?.id}
+                              q={p.medicamento_nombre}
+                              onSelect={(prod) => {
+                                actualizarPartida(idx, 'producto_id', prod.id);
+                                actualizarPartida(idx, 'sku_interno', prod.sku_interno);
+                                actualizarPartida(idx, 'medicamento_nombre', prod.descripcion);
+                                setBuscandoIdx(null);
+                              }}
+                              onClose={() => setBuscandoIdx(null)}
+                            />
+                          )}
                         </div>
                         <input className="input" placeholder="Presentación" value={p.presentacion}
                           onChange={(e) => actualizarPartida(idx, 'presentacion', e.target.value)} />
@@ -420,26 +477,56 @@ function Recetas({ pacienteId, clienteId }) {
               <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">Cancelar</button>
             </div>
           </form>
-
-          <ProductoPicker
-            open={pickerIdx !== null}
-            onClose={() => setPickerIdx(null)}
-            partida={{ descripcion_original: partidas[pickerIdx]?.medicamento_nombre }}
-            clienteId={clienteId}
-            onSelect={(prod) => {
-              actualizarPartida(pickerIdx, 'producto_id', prod.id);
-              actualizarPartida(pickerIdx, 'sku_interno', prod.sku_interno);
-              if (!partidas[pickerIdx].medicamento_nombre) actualizarPartida(pickerIdx, 'medicamento_nombre', prod.descripcion);
-            }}
-          />
         </Modal>
       )}
     </div>
   );
 }
 
-function RecetaCard({ receta, pacienteId }) {
-  const qc = useQueryClient();
+// Autocomplete de medicamentos con existencia real en la sucursal del turno.
+function BuscadorMedicamentos({ turnoId, q, onSelect, onClose }) {
+  const { data = [], isFetching } = useQuery({
+    queryKey: ['expediente-medicamentos', turnoId, q],
+    queryFn: () => api.get('/expediente/medicamentos/buscar', { params: { turno_id: turnoId, q } }).then((r) => r.data),
+    enabled: !!turnoId && q.trim().length >= 2,
+  });
+
+  if (!q || q.trim().length < 2) return null;
+
+  return (
+    <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+      {isFetching ? (
+        <p className="text-xs text-gray-400 text-center py-3"><Loader2 size={13} className="animate-spin inline mr-1" /> Buscando…</p>
+      ) : data.length === 0 ? (
+        <div className="px-3 py-2">
+          <p className="text-xs text-gray-400">Sin existencias en esta sucursal para "{q}".</p>
+          <button type="button" onClick={onClose} className="text-xs text-brand-500 hover:underline mt-1">
+            Usar como texto libre
+          </button>
+        </div>
+      ) : (
+        data.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => onSelect(p)}
+            className="w-full text-left px-3 py-2 hover:bg-brand-50 border-b border-gray-50 last:border-0"
+          >
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-xs text-brand-600">{p.sku_interno}</span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${Number(p.existencia) > 0 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                {Number(p.existencia)} en existencia
+              </span>
+            </div>
+            <p className="text-sm text-gray-700">{p.descripcion}</p>
+          </button>
+        ))
+      )}
+    </div>
+  );
+}
+
+function RecetaCard({ receta }) {
   const [abierta, setAbierta] = useState(false);
 
   const { data: detalle } = useQuery({
@@ -448,18 +535,6 @@ function RecetaCard({ receta, pacienteId }) {
     enabled: abierta,
   });
 
-  const generarMut = useMutation({
-    mutationFn: () => api.post(`/expediente/recetas/${receta.id}/generar-solicitud`),
-    onSuccess: (r) => {
-      toast.success(`Solicitud ${r.data.folio} generada`);
-      qc.invalidateQueries(['expediente-recetas', pacienteId]);
-      qc.invalidateQueries(['expediente-receta', receta.id]);
-    },
-    onError: (e) => toast.error(e.response?.data?.error || 'Error'),
-  });
-
-  const tieneVinculados = detalle?.partidas?.some((p) => p.producto_id);
-
   return (
     <div className="card">
       <button onClick={() => setAbierta((a) => !a)} className="w-full flex items-center justify-between text-left">
@@ -467,18 +542,7 @@ function RecetaCard({ receta, pacienteId }) {
           <p className="text-sm font-semibold text-gray-800">{receta.folio} · {fmt(receta.fecha)}</p>
           <p className="text-xs text-gray-400">{receta.medico_nombre}{receta.medico_cedula ? ` · Cédula ${receta.medico_cedula}` : ''}</p>
         </div>
-        <div className="flex items-center gap-2">
-          {receta.solicitud_folio && (
-            <Link
-              to={`/solicitudes/${receta.solicitud_id}`}
-              onClick={(e) => e.stopPropagation()}
-              className="text-xs text-brand-500 hover:underline flex items-center gap-1"
-            >
-              <ShoppingCart size={12} /> {receta.solicitud_folio}
-            </Link>
-          )}
-          {abierta ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
-        </div>
+        {abierta ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
       </button>
 
       {abierta && (
@@ -512,13 +576,6 @@ function RecetaCard({ receta, pacienteId }) {
                 ))}
               </tbody>
             </table>
-          )}
-
-          {!receta.solicitud_id && tieneVinculados && (
-            <button onClick={() => generarMut.mutate()} disabled={generarMut.isPending} className="btn-secondary btn-sm mt-3">
-              {generarMut.isPending ? <Loader2 size={13} className="animate-spin" /> : <ShoppingCart size={13} />}
-              Generar solicitud de cotización
-            </button>
           )}
         </div>
       )}
