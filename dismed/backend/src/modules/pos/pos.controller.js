@@ -8,6 +8,7 @@ const { getScoped } = require('./pos.tenant.helpers');
 const turnos = require('./pos.turnos.service');
 const ventas = require('./pos.ventas.service');
 const posCfdi = require('./pos.cfdi.service');
+const reportes = require('./pos.reportes.service');
 
 // ── Sucursales ────────────────────────────────────────────────────────
 
@@ -55,6 +56,14 @@ async function updateSucursal(req, res, next) {
         vals.push(f === 'activo' ? (req.body[f] ? 1 : 0) : req.body[f]);
       }
     });
+    if (req.body.productos_favoritos !== undefined) {
+      const ids = req.body.productos_favoritos;
+      if (!Array.isArray(ids) || ids.length > 5 || !ids.every((n) => Number.isInteger(n) && n > 0)) {
+        return res.status(400).json({ error: 'productos_favoritos: máximo 5 producto_id válidos' });
+      }
+      sets.push('productos_favoritos = ?');
+      vals.push(ids.length ? JSON.stringify(ids) : null);
+    }
     if (!sets.length) return res.status(400).json({ error: 'Sin campos' });
     vals.push(req.params.id, req.empresaId);
     await pool.query(`UPDATE sucursales SET ${sets.join(', ')} WHERE id = ? AND empresa_id = ?`, vals);
@@ -279,6 +288,14 @@ async function buscarProductos(req, res, next) {
   } catch (err) { next(err); }
 }
 
+async function favoritosProductos(req, res, next) {
+  try {
+    const { sucursal_id } = req.query;
+    if (!sucursal_id) return res.status(400).json({ error: 'sucursal_id requerido' });
+    res.json(await ventas.favoritos(req.empresaId, { sucursal_id }));
+  } catch (err) { next(err); }
+}
+
 async function crearVenta(req, res, next) {
   try {
     const { venta, repetida } = await ventas.crearVenta(req.empresaId, {
@@ -458,12 +475,52 @@ async function listarFacturasGlobales(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// ── Dashboard / Reportes ────────────────────────────────────────────────
+// Grupo A (pos-reportes) y Grupo B — ganancias (pos-reportes-ganancias, ver
+// pos.routes.js): la separación de permiso vive en las rutas, aquí solo se
+// delega al servicio con los filtros de query string.
+
+async function reporteResumen(req, res, next) {
+  try { res.json(await reportes.resumenVentas(req.empresaId, req.query)); }
+  catch (err) { next(err); }
+}
+async function reporteVentasSucursal(req, res, next) {
+  try { res.json(await reportes.ventasPorSucursal(req.empresaId, req.query)); }
+  catch (err) { next(err); }
+}
+async function reporteTopProductos(req, res, next) {
+  try { res.json(await reportes.topProductos(req.empresaId, req.query)); }
+  catch (err) { next(err); }
+}
+async function reporteFormasPago(req, res, next) {
+  try { res.json(await reportes.formasPago(req.empresaId, req.query)); }
+  catch (err) { next(err); }
+}
+async function reporteExistencias(req, res, next) {
+  try { res.json(await reportes.existencias(req.empresaId, req.query)); }
+  catch (err) { next(err); }
+}
+async function reporteRecetas(req, res, next) {
+  try { res.json(await reportes.recetasCofepris(req.empresaId, req.query)); }
+  catch (err) { next(err); }
+}
+async function reporteGanancias(req, res, next) {
+  try { res.json(await reportes.ganancias(req.empresaId, req.query)); }
+  catch (err) { next(err); }
+}
+async function reporteGananciasProductos(req, res, next) {
+  try { res.json(await reportes.gananciasPorProducto(req.empresaId, req.query)); }
+  catch (err) { next(err); }
+}
+
 module.exports = {
   listSucursales, createSucursal, updateSucursal,
   listCajas, createCaja, updateCaja,
   turnoActual, abrirTurno, crearMovimiento, corteTurno, cerrarTurno, listTurnos,
   autorizarSupervisorCierre, desgloseTurno,
-  buscarProductos, crearVenta, listarVentas, detalleVenta, cancelarVenta,
+  buscarProductos, favoritosProductos, crearVenta, listarVentas, detalleVenta, cancelarVenta,
   listMedicos, createMedico, updateMedico, bitacora,
   facturarVenta, crearFacturaGlobal, timbrarFacturaGlobal, liberarFacturaGlobal, listarFacturasGlobales,
+  reporteResumen, reporteVentasSucursal, reporteTopProductos, reporteFormasPago,
+  reporteExistencias, reporteRecetas, reporteGanancias, reporteGananciasProductos,
 };

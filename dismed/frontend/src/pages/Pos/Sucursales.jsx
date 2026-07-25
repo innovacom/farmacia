@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Warehouse, Plus, Pencil, Monitor, Receipt } from 'lucide-react';
+import { Warehouse, Plus, Pencil, Monitor, Receipt, Zap, X, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 import Modal from '../../components/ui/Modal';
@@ -130,15 +130,26 @@ function ModalSucursal({ sucursal, onClose, onSaved }) {
     activo: sucursal ? !!sucursal.activo : true,
   });
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const [favoritos, setFavoritos] = useState([]); // [{id, sku_interno, descripcion}]
 
   const { data: almacenes = [] } = useQuery({
     queryKey: ['almacenes'],
     queryFn: () => api.get('/almacenes').then((r) => r.data),
   });
 
+  const { data: favoritosActuales, isLoading: cargandoFavoritos } = useQuery({
+    queryKey: ['pos-favoritos', sucursal?.id],
+    queryFn: () => api.get('/pos/productos/favoritos', { params: { sucursal_id: sucursal.id } }).then((r) => r.data),
+    enabled: !!sucursal,
+  });
+  useEffect(() => { if (favoritosActuales) setFavoritos(favoritosActuales); }, [favoritosActuales]);
+
   const guardar = useMutation({
     mutationFn: () => (sucursal
-      ? api.put(`/pos/sucursales/${sucursal.id}`, { ...form, activo: form.activo ? 1 : 0 })
+      ? api.put(`/pos/sucursales/${sucursal.id}`, {
+          ...form, activo: form.activo ? 1 : 0,
+          productos_favoritos: favoritos.map((p) => p.id),
+        })
       : api.post('/pos/sucursales', form)),
     onSuccess: () => { toast.success('Sucursal guardada'); onSaved(); },
     onError: (e) => toast.error(e.response?.data?.error || 'Error al guardar'),
@@ -194,18 +205,93 @@ function ModalSucursal({ sucursal, onClose, onSaved }) {
             </div>
           )}
         </div>
+
+        {sucursal && (
+          <div className="border-t border-gray-100 pt-3">
+            <label className="label flex items-center gap-1.5">
+              <Zap size={13} className="text-brand-500" /> Accesos rápidos de venta (máx. 5)
+            </label>
+            <p className="text-xs text-gray-400 mb-2">
+              Botones de compra directa en la pantalla de venta mostrador, para los productos más vendidos de esta sucursal.
+            </p>
+            {!!favoritos.length && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {favoritos.map((p) => (
+                  <span key={p.id} className="flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full bg-brand-50 border border-brand-100 text-xs text-brand-700">
+                    {p.descripcion}
+                    <button type="button" className="text-brand-400 hover:text-red-500" onClick={() => setFavoritos((f) => f.filter((x) => x.id !== p.id))}>
+                      <X size={12} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            {favoritos.length < 5 && (
+              <BuscadorFavoritos
+                sucursalId={sucursal.id}
+                excluir={favoritos.map((p) => p.id)}
+                onElegir={(p) => setFavoritos((f) => [...f, p])}
+              />
+            )}
+          </div>
+        )}
+
         <div className="flex justify-end gap-2 pt-2">
           <button className="btn-secondary" onClick={onClose}>Cancelar</button>
           <button
             className="btn-primary"
-            disabled={guardar.isPending || !form.codigo.trim() || !form.nombre.trim() || (!sucursal && !form.almacen_id)}
+            disabled={guardar.isPending || cargandoFavoritos || !form.codigo.trim() || !form.nombre.trim() || (!sucursal && !form.almacen_id)}
             onClick={() => guardar.mutate()}
           >
-            Guardar
+            {cargandoFavoritos ? 'Cargando…' : 'Guardar'}
           </button>
         </div>
       </div>
     </Modal>
+  );
+}
+
+function BuscadorFavoritos({ sucursalId, excluir, onElegir }) {
+  const [q, setQ] = useState('');
+  const [resultados, setResultados] = useState([]);
+
+  useEffect(() => {
+    if (!q.trim()) { setResultados([]); return; }
+    const t = setTimeout(() => {
+      api.get('/pos/productos/buscar', { params: { q: q.trim(), sucursal_id: sucursalId } })
+        .then((r) => setResultados(r.data.filter((p) => !excluir.includes(p.id))))
+        .catch(() => setResultados([]));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [q, sucursalId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div className="relative">
+      <div className="relative">
+        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input
+          className="input pl-8 text-sm"
+          placeholder="Buscar producto por SKU o descripción…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+      </div>
+      {!!resultados.length && (
+        <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
+          {resultados.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left hover:bg-gray-50 border-b border-gray-50 text-sm"
+              onClick={() => { onElegir(p); setQ(''); setResultados([]); }}
+            >
+              <span className="truncate">{p.descripcion}</span>
+              <span className="text-xs text-gray-400 font-mono shrink-0">{p.sku_interno}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -50,6 +50,34 @@ async function buscarProductos(empresaId, { q, sucursal_id }) {
   }
 }
 
+async function favoritos(empresaId, { sucursal_id }) {
+  const conn = await pool.getConnection();
+  try {
+    const suc = await getScoped(conn, 'sucursales', sucursal_id, empresaId);
+    const raw = typeof suc.productos_favoritos === 'string'
+      ? JSON.parse(suc.productos_favoritos || '[]')
+      : (suc.productos_favoritos || []);
+    const ids = raw.map(Number).filter(Boolean);
+    if (!ids.length) return [];
+
+    const [rows] = await conn.query(
+      `SELECT p.id, p.sku_interno, p.descripcion, p.ean, p.precio_lista, p.precio_publico,
+              p.clasificacion_cofepris, p.control_lote_caducidad,
+              COALESCE((SELECT SUM(l.cantidad_actual) FROM inventario_lotes l
+                        WHERE l.producto_id = p.id AND l.almacen_id = ?), 0) AS existencia
+       FROM productos p
+       WHERE p.activo = 1 AND p.vendible = 1 AND p.id IN (?)`,
+      [suc.almacen_id, ids]
+    );
+    // Conserva el orden configurado por el admin (FIELD() en el ORDER BY sería
+    // más simple, pero re-ordenar en JS evita depender de la posición en la lista).
+    const porId = new Map(rows.map((r) => [r.id, r]));
+    return ids.map((id) => porId.get(id)).filter(Boolean);
+  } finally {
+    conn.release();
+  }
+}
+
 async function cargarVenta(conn, empresaId, ventaId) {
   const venta = await getScoped(conn, 'pos_ventas', ventaId, empresaId);
   const [partidas] = await conn.query(
@@ -383,4 +411,4 @@ async function listarVentas(empresaId, { turno_id, desde, hasta, limit = 100 }) 
   return rows;
 }
 
-module.exports = { buscarProductos, crearVenta, cancelarVenta, detalleVenta, listarVentas };
+module.exports = { buscarProductos, favoritos, crearVenta, cancelarVenta, detalleVenta, listarVentas };

@@ -44,6 +44,8 @@ import VentaMostrador from './pages/Pos/VentaMostrador';
 import HistorialVentas from './pages/Pos/HistorialVentas';
 import Bitacora from './pages/Pos/Bitacora';
 import FacturasGlobales from './pages/Pos/FacturasGlobales';
+import PosReportes from './pages/Pos/Reportes/PosReportes';
+import PosGanancias from './pages/Pos/Reportes/PosGanancias';
 import PacientesList from './pages/Expediente/PacientesList';
 import DetallePaciente from './pages/Expediente/DetallePaciente';
 import Medicos from './pages/Expediente/Medicos';
@@ -114,6 +116,8 @@ export default function App() {
         <Route path="pos/sucursales"                      element={<PosSucursales />} />
         <Route path="pos/facturas-globales"               element={<FacturasGlobales />} />
         <Route path="pos/turnos"                          element={<PosTurnos />} />
+        <Route path="pos/reportes"                        element={<PosReportes />} />
+        <Route path="pos/ganancias"                       element={<PosGanancias />} />
         <Route path="herramientas/importar"               element={<ImportarDatos />} />
         <Route path="herramientas/exportar"               element={<ExportarDatos />} />
         <Route path="ayuda"                               element={<Ayuda />} />

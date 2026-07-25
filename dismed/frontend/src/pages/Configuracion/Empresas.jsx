@@ -27,6 +27,7 @@ export default function Empresas() {
   const cerrarYRefrescar = () => {
     qc.invalidateQueries({ queryKey: ['empresas'] });
     qc.invalidateQueries({ queryKey: ['mi-branding'] });
+    qc.invalidateQueries({ queryKey: ['empresa-config'] });
     setEditando(null);
   };
 
@@ -132,10 +133,18 @@ function EditorEmpresa({ empresa, onClose, onSaved }) {
   });
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
+  // Parámetros POS: se cargan/editan en <ParametrosPos> pero se guardan junto
+  // con el resto del formulario, con el único botón "Guardar" del pie.
+  const [paramValores, setParamValores] = useState(null);
+
   const guardar = useMutation({
     mutationFn: async () => {
       const body = { ...form, color_secundario: form.color_secundario || null, activo: form.activo ? 1 : 0 };
-      if (empresa) return api.put(`/empresas/${empresa.id}`, body);
+      if (empresa) {
+        await api.put(`/empresas/${empresa.id}`, body);
+        if (paramValores) await api.put(`/empresas/${empresa.id}/config`, paramValores);
+        return;
+      }
       const r = await api.post('/empresas', body);
       return r;
     },
@@ -240,7 +249,9 @@ function EditorEmpresa({ empresa, onClose, onSaved }) {
         </section>
 
         {/* 3. Parámetros POS */}
-        {empresa && <ParametrosPos empresaId={empresa.id} />}
+        {empresa && (
+          <ParametrosPos empresaId={empresa.id} valores={paramValores} onChange={setParamValores} />
+        )}
 
         <div className="flex items-center justify-between border-t border-gray-100 pt-4">
           {empresa ? (
@@ -358,33 +369,20 @@ function DropLogo({ empresa, tipo, label, onDone }) {
   );
 }
 
-function ParametrosPos({ empresaId }) {
-  const qc = useQueryClient();
-  const [valores, setValores] = useState({});
-
+function ParametrosPos({ empresaId, valores, onChange }) {
   const { data: config } = useQuery({
     queryKey: ['empresa-config', empresaId],
     queryFn: () => api.get(`/empresas/${empresaId}/config`).then((r) => r.data),
   });
 
   useEffect(() => {
-    if (config) {
-      setValores(Object.fromEntries(Object.entries(config).map(([k, v]) => [k, v.valor])));
+    if (config && !valores) {
+      onChange(Object.fromEntries(Object.entries(config).map(([k, v]) => [k, v.valor])));
     }
-  }, [config]);
+  }, [config, valores, onChange]);
 
-  const guardar = useMutation({
-    mutationFn: () => api.put(`/empresas/${empresaId}/config`, valores),
-    onSuccess: () => {
-      toast.success('Parámetros guardados');
-      qc.invalidateQueries({ queryKey: ['empresa-config', empresaId] });
-      qc.invalidateQueries({ queryKey: ['mi-branding'] });
-    },
-    onError: (e) => toast.error(e.response?.data?.error || 'Error al guardar parámetros'),
-  });
-
-  if (!config) return null;
-  const set = (k, v) => setValores((s) => ({ ...s, [k]: v }));
+  if (!config || !valores) return null;
+  const set = (k, v) => onChange({ ...valores, [k]: v });
 
   return (
     <section className="border-t border-gray-100 pt-4">
@@ -409,10 +407,6 @@ function ParametrosPos({ empresaId }) {
           </div>
         ))}
       </div>
-      <button className="btn-secondary btn-sm mt-3" disabled={guardar.isPending}
-        onClick={() => guardar.mutate()}>
-        Guardar parámetros
-      </button>
     </section>
   );
 }

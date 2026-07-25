@@ -15,12 +15,24 @@ const money = (n) =>
  * /empresas/mi-branding (useBranding) — nada hardcodeado.
  */
 export function usePrintTicket(branding) {
-  return useCallback(() => {
+  return useCallback(async () => {
     const ancho = branding?.config?.ticket_ancho_mm === '58' ? '58mm' : '80mm';
     document.documentElement.style.setProperty('--ticket-ancho', ancho);
     const style = document.createElement('style');
     style.textContent = `@page { size: ${ancho} auto; margin: 0; }`;
     document.head.appendChild(style);
+
+    // El <img> del logo recién se monta con el ticket (primera venta de la
+    // sesión = primera carga de esa URL): sin esto, window.print() puede
+    // disparar antes de que la imagen termine de descargar y sale en blanco.
+    const img = document.querySelector('.ticket-print img');
+    if (img && !img.complete) {
+      await Promise.race([
+        new Promise((resolve) => { img.onload = resolve; img.onerror = resolve; }),
+        new Promise((resolve) => setTimeout(resolve, 1500)),
+      ]);
+    }
+
     document.body.classList.add('imprimiendo-ticket');
     try {
       window.print();

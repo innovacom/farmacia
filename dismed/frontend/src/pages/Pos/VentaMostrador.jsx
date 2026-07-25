@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useReducer, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Store, Trash2, Minus, Plus, ScanBarcode } from 'lucide-react';
+import { Store, Trash2, Minus, Plus, ScanBarcode, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 import { useBranding } from '../../hooks/useBranding';
@@ -88,6 +88,12 @@ export default function VentaMostrador() {
 
   const caja = cajas.find((c) => String(c.id) === String(cajaId));
   const sucursalId = caja?.sucursal_id;
+
+  const { data: favoritos = [] } = useQuery({
+    queryKey: ['pos-favoritos', sucursalId],
+    queryFn: () => api.get('/pos/productos/favoritos', { params: { sucursal_id: sucursalId } }).then((r) => r.data),
+    enabled: !!sucursalId,
+  });
 
   const total = carrito.reduce((a, i) => a + i.cantidad * i.precio, 0);
   const hayControlados = carrito.some((i) => !CLASIF_LIBRES.includes(i.clasificacion));
@@ -267,6 +273,25 @@ export default function VentaMostrador() {
           </div>
         )}
       </div>
+
+      {/* Accesos rápidos (configurables en Sucursales y cajas) */}
+      {!!favoritos.length && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {favoritos.map((p) => (
+            <button
+              key={p.id}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white hover:border-brand-400 hover:bg-brand-50 text-left disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={!(Number(p.existencia) > 0)}
+              onClick={() => agregarProducto(p)}
+              title={p.descripcion}
+            >
+              <Zap size={14} className="text-brand-500 shrink-0" />
+              <span className="text-sm font-medium text-gray-800 max-w-[10rem] truncate">{p.descripcion}</span>
+              <span className="text-xs text-gray-400">{money(p.precio_lista)}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Carrito */}
       <div className="card p-0 overflow-hidden mb-4">

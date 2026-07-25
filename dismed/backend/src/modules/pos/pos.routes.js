@@ -20,6 +20,7 @@ router.put('/cajas/:id',      requirePermiso('pos-admin'), c.updateCaja);
 
 // Venta mostrador
 router.get('/productos/buscar',   requirePermiso('pos-venta'),  c.buscarProductos);
+router.get('/productos/favoritos', requirePermiso('pos-venta'), c.favoritosProductos);
 router.post('/ventas',            requirePermiso('pos-venta'),  c.crearVenta);
 router.get('/ventas',             requirePermiso('pos-venta'),  c.listarVentas);
 router.get('/ventas/:id',         requirePermiso('pos-venta'),  c.detalleVenta);
@@ -52,5 +53,17 @@ router.post('/turnos/:id/cerrar',      requirePermiso('pos-turnos'), c.cerrarTur
 router.post('/turnos/:id/autorizar',   requirePermiso('pos-turnos'), c.autorizarSupervisorCierre);
 // Desglose completo del arqueo (fondo/ventas/salidas): solo rol=admin, ver desgloseTurno.
 router.get('/turnos/:id/desglose',     requirePermiso('pos-turnos'), c.desgloseTurno);
+
+// Dashboard / Reportes. Grupo A: operativos (ventas, existencias, recetas).
+// Grupo B: ganancia/margen, permiso APARTE ('pos-reportes-ganancias') para
+// que el admin decida quién ve el dato sensible, igual que Descargas SAT.
+router.get('/reportes/resumen',             requirePermiso('pos-reportes'), c.reporteResumen);
+router.get('/reportes/ventas-sucursal',     requirePermiso('pos-reportes'), c.reporteVentasSucursal);
+router.get('/reportes/top-productos',       requirePermiso('pos-reportes'), c.reporteTopProductos);
+router.get('/reportes/formas-pago',         requirePermiso('pos-reportes'), c.reporteFormasPago);
+router.get('/reportes/existencias',         requirePermiso('pos-reportes'), c.reporteExistencias);
+router.get('/reportes/recetas',             requirePermiso('pos-reportes'), c.reporteRecetas);
+router.get('/reportes/ganancias',           requirePermiso('pos-reportes-ganancias'), c.reporteGanancias);
+router.get('/reportes/ganancias-productos', requirePermiso('pos-reportes-ganancias'), c.reporteGananciasProductos);
 
 module.exports = router;
