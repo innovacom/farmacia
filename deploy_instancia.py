@@ -164,7 +164,7 @@ def modo_sync():
 
     det = run(
         f'for d in /var/www/{SLUG}/backend /root/{SLUG}/backend; do [ -d "$d" ] && echo "BACK=$d" && break; done; '
-        f'DR=$(grep -rhI DocumentRoot /etc/apache2/sites-enabled/*{SLUG}* 2>/dev/null | awk "{{print \\$2}}" | grep -i dist | head -1); '
+        f'DR=$(grep -hI DocumentRoot /etc/apache2/sites-enabled/*{SLUG}*.conf 2>/dev/null | awk "{{print \\$2}}" | grep -i dist | head -1); '
         f'echo "DOCROOT=${{DR:-/var/www/{SLUG}/frontend/dist}}"; '
         f'APP=$(pm2 jlist 2>/dev/null | tr "," "\\n" | grep -o "\\"name\\":\\"[^\\"]*{SLUG}[^\\"]*\\"" | head -1 | cut -d "\\"" -f4); '
         f'echo "PM2=${{APP:-{SLUG}-api}}"',
