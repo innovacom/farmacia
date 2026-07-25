@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 
 const money = (n) =>
   Number(n || 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
@@ -15,23 +15,26 @@ const money = (n) =>
  * /empresas/mi-branding (useBranding) — nada hardcodeado.
  */
 export function usePrintTicket(branding) {
-  return useCallback(async () => {
+  const logo = branding?.logo_ticket_url || branding?.logo_url;
+
+  // Precarga el logo en cuanto se conoce el branding (al abrir el POS, mucho
+  // antes de la primera venta) para que ya esté en caché del navegador al
+  // imprimir. Antes se esperaba (await) la carga justo antes de window.print(),
+  // pero con Chrome en modo kiosko (--kiosk-printing) la impresión silenciosa
+  // debe dispararse de forma síncrona dentro del gesto del usuario: cualquier
+  // await previo hacía que no llegara nada a la impresora térmica.
+  useEffect(() => {
+    if (!logo) return;
+    const img = new Image();
+    img.src = logo;
+  }, [logo]);
+
+  return useCallback(() => {
     const ancho = branding?.config?.ticket_ancho_mm === '58' ? '58mm' : '80mm';
     document.documentElement.style.setProperty('--ticket-ancho', ancho);
     const style = document.createElement('style');
     style.textContent = `@page { size: ${ancho} auto; margin: 0; }`;
     document.head.appendChild(style);
-
-    // El <img> del logo recién se monta con el ticket (primera venta de la
-    // sesión = primera carga de esa URL): sin esto, window.print() puede
-    // disparar antes de que la imagen termine de descargar y sale en blanco.
-    const img = document.querySelector('.ticket-print img');
-    if (img && !img.complete) {
-      await Promise.race([
-        new Promise((resolve) => { img.onload = resolve; img.onerror = resolve; }),
-        new Promise((resolve) => setTimeout(resolve, 1500)),
-      ]);
-    }
 
     document.body.classList.add('imprimiendo-ticket');
     try {
