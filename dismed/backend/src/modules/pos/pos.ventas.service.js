@@ -57,8 +57,13 @@ async function favoritos(empresaId, { sucursal_id }) {
     const raw = typeof suc.productos_favoritos === 'string'
       ? JSON.parse(suc.productos_favoritos || '[]')
       : (suc.productos_favoritos || []);
-    const ids = raw.map(Number).filter(Boolean);
-    if (!ids.length) return [];
+    // Compat: formato anterior era un array plano de producto_id; ahora cada
+    // entrada puede ser {id, color} para el resaltado configurable.
+    const entradas = raw
+      .map((e) => (e && typeof e === 'object') ? { id: Number(e.id), color: e.color || null } : { id: Number(e), color: null })
+      .filter((e) => e.id);
+    if (!entradas.length) return [];
+    const ids = entradas.map((e) => e.id);
 
     const [rows] = await conn.query(
       `SELECT p.id, p.sku_interno, p.descripcion, p.ean, p.precio_lista, p.precio_publico,
@@ -72,7 +77,9 @@ async function favoritos(empresaId, { sucursal_id }) {
     // Conserva el orden configurado por el admin (FIELD() en el ORDER BY sería
     // más simple, pero re-ordenar en JS evita depender de la posición en la lista).
     const porId = new Map(rows.map((r) => [r.id, r]));
-    return ids.map((id) => porId.get(id)).filter(Boolean);
+    return entradas
+      .map((e) => { const p = porId.get(e.id); return p ? { ...p, color: e.color } : null; })
+      .filter(Boolean);
   } finally {
     conn.release();
   }

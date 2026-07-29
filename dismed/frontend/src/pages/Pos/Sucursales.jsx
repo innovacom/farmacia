@@ -6,6 +6,14 @@ import toast from 'react-hot-toast';
 import api from '../../services/api';
 import Modal from '../../components/ui/Modal';
 
+// Elige texto claro u oscuro según la luminosidad del color de fondo elegido.
+function textColorFor(hex) {
+  const c = (hex || '').replace('#', '');
+  if (c.length !== 6) return '#1f2937';
+  const r = parseInt(c.slice(0, 2), 16), g = parseInt(c.slice(2, 4), 16), b = parseInt(c.slice(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 >= 150 ? '#1f2937' : '#ffffff';
+}
+
 /**
  * Sucursales y cajas del POS (permiso pos-admin).
  * Una sucursal se liga 1:1 a un almacén existente: las ventas de mostrador
@@ -148,7 +156,7 @@ function ModalSucursal({ sucursal, onClose, onSaved }) {
     mutationFn: () => (sucursal
       ? api.put(`/pos/sucursales/${sucursal.id}`, {
           ...form, activo: form.activo ? 1 : 0,
-          productos_favoritos: favoritos.map((p) => p.id),
+          productos_favoritos: favoritos.map((p) => ({ id: p.id, color: p.color || null })),
         })
       : api.post('/pos/sucursales', form)),
     onSuccess: () => { toast.success('Sucursal guardada'); onSaved(); },
@@ -217,9 +225,24 @@ function ModalSucursal({ sucursal, onClose, onSaved }) {
             {!!favoritos.length && (
               <div className="flex flex-wrap gap-2 mb-2">
                 {favoritos.map((p) => (
-                  <span key={p.id} className="flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full bg-brand-50 border border-brand-100 text-xs text-brand-700">
-                    {p.descripcion}
-                    <button type="button" className="text-brand-400 hover:text-red-500" onClick={() => setFavoritos((f) => f.filter((x) => x.id !== p.id))}>
+                  <span
+                    key={p.id}
+                    className="flex items-center gap-1.5 pl-1 pr-1.5 py-1 rounded-full border text-xs"
+                    style={{
+                      backgroundColor: p.color || '#eff6ff',
+                      borderColor: p.color || '#dbeafe',
+                      color: p.color ? textColorFor(p.color) : '#1d4ed8',
+                    }}
+                  >
+                    <input
+                      type="color"
+                      value={p.color || '#dbeafe'}
+                      onChange={(e) => setFavoritos((f) => f.map((x) => (x.id === p.id ? { ...x, color: e.target.value } : x)))}
+                      className="w-5 h-5 rounded-full border-0 cursor-pointer bg-transparent p-0"
+                      title="Color de fondo del botón"
+                    />
+                    <span className="truncate max-w-[8rem]">{p.descripcion}</span>
+                    <button type="button" className="hover:text-red-500" onClick={() => setFavoritos((f) => f.filter((x) => x.id !== p.id))}>
                       <X size={12} />
                     </button>
                   </span>
