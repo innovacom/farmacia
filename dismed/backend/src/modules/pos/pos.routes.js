@@ -9,7 +9,9 @@ const c = require('./pos.controller');
 router.use(auth, tenant);
 
 // Administración (sucursales y cajas)
-router.get('/sucursales',     requirePermiso('pos-admin'), c.listSucursales);
+// Listar sucursales también lo necesita quien agenda citas (para elegir en
+// qué sucursal aparta el horario); crear/editar siguen siendo pos-admin.
+router.get('/sucursales',     requireAnyPermiso(['pos-admin', 'pos-citas']), c.listSucursales);
 router.post('/sucursales',    requirePermiso('pos-admin'), c.createSucursal);
 router.put('/sucursales/:id', requirePermiso('pos-admin'), c.updateSucursal);
 // Listar cajas requiere solo pos-venta: el cajero necesita elegir su caja
@@ -39,6 +41,18 @@ router.post('/facturas-globales/:id/liberar', requirePermiso('pos-admin'), c.lib
 router.get('/medicos',     requireAnyPermiso(['pos-venta', 'expediente-medico']), c.listMedicos);
 router.post('/medicos',    requireAnyPermiso(['pos-venta', 'expediente-medico']), c.createMedico);
 router.put('/medicos/:id', requireAnyPermiso(['pos-venta', 'expediente-medico']), c.updateMedico);
+
+// Citas médicas (agenda del mostrador, no importa el médico de guardia).
+// Cobrar una cita agendada es una venta normal (pos-venta) que luego se liga
+// aquí, por eso /pagar acepta cualquiera de los dos permisos.
+router.get('/citas',               requirePermiso('pos-citas'), c.listCitas);
+// Antes de '/citas/:id' — si no, ':id' capturaría el literal 'servicios'.
+router.get('/citas/servicios',     requirePermiso('pos-citas'), c.listServiciosCitas);
+router.get('/citas/:id',           requireAnyPermiso(['pos-citas', 'pos-venta']), c.detalleCita);
+router.post('/citas',              requirePermiso('pos-citas'), c.crearCita);
+router.put('/citas/:id',           requirePermiso('pos-citas'), c.updateCita);
+router.post('/citas/:id/cancelar', requirePermiso('pos-citas'), c.cancelarCita);
+router.post('/citas/:id/pagar',    requireAnyPermiso(['pos-citas', 'pos-venta']), c.pagarCita);
 
 // Bitácora COFEPRIS (controlados/antibióticos)
 router.get('/bitacora', requirePermiso('pos-bitacora'), c.bitacora);

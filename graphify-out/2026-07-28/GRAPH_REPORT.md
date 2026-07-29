@@ -1,11 +1,11 @@
 # Graph Report - sistema cotizaciones  (2026-07-28)
 
 ## Corpus Check
-- 326 files · ~455,540 words
+- 325 files · ~454,990 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2212 nodes · 3526 edges · 196 communities (158 shown, 38 thin omitted)
+- 2206 nodes · 3515 edges · 197 communities (161 shown, 36 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 39 edges (avg confidence: 0.83)
 - Token cost: 0 input · 0 output
 
@@ -183,11 +183,12 @@
 - [[_COMMUNITY_Community 191|Community 191]]
 - [[_COMMUNITY_Community 192|Community 192]]
 - [[_COMMUNITY_Community 193|Community 193]]
+- [[_COMMUNITY_Community 194|Community 194]]
 - [[_COMMUNITY_Community 195|Community 195]]
 - [[_COMMUNITY_Community 196|Community 196]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `pool` - 98 edges
+1. `pool` - 97 edges
 2. `api` - 57 edges
 3. `getScoped()` - 39 edges
 4. `usePagination()` - 34 edges
@@ -219,7 +220,7 @@
 - **Modelo de Inventario por Lotes y Ubicación** — diseno_inventario_existencia_grano, diseno_inventario_kardex, diseno_inventario_fefo, diseno_inventario_unidad_base_mixta [EXTRACTED 1.00]
 - **INNOVACOM Brand Logo Variants** — assets_logo_innovacom, public_apple_touch_icon, public_icon_192, public_icon_512, public_icon_maskable_512, public_logo_innovacom, logo_sin_fondo_4500_pixeles, logo_sin_fondo_500_por_500_pixeles, logo_vectorizado_1024por747 [INFERRED 0.85]
 
-## Communities (196 total, 38 thin omitted)
+## Communities (197 total, 36 thin omitted)
 
 ### Community 0 - "Business Domain & Catalog Data"
 Cohesion: 0.16
@@ -234,8 +235,8 @@ Cohesion: 0.23
 Nodes (9): { parseCatalogo }, { pool }, deducirFactor(), norm(), numOrNull(), parseCatalogo(), up(), XLSX (+1 more)
 
 ### Community 3 - "Sales / Pedidos Controller"
-Cohesion: 0.13
-Nodes (17): cargarEntrega(), cargarOC(), crearEntrega(), crearPedido(), { ejecutarRecepcion }, entregaPdf(), generarOC(), { generarOcPdf, generarEntregaPdf } (+9 more)
+Cohesion: 0.14
+Nodes (16): cargarEntrega(), cargarOC(), crearEntrega(), crearPedido(), { ejecutarRecepcion }, entregaPdf(), generarOC(), { generarOcPdf, generarEntregaPdf } (+8 more)
 
 ### Community 4 - "Frontend Dependencies"
 Cohesion: 0.07
@@ -254,32 +255,32 @@ Cohesion: 0.07
 Nodes (26): dependencies, bcryptjs, cors, dotenv, express, fast-xml-parser, jsonwebtoken, multer (+18 more)
 
 ### Community 8 - "React Pages (Lists & Forms)"
-Cohesion: 0.09
-Nodes (27): Bancos(), CotizacionesList(), ESTATUS_BADGE, DetalleCotizacion(), ESTATUS_BADGE, fmt(), usePagination(), CargaFacturas() (+19 more)
+Cohesion: 0.10
+Nodes (29): Ayuda(), Bancos(), CatalogoCuentas(), CotizacionesList(), ESTATUS_BADGE, DetalleCotizacion(), ESTATUS_BADGE, fmt() (+21 more)
 
 ### Community 9 - "Products Controller & AI Matcher"
 Cohesion: 0.11
 Nodes (22): ubicacionId(), confirmar(), importConfirm(), autoVendibleCreate(), autoVendibleUpdate(), { buscarCandidatos, normalizar }, CAMPOS_BOOLEANOS, create() (+14 more)
 
 ### Community 10 - "Support Catalogs (Categorias/Familias)"
-Cohesion: 0.13
-Nodes (6): condActivo(), listCategorias(), listFamilias(), listSubcategorias(), listUnidades(), { pool }
+Cohesion: 0.10
+Nodes (9): condActivo(), listCategorias(), listFamilias(), listSubcategorias(), listUnidades(), { pool }, auth, c (+1 more)
 
 ### Community 11 - "Layout, Auth Store & Users UI"
-Cohesion: 0.17
-Nodes (11): ALL_ITEMS, itemForPath(), MENU, PERMISSION_GROUPS, PERMISSIONABLE_ITEMS, ALL_KEYS, Configuracion(), usePermisos() (+3 more)
+Cohesion: 0.12
+Nodes (18): ALL_ITEMS, itemForPath(), MENU, PERMISSION_GROUPS, PERMISSIONABLE_ITEMS, usePermisos(), GuardedOutlet(), Layout() (+10 more)
 
 ### Community 12 - "PRONAMAC Catalog Import CLI"
 Cohesion: 0.20
 Nodes (9): testConnection(), required, validateEnv(), app, cors, express, path, { testConnection } (+1 more)
 
 ### Community 13 - "Clientes Controller"
-Cohesion: 0.17
-Nodes (8): TIPOS, TIPOS, Dashboard(), api, descargarArchivo(), ProductoPicker(), DetalleSolicitud(), NuevaSolicitud()
+Cohesion: 0.10
+Nodes (13): fmt(), NuevaCotizacion(), ExportarDatos(), TIPOS, ImportarDatos(), TIPOS, ImportExistenciasModal(), TIPO_BADGE (+5 more)
 
 ### Community 14 - "SSH Deploy Script"
-Cohesion: 0.12
-Nodes (27): args, DRY, file, path, svc, TIPO, VIGENCIA, aoaToBuffer() (+19 more)
+Cohesion: 0.19
+Nodes (20): aoaToBuffer(), cargarMapaProveedores(), claveSintetica(), COLS, crypto, exportarCatalogo(), exportarEquivalencias(), hash8() (+12 more)
 
 ### Community 15 - "Proveedores Controller"
 Cohesion: 0.13
@@ -290,8 +291,8 @@ Cohesion: 0.04
 Nodes (9): citas, corteTurno(), { getScoped }, ocultarCorte(), { pool }, posCfdi, reportes, turnos (+1 more)
 
 ### Community 17 - "Usuarios Controller"
-Cohesion: 0.12
-Nodes (6): { PERMISSIONABLE_KEYS }, { pool }, PERMISSIONABLE_KEYS, bcrypt, { PERMISSIONABLE_KEYS }, { pool }
+Cohesion: 0.09
+Nodes (9): { PERMISSIONABLE_KEYS }, { pool }, PERMISSIONABLE_KEYS, bcrypt, { PERMISSIONABLE_KEYS }, { pool }, auth, ctrl (+1 more)
 
 ### Community 18 - "Catalog Import CLI"
 Cohesion: 0.08
@@ -314,8 +315,8 @@ Cohesion: 0.10
 Nodes (19): 0. Resumen de lo analizado, 1. Columnas del catálogo — propuesta de obligatorias (PARA TU VERIFICACIÓN), 2.1 Conceptos y jerarquía, 2.2 Movimientos (Kardex) — toda variación deja rastro, 2.3 Reglas de negocio del inventario, 2.4 Indicadores / alertas, 2. ROL: Ingeniero Industrial — diseño conceptual de inventario, 3.1 Cambios al esquema (MariaDB) (+11 more)
 
 ### Community 23 - "Products & Catalog UI"
-Cohesion: 0.11
-Nodes (17): Ayuda(), CatalogoCuentas(), fmt(), NuevaCotizacion(), ExportarDatos(), ImportarDatos(), Login(), AperturaTurno() (+9 more)
+Cohesion: 0.14
+Nodes (16): COLS_COMP, COLS_CONC, guardarComprobante(), pick(), { pool }, detalleToConcepto(), DIR, fs (+8 more)
 
 ### Community 24 - "Supplier Catalog & Product Picker UI"
 Cohesion: 0.18
@@ -335,7 +336,7 @@ Nodes (5): FIELDS, { pool }, auth, c, router
 
 ### Community 28 - "Pedido Detail UI"
 Cohesion: 0.09
-Nodes (24): ClientesList(), TIPOS, FORM_VACIO, Medicos(), Almacenes(), FORM_ALM_VACIO, FORM_UB_VACIO, TIPOS (+16 more)
+Nodes (22): ClientesList(), TIPOS, FORM_VACIO, Medicos(), Almacenes(), FORM_ALM_VACIO, FORM_UB_VACIO, TIPOS (+14 more)
 
 ### Community 29 - "PDF Parser (AI)"
 Cohesion: 0.17
@@ -354,20 +355,16 @@ Cohesion: 0.12
 Nodes (16): 1. Base de datos, 2. Backend, 3. Frontend, 4. Flujo completo del sistema, 5. Estructura de carpetas, 6. APIs principales, 7. Variables de entorno completas, 8. Notas de despliegue en VPS (cPanel) (+8 more)
 
 ### Community 33 - "Admin Seed"
-Cohesion: 0.31
-Nodes (8): DEFAULT_CSV, esEncabezado(), fs, iconv, limpiar(), parse(), path, split3()
+Cohesion: 0.22
+Nodes (8): log(), { pool }, reporte(), svc, TERMINALES, TIPOS_OK, ts(), { ValidaSat }
 
 ### Community 34 - "Inventory Seed"
 Cohesion: 0.14
 Nodes (8): args, DIR, ESTATUS_COT, fs, getProvId(), normName(), path, { pool }
 
 ### Community 35 - "Cotizaciones List UI"
-Cohesion: 0.19
-Nodes (15): authHeader(), cancelarCfdi(), cargarEntregaCfdi(), errorDeRespuesta(), facturamaBase(), fDelete(), fGet(), fPost() (+7 more)
-
-### Community 36 - "Cotizacion Detail UI"
-Cohesion: 0.25
-Nodes (6): fs, outDir, PANTALLAS, path, puppeteer, URL
+Cohesion: 0.16
+Nodes (24): authHeader(), cadenaOriginalTfd(), cancelarCfdi(), cargarEntregaCfdi(), construirCfdiFacturama(), descargarXmlFacturama(), errorDeRespuesta(), facturamaBase() (+16 more)
 
 ### Community 39 - "Existencias UI"
 Cohesion: 0.09
@@ -382,16 +379,16 @@ Cohesion: 0.18
 Nodes (7): branding, create(), fs, path, { pool }, update(), validarCampos()
 
 ### Community 42 - "Proveedores List UI"
-Cohesion: 0.09
-Nodes (31): balanceGeneral(), balanza(), cfdiF(), cfdiPorComprobante(), cfdiResumenGeneral(), estadoResultados(), filtros(), { pool } (+23 more)
+Cohesion: 0.12
+Nodes (27): balanceGeneral(), balanza(), cfdiF(), cfdiPorComprobante(), cfdiResumenGeneral(), estadoResultados(), filtros(), { pool } (+19 more)
 
 ### Community 43 - "Migration v10"
 Cohesion: 0.17
 Nodes (11): 10\. VARIABLES DE ENTORNO REQUERIDAS, 13\. DECISIONES DE DISEÑO CLAVE, 14\. NOTAS PARA CLAUDE CODE, 2\. SISTEMA ACTUAL (a reemplazar), 3\. OBJETIVO DEL PROYECTO, 6\. DICCIONARIO DE EQUIVALENCIAS DE CÓDIGOS, 7\. FLUJO COMPLETO DEL NEGOCIO, 9\. ESTRUCTURA DE CARPETAS SUGERIDA (+3 more)
 
 ### Community 44 - "Migration v2"
-Cohesion: 0.40
-Nodes (4): DATA, fs, path, { pool }
+Cohesion: 0.11
+Nodes (14): fs, path, { pool }, Path, path, { pool }, DATA, fs (+6 more)
 
 ### Community 45 - "Migration v6"
 Cohesion: 0.31
@@ -405,10 +402,6 @@ Nodes (11): 8\. ESQUEMA DE BASE DE DATOS COMPLETO, Clientes, Cotizaciones al cli
 Cohesion: 0.06
 Nodes (45): { buscarPrecioWeb }, { desempatarConIA }, buscador, matcher, parser, provider, buscarConWeb(), conMensajeClaro() (+37 more)
 
-### Community 69 - "Community 69"
-Cohesion: 0.11
-Nodes (4): { pool }, auth, c, router
-
 ### Community 70 - "Community 70"
 Cohesion: 0.22
 Nodes (9): 5\. MÓDULOS DEL SISTEMA, Módulo 1 — Solicitudes del cliente ⭐ PRIORIDAD 1, Módulo 2 — Solicitud y comparación de precios a proveedores ⭐ PRIORIDAD 1, Módulo 3 — Cotización al cliente ⭐ PRIORIDAD 1, Módulo 4 — Inventario con lotes y caducidades, Módulo 5 — Pedidos, Módulo 6 — Facturación CFDI, Módulo 7 — Cobranza y cuentas por cobrar (+1 more)
@@ -418,8 +411,8 @@ Cohesion: 0.25
 Nodes (16): buildCfdiBlock(), buildEntregaHtml(), buildFacturaCfdiHtml(), buildOcHtml(), empresa(), encabezado(), fmt(), fs (+8 more)
 
 ### Community 72 - "Community 72"
-Cohesion: 0.40
-Nodes (4): DATA, fs, path, { pool }
+Cohesion: 0.12
+Nodes (9): ALL_KEYS, Configuracion(), PreciosVenta(), CatalogoProveedor(), ProductoPicker(), DetalleSolicitud(), NuevaSolicitud(), ROWS_PER_PAGE_OPTIONS (+1 more)
 
 ### Community 73 - "Community 73"
 Cohesion: 0.29
@@ -438,8 +431,8 @@ Cohesion: 0.33
 Nodes (5): CONFIRM, { pool }, TABLES, TABLES_CLIENTES, WIPE_CLIENTES
 
 ### Community 77 - "Community 77"
-Cohesion: 0.50
-Nodes (3): fs, path, { pool }
+Cohesion: 0.25
+Nodes (6): log(), svc, TERMINALES, TIPOS_OK, ts(), { ValidaSat }
 
 ### Community 78 - "Community 78"
 Cohesion: 0.40
@@ -458,12 +451,12 @@ Cohesion: 0.15
 Nodes (25): actualizar(), balanza(), crear(), generar(), { generarPeriodo, boundsMes }, periodoDeFecha(), { pool }, prepararMovs() (+17 more)
 
 ### Community 82 - "Community 82"
-Cohesion: 0.15
-Nodes (17): arr(), impuestosConcepto(), num(), numN(), parseCfdi(), parser, { XMLParser }, buscarProducto() (+9 more)
+Cohesion: 0.24
+Nodes (10): buscarProducto(), fs, generarSku(), { normalizar }, { normalizarPrecioPublico, validarPrecios, tienePrecioLista }, { parseCfdi }, { pool }, preview() (+2 more)
 
 ### Community 83 - "Community 83"
-Cohesion: 0.12
-Nodes (10): auth, c, router, jwt, auth, ctrl, router, auth (+2 more)
+Cohesion: 0.50
+Nodes (3): auth, c, router
 
 ### Community 84 - "Community 84"
 Cohesion: 0.50
@@ -478,20 +471,24 @@ Cohesion: 0.33
 Nodes (5): auth, c, facturas, router, upload
 
 ### Community 87 - "Community 87"
-Cohesion: 0.06
-Nodes (38): COLS_COMP, COLS_CONC, guardarComprobante(), pick(), { pool }, cron, svc, actualizar() (+30 more)
+Cohesion: 0.14
+Nodes (20): actualizar(), client, crearJobReconciliacion(), descargaMensualAutomatica(), fs, { guardarComprobante }, { parseCfdi }, path (+12 more)
 
 ### Community 88 - "Community 88"
-Cohesion: 0.50
-Nodes (4): Sube un archivo con barra de progreso simple., upload_file(), Path, SFTPClient
+Cohesion: 0.40
+Nodes (3): svc, TIPOS_OK, { ValidaSat }
+
+### Community 89 - "Community 89"
+Cohesion: 0.36
+Nodes (7): arr(), impuestosConcepto(), num(), numN(), parseCfdi(), parser, { XMLParser }
 
 ### Community 90 - "Community 90"
-Cohesion: 0.11
-Nodes (17): client, crearDescarga(), like(), listComprobantes(), listConceptos(), listDescargas(), normTipo(), orderBy() (+9 more)
+Cohesion: 0.14
+Nodes (14): client, crearDescarga(), like(), listComprobantes(), listConceptos(), listDescargas(), normTipo(), orderBy() (+6 more)
 
 ### Community 91 - "Community 91"
-Cohesion: 0.05
-Nodes (39): { cargarFiel }, descargarPaquete(), getService(), lib(), safeCode(), solicitar(), validarFiel(), ValidaSat() (+31 more)
+Cohesion: 0.13
+Nodes (16): { cargarFiel }, descargarPaquete(), getService(), lib(), safeCode(), solicitar(), validarFiel(), ValidaSat() (+8 more)
 
 ### Community 93 - "Community 93"
 Cohesion: 0.12
@@ -502,8 +499,8 @@ Cohesion: 0.18
 Nodes (10): 1. Solicitud (`solicitudes`)  — folio `SOL-AAAA-####`, 2. Consulta a proveedores y comparación (`cotizaciones/proveedor`), 3. Cotización al cliente (`cotizaciones/cliente`) — folio `COT-AAAA-####`, 4. Pedido (`ventas` · `crearPedido`) — folio `PED-AAAA-####`, 5. Órdenes de compra (`ventas` · `generarOC`) — folio `OC-AAAA-####`, 6. Recepción (`ventas` · `recepcion`) — folio `REC-AAAA-####`, 7. Entrega al cliente (`ventas` · `crearEntrega`) — folio `REM-` o `FAC-AAAA-####`, Consultas históricas (`consultas`) (+2 more)
 
 ### Community 96 - "Community 96"
-Cohesion: 0.12
-Nodes (8): { pool }, { pool }, { pool }, steps, { pool }, { pool }, pool, { pool }
+Cohesion: 0.09
+Nodes (10): { pool }, { pool }, { pool }, { pool }, { pool }, { pool }, steps, { pool } (+2 more)
 
 ### Community 97 - "Community 97"
 Cohesion: 0.08
@@ -534,12 +531,12 @@ Cohesion: 0.15
 Nodes (7): ctrl, { pool }, precios, get(), META, { pool }, precios
 
 ### Community 104 - "Community 104"
-Cohesion: 0.22
-Nodes (10): esc(), fs, htmlPath, imagenHtml(), indice, manual, manualPath, outDir (+2 more)
+Cohesion: 0.08
+Nodes (24): fs, outDir, PANTALLAS, path, puppeteer, URL, esc(), fs (+16 more)
 
 ### Community 107 - "Community 107"
-Cohesion: 0.27
-Nodes (10): build_env_exports(), create_package(), load_env(), main(), Genera los export VAR='value' para el shell remoto., Lee archivo .env y retorna un dict., Empaqueta la carpeta dismed excluyendo node_modules, .env y dist., Ejecuta un comando SSH y retorna (exit_code, stdout, stderr). (+2 more)
+Cohesion: 0.21
+Nodes (13): build_env_exports(), create_package(), load_env(), main(), Sube un archivo con barra de progreso simple., Genera los export VAR='value' para el shell remoto., Lee archivo .env y retorna un dict., Empaqueta la carpeta dismed excluyendo node_modules, .env y dist. (+5 more)
 
 ### Community 108 - "Community 108"
 Cohesion: 0.18
@@ -562,12 +559,12 @@ Cohesion: 0.29
 Nodes (9): cargarFactura(), construirTxt(), csv(), fs, generarCfdiTxt(), n2(), path, { pool } (+1 more)
 
 ### Community 113 - "Community 113"
-Cohesion: 0.11
-Nodes (7): { pool }, { pool }, { pool }, { pool }, { pool }, { pool }, mysql
+Cohesion: 0.10
+Nodes (8): { pool }, { pool }, { pool }, { pool }, { pool }, { pool }, { pool }, mysql
 
 ### Community 114 - "Community 114"
-Cohesion: 0.16
-Nodes (17): crearFacturaGlobal(), { empresaCfdi }, facturarVenta(), formaPago(), { getScoped }, { pool }, { timbrarComprobante, insertarComprobante }, timbrarFacturaGlobal() (+9 more)
+Cohesion: 0.18
+Nodes (9): crearFacturaGlobal(), { empresaCfdi }, facturarVenta(), formaPago(), { getScoped }, { pool }, { timbrarComprobante, insertarComprobante }, timbrarFacturaGlobal() (+1 more)
 
 ### Community 115 - "Community 115"
 Cohesion: 0.21
@@ -678,20 +675,24 @@ Cohesion: 0.25
 Nodes (5): apiKeyAuth, auth, c, router, upload
 
 ### Community 155 - "Community 155"
-Cohesion: 0.10
-Nodes (17): COLS, COLS_DET, ConsultasHistoricas(), DetalleModal(), EMPTY, fdate(), fechaCol, fmt() (+9 more)
+Cohesion: 0.19
+Nodes (12): COLS, COLS_DET, ConsultasHistoricas(), DetalleModal(), EMPTY, fdate(), fechaCol, fmt() (+4 more)
 
 ### Community 156 - "Community 156"
 Cohesion: 0.29
 Nodes (6): DESPLIEGUE DE INSTANCIAS — `deploy_instancia.py`, Dónde queda registrada cada instancia, Qué NO hace (a propósito), Requisitos, TL;DR — dar de alta una farmacia NUEVA, TL;DR — desplegar código nuevo a una instancia YA existente
+
+### Community 157 - "Community 157"
+Cohesion: 0.43
+Nodes (6): cargarFiel(), fielDir(), findByExt(), fs, path, readPassword()
 
 ### Community 158 - "Community 158"
 Cohesion: 0.18
 Nodes (12): enviarXlsx(), exportar(), fs, importar(), limpiar(), plantilla(), svc, TIPOS (+4 more)
 
 ### Community 159 - "Community 159"
-Cohesion: 0.26
-Nodes (11): Citas(), DIAS, diaSemana(), ESTATUS_BADGE, ESTATUS_LABEL, fmtFecha(), hoyISO(), minAHora() (+3 more)
+Cohesion: 0.24
+Nodes (10): Citas(), DIAS, diaSemana(), ESTATUS_BADGE, ESTATUS_LABEL, fmtFecha(), hoyISO(), minAHora() (+2 more)
 
 ### Community 160 - "Community 160"
 Cohesion: 0.33
@@ -710,12 +711,12 @@ Cohesion: 0.60
 Nodes (6): Búsqueda FULLTEXT (descripcion_norm, migrate_v9), Guarda de Medidas en score() (5ML no matchea 10ML), matcher.js (motor de coincidencia), matcher.ia.js (desempate lista cerrada Claude), Diseño Vinculación de Producto del Catálogo, ProductoPicker.jsx (modal vinculación UI)
 
 ### Community 165 - "Community 165"
-Cohesion: 0.40
-Nodes (3): auth, ctrl, router
+Cohesion: 0.17
+Nodes (7): auth, ctrl, router, jwt, auth, c, router
 
 ### Community 167 - "Community 167"
-Cohesion: 0.25
-Nodes (11): badRequest(), cancelarCita(), crearCita(), { getScoped }, marcarPagada(), minutosDeHora(), obtenerServicio(), { pool } (+3 more)
+Cohesion: 0.27
+Nodes (10): badRequest(), cancelarCita(), crearCita(), { getScoped }, marcarPagada(), minutosDeHora(), { pool }, updateCita() (+2 more)
 
 ### Community 168 - "Community 168"
 Cohesion: 0.50
@@ -733,6 +734,10 @@ Nodes (10): auth, brandingDir, c, fs, logoStorage, multer, path, router (+2 more
 Cohesion: 0.24
 Nodes (8): { pool }, requireAnyPermiso(), requirePermiso(), auth, c, { requirePermiso, requireAnyPermiso }, router, tenant
 
+### Community 177 - "Community 177"
+Cohesion: 0.22
+Nodes (7): args, DRY, file, path, svc, TIPO, VIGENCIA
+
 ### Community 178 - "Community 178"
 Cohesion: 0.31
 Nodes (8): generarRecetaPdf(), buildHtml(), edad(), fs, generarPdfReceta(), getCaduceoBase64(), path, puppeteer
@@ -749,22 +754,30 @@ Nodes (6): { buildFacturaCfdiHtml }, fs, outDir, path, puppeteer, QRCode
 Cohesion: 0.29
 Nodes (4): cache, CONFIG_META, DEFAULTS, { pool }
 
+### Community 187 - "Community 187"
+Cohesion: 0.40
+Nodes (4): line(), { pool }, rule(), svc
+
+### Community 188 - "Community 188"
+Cohesion: 0.40
+Nodes (3): auth, c, router
+
 ## Knowledge Gaps
-- **856 isolated node(s):** `@upstash/context7-mcp`, `@benborla29/mcp-server-mysql`, `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER` (+851 more)
+- **855 isolated node(s):** `@upstash/context7-mcp`, `@benborla29/mcp-server-mysql`, `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER` (+850 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **38 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **36 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `pool` connect `Community 96` to `Inventory Import (Existencias)`, `Routes, Auth & Upload Middleware`, `Sales / Pedidos Controller`, `Solicitudes & Web Price Search`, `Customer Quote & PDF`, `Community 134`, `Products Controller & AI Matcher`, `Support Catalogs (Categorias/Familias)`, `SSH Deploy Script`, `Community 143`, `Community 144`, `Usuarios Controller`, `Community 145`, `Proveedores Controller`, `DB Migrations & Connection Pool`, `Authentication (Login / JWT)`, `Community 149`, `Supplier Quote Pricing`, `Supplier Catalog & Product Picker UI`, `Almacenes / Ubicaciones Controller`, `Inventory Movements UI`, `Community 157`, `Inventory Seed`, `Cotizaciones List UI`, `Community 166`, `Community 167`, `Price Comparator UI`, `Proveedores List UI`, `Community 171`, `Community 172`, `Community 173`, `Community 174`, `Community 175`, `Community 176`, `Community 177`, `Nueva Cotizacion UI`, `Community 179`, `Community 180`, `Community 181`, `Community 183`, `Community 184`, `Community 185`, `Community 187`, `Community 188`, `Community 189`, `Community 190`, `Community 191`, `Community 192`, `Community 193`, `Community 195`, `Community 196`, `Community 69`, `Community 72`, `Community 76`, `Community 77`, `Community 81`, `Community 82`, `Community 87`, `Community 89`, `Community 90`, `Community 91`, `Migration v2`, `Community 95`, `Community 97`, `Community 98`, `Community 103`, `Community 109`, `Community 110`, `Community 112`, `Community 113`, `Community 114`, `Community 118`, `Community 127`?**
-  _High betweenness centrality (0.244) - this node is a cross-community bridge._
+- **Why does `pool` connect `Community 96` to `Inventory Import (Existencias)`, `Routes, Auth & Upload Middleware`, `Sales / Pedidos Controller`, `Solicitudes & Web Price Search`, `Customer Quote & PDF`, `Community 134`, `Products Controller & AI Matcher`, `Support Catalogs (Categorias/Familias)`, `SSH Deploy Script`, `Community 143`, `Community 144`, `Usuarios Controller`, `Community 145`, `Proveedores Controller`, `DB Migrations & Connection Pool`, `Authentication (Login / JWT)`, `Community 149`, `Products & Catalog UI`, `Supplier Catalog & Product Picker UI`, `Supplier Quote Pricing`, `Almacenes / Ubicaciones Controller`, `Inventory Movements UI`, `Admin Seed`, `Inventory Seed`, `Cotizaciones List UI`, `Community 167`, `Price Comparator UI`, `Proveedores List UI`, `Community 171`, `Community 172`, `Community 173`, `Migration v2`, `Community 175`, `Community 176`, `Community 177`, `Nueva Cotizacion UI`, `Community 179`, `Community 180`, `Community 174`, `Community 181`, `Community 183`, `Community 184`, `Community 185`, `Community 187`, `Community 189`, `Community 190`, `Community 191`, `Community 192`, `Community 193`, `Community 194`, `Community 195`, `Community 196`, `Community 69`, `Community 76`, `Community 81`, `Community 82`, `Community 87`, `Community 90`, `Community 95`, `Community 97`, `Community 98`, `Community 103`, `Community 109`, `Community 110`, `Community 112`, `Community 113`, `Community 114`, `Community 118`, `Community 127`?**
+  _High betweenness centrality (0.253) - this node is a cross-community bridge._
 - **What connects `@upstash/context7-mcp`, `@benborla29/mcp-server-mysql`, `MYSQL_HOST` to the rest of the system?**
-  _870 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _869 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Inventory Import (Existencias)` be split into smaller, more focused modules?**
   _Cohesion score 0.07396870554765292 - nodes in this community are weakly interconnected._
 - **Should `Sales / Pedidos Controller` be split into smaller, more focused modules?**
-  _Cohesion score 0.12987012987012986 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.1380952380952381 - nodes in this community are weakly interconnected._
 - **Should `Frontend Dependencies` be split into smaller, more focused modules?**
   _Cohesion score 0.06666666666666667 - nodes in this community are weakly interconnected._
 - **Should `Solicitudes & Web Price Search` be split into smaller, more focused modules?**

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useReducer, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Store, Trash2, Minus, Plus, ScanBarcode, Zap } from 'lucide-react';
+import { Store, Trash2, Minus, Plus, ScanBarcode, Zap, CalendarClock, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 import { useBranding } from '../../hooks/useBranding';
@@ -12,6 +12,14 @@ import TicketPrint, { usePrintTicket } from './components/TicketPrint';
 
 const money = (n) =>
   Number(n || 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+
+// Elige texto claro u oscuro según la luminosidad del color de fondo elegido.
+function textColorFor(hex) {
+  const c = (hex || '').replace('#', '');
+  if (c.length !== 6) return '#1f2937';
+  const r = parseInt(c.slice(0, 2), 16), g = parseInt(c.slice(2, 4), 16), b = parseInt(c.slice(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 >= 150 ? '#1f2937' : '#ffffff';
+}
 
 const CLASIF_LIBRES = ['libre', 'venta_farmacia'];
 const CLASIF_LABEL = {
@@ -60,6 +68,8 @@ export default function VentaMostrador() {
   const qc = useQueryClient();
   const branding = useBranding();
   const imprimir = usePrintTicket(branding);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const citaId = searchParams.get('cita_id');
 
   const [cajaId, setCajaId] = useState(() => localStorage.getItem('pos-caja') || '');
   const [q, setQ] = useState('');
@@ -93,6 +103,14 @@ export default function VentaMostrador() {
     queryKey: ['pos-favoritos', sucursalId],
     queryFn: () => api.get('/pos/productos/favoritos', { params: { sucursal_id: sucursalId } }).then((r) => r.data),
     enabled: !!sucursalId,
+  });
+
+  // Cobro de una cita agendada (ver Pos/Citas.jsx "Cobrar"): la venta se
+  // hace normal, solo se muestra el paciente y al terminar se liga la cita.
+  const { data: citaInfo } = useQuery({
+    queryKey: ['pos-cita', citaId],
+    queryFn: () => api.get(`/pos/citas/${citaId}`).then((r) => r.data),
+    enabled: !!citaId,
   });
 
   const total = carrito.reduce((a, i) => a + i.cantidad * i.precio, 0);
@@ -182,6 +200,15 @@ export default function VentaMostrador() {
       toast.success(`Venta ${data.folio} registrada`);
       // Imprimir en cuanto el ticket esté montado
       setTimeout(() => imprimir(), 150);
+      if (citaId) {
+        api.post(`/pos/citas/${citaId}/pagar`, { venta_id: data.id })
+          .then(() => {
+            toast.success(`Cita de ${citaInfo?.paciente_nombre || 'paciente'} cobrada`);
+            qc.invalidateQueries({ queryKey: ['pos-citas'] });
+            setSearchParams({}, { replace: true });
+          })
+          .catch((e) => toast.error(e.response?.data?.error || 'La venta se registró, pero no se pudo ligar a la cita'));
+      }
     },
     onError: (e) => {
       const r = e.response;
@@ -232,6 +259,24 @@ export default function VentaMostrador() {
     <div className="max-w-5xl">
       <Encabezado extra={`${caja?.sucursal_nombre || ''} · ${caja?.nombre || ''} · Turno #${turno?.id ?? ''}`} />
 
+      {citaId && citaInfo && (
+        <div className="mb-4 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 flex items-center justify-between no-print">
+          <div className="flex items-center gap-2 text-brand-700">
+            <CalendarClock size={18} />
+            <p className="text-sm">
+              Cobrando cita de <span className="font-semibold">{citaInfo.paciente_nombre}</span> — {citaInfo.hora_inicio.slice(0, 5)}
+            </p>
+          </div>
+          <button
+            className="text-brand-400 hover:text-brand-700"
+            title="Quitar referencia a la cita"
+            onClick={() => setSearchParams({}, { replace: true })}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {/* Búsqueda / scanner */}
       <div className="relative mb-4">
         <div className="flex items-center gap-2">
@@ -277,19 +322,27 @@ export default function VentaMostrador() {
       {/* Accesos rápidos (configurables en Sucursales y cajas) */}
       {!!favoritos.length && (
         <div className="flex flex-wrap gap-2 mb-4">
-          {favoritos.map((p) => (
-            <button
-              key={p.id}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white hover:border-brand-400 hover:bg-brand-50 text-left disabled:opacity-40 disabled:cursor-not-allowed"
-              disabled={!(Number(p.existencia) > 0)}
-              onClick={() => agregarProducto(p)}
-              title={p.descripcion}
-            >
-              <Zap size={14} className="text-brand-500 shrink-0" />
-              <span className="text-sm font-medium text-gray-800 max-w-[10rem] truncate">{p.descripcion}</span>
-              <span className="text-xs text-gray-400">{money(p.precio_lista)}</span>
-            </button>
-          ))}
+          {favoritos.map((p) => {
+            const texto = p.color ? textColorFor(p.color) : undefined;
+            return (
+              <button
+                key={p.id}
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-left disabled:opacity-40 disabled:cursor-not-allowed ${
+                  p.color ? '' : 'border-gray-200 bg-white hover:border-brand-400 hover:bg-brand-50'
+                }`}
+                style={p.color ? { backgroundColor: p.color, borderColor: p.color } : undefined}
+                disabled={!(Number(p.existencia) > 0)}
+                onClick={() => agregarProducto(p)}
+                title={p.descripcion}
+              >
+                <Zap size={14} className={p.color ? 'shrink-0' : 'text-brand-500 shrink-0'} style={texto ? { color: texto } : undefined} />
+                <span className={`text-sm font-medium max-w-[10rem] truncate ${p.color ? '' : 'text-gray-800'}`} style={texto ? { color: texto } : undefined}>
+                  {p.descripcion}
+                </span>
+                <span className="text-xs" style={{ color: texto || '#9ca3af' }}>{money(p.precio_lista)}</span>
+              </button>
+            );
+          })}
         </div>
       )}
 

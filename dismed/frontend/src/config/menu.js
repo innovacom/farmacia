@@ -4,7 +4,7 @@ import {
   HelpCircle, Receipt, SlidersHorizontal, Settings, Download, Upload, Wrench,
   Calculator, TrendingUp, Scale, BookOpenCheck, ListTree, Landmark, BookText,
   FileSpreadsheet, BarChart3, Store, Clock, Pill, Building2, FileUp, Tags,
-  HeartPulse, Stethoscope, PiggyBank,
+  HeartPulse, Stethoscope, PiggyBank, CalendarClock,
 } from 'lucide-react';
 
 // Catálogo canónico del menú. Debe mantenerse en sincronía con el backend
@@ -69,6 +69,7 @@ export const MENU = {
       label: 'POS Farmacia', icon: Store, items: [
         { key: 'pos-venta',    to: '/pos',            label: 'Venta mostrador',      icon: Store },
         { key: 'pos-turnos',   to: '/pos/turnos',     label: 'Caja y turnos',        icon: Clock },
+        { key: 'pos-citas',    to: '/pos/citas',      label: 'Citas médicas',        icon: CalendarClock },
         { key: 'pos-bitacora', to: '/pos/bitacora',   label: 'Bitácora COFEPRIS',    icon: Pill },
         { key: 'pos-admin',    to: '/pos/sucursales', label: 'Sucursales y cajas',   icon: Warehouse },
         { key: 'pos-reportes',           to: '/pos/reportes',  label: 'Reportes',   icon: BarChart3 },

@@ -40,6 +40,7 @@ import Configuracion from './pages/Configuracion/Configuracion';
 import Empresas from './pages/Configuracion/Empresas';
 import PosSucursales from './pages/Pos/Sucursales';
 import PosTurnos from './pages/Pos/Turnos';
+import PosCitas from './pages/Pos/Citas';
 import VentaMostrador from './pages/Pos/VentaMostrador';
 import HistorialVentas from './pages/Pos/HistorialVentas';
 import Bitacora from './pages/Pos/Bitacora';
@@ -116,6 +117,7 @@ export default function App() {
         <Route path="pos/sucursales"                      element={<PosSucursales />} />
         <Route path="pos/facturas-globales"               element={<FacturasGlobales />} />
         <Route path="pos/turnos"                          element={<PosTurnos />} />
+        <Route path="pos/citas"                           element={<PosCitas />} />
         <Route path="pos/reportes"                        element={<PosReportes />} />
         <Route path="pos/ganancias"                       element={<PosGanancias />} />
         <Route path="herramientas/importar"               element={<ImportarDatos />} />

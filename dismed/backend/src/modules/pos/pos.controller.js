@@ -9,6 +9,7 @@ const turnos = require('./pos.turnos.service');
 const ventas = require('./pos.ventas.service');
 const posCfdi = require('./pos.cfdi.service');
 const reportes = require('./pos.reportes.service');
+const citas = require('./pos.citas.service');
 
 // ── Sucursales ────────────────────────────────────────────────────────
 
@@ -57,12 +58,16 @@ async function updateSucursal(req, res, next) {
       }
     });
     if (req.body.productos_favoritos !== undefined) {
-      const ids = req.body.productos_favoritos;
-      if (!Array.isArray(ids) || ids.length > 5 || !ids.every((n) => Number.isInteger(n) && n > 0)) {
-        return res.status(400).json({ error: 'productos_favoritos: máximo 5 producto_id válidos' });
+      const HEX = /^#[0-9a-fA-F]{6}$/;
+      const items = req.body.productos_favoritos;
+      if (!Array.isArray(items) || items.length > 5 || !items.every((e) =>
+        Number.isInteger(e?.id) && e.id > 0 && (e.color == null || HEX.test(e.color))
+      )) {
+        return res.status(400).json({ error: 'productos_favoritos: máximo 5 {id, color} válidos' });
       }
+      const norm = items.map((e) => ({ id: e.id, color: e.color || null }));
       sets.push('productos_favoritos = ?');
-      vals.push(ids.length ? JSON.stringify(ids) : null);
+      vals.push(norm.length ? JSON.stringify(norm) : null);
     }
     if (!sets.length) return res.status(400).json({ error: 'Sin campos' });
     vals.push(req.params.id, req.empresaId);
@@ -394,6 +399,57 @@ async function updateMedico(req, res, next) {
   }
 }
 
+// ── Citas médicas (agenda del mostrador) ────────────────────────────────
+// No importa qué médico esté de guardia: solo se aparta horario + paciente.
+// El cobro reusa la venta normal de mostrador (ver VentaMostrador.jsx con
+// ?cita_id=); pagarCita solo liga la venta ya creada.
+
+async function listServiciosCitas(req, res, next) {
+  try {
+    res.json(await citas.listarServicios());
+  } catch (err) { next(err); }
+}
+
+async function listCitas(req, res, next) {
+  try {
+    const { sucursal_id, desde, hasta, estatus } = req.query;
+    res.json(await citas.listarCitas(req.empresaId, { sucursal_id, desde, hasta, estatus }));
+  } catch (err) { next(err); }
+}
+
+async function detalleCita(req, res, next) {
+  try {
+    res.json(await citas.detalleCita(req.empresaId, req.params.id));
+  } catch (err) { next(err); }
+}
+
+async function crearCita(req, res, next) {
+  try {
+    res.status(201).json(await citas.crearCita(req.empresaId, { ...req.body, usuario_id: req.user.id }));
+  } catch (err) { next(err); }
+}
+
+async function updateCita(req, res, next) {
+  try {
+    res.json(await citas.updateCita(req.empresaId, req.params.id, req.body));
+  } catch (err) { next(err); }
+}
+
+async function cancelarCita(req, res, next) {
+  try {
+    res.json(await citas.cancelarCita(req.empresaId, req.params.id, {
+      motivo: req.body?.motivo, usuario_id: req.user.id,
+    }));
+  } catch (err) { next(err); }
+}
+
+async function pagarCita(req, res, next) {
+  try {
+    if (!req.body?.venta_id) return res.status(400).json({ error: 'venta_id requerido' });
+    res.json(await citas.marcarPagada(req.empresaId, req.params.id, { venta_id: req.body.venta_id }));
+  } catch (err) { next(err); }
+}
+
 // ── Bitácora COFEPRIS ─────────────────────────────────────────────────
 // Vista de consulta (no tabla): partidas de controlados/antibióticos con
 // receta, médico, paciente y LOTES del FEFO. Los snapshots por partida la
@@ -520,6 +576,7 @@ module.exports = {
   autorizarSupervisorCierre, desgloseTurno,
   buscarProductos, favoritosProductos, crearVenta, listarVentas, detalleVenta, cancelarVenta,
   listMedicos, createMedico, updateMedico, bitacora,
+  listServiciosCitas, listCitas, detalleCita, crearCita, updateCita, cancelarCita, pagarCita,
   facturarVenta, crearFacturaGlobal, timbrarFacturaGlobal, liberarFacturaGlobal, listarFacturasGlobales,
   reporteResumen, reporteVentasSucursal, reporteTopProductos, reporteFormasPago,
   reporteExistencias, reporteRecetas, reporteGanancias, reporteGananciasProductos,

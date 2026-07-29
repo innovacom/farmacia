@@ -1645,13 +1645,13 @@
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/pos/pos.controller.js": {
-    "mtime": 1785289063.7728062,
-    "ast_hash": "dd0fa8206ee6eb706cbe51fef122b91d",
+    "mtime": 1785287505.171704,
+    "ast_hash": "34bc4b5ea8e48791c9f7c070e3aa577d",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/pos/pos.routes.js": {
-    "mtime": 1785289069.629398,
-    "ast_hash": "2281cfd30deee409d778b7713dfb154c",
+    "mtime": 1785287557.549289,
+    "ast_hash": "d30286b26b46c2d3f401e8d37e8a0431",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/pos/pos.tenant.helpers.js": {
@@ -1825,8 +1825,8 @@
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/pos/pos.citas.service.js": {
-    "mtime": 1785289055.7140307,
-    "ast_hash": "f5a66aa32d9a7889a2ebe4491b896bb7",
+    "mtime": 1785287481.720077,
+    "ast_hash": "0fa320d285f3055391e8c61ce8f88b8a",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/pos/pos.reportes.service.js": {
@@ -1860,8 +1860,8 @@
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Pos/Citas.jsx": {
-    "mtime": 1785289115.0970063,
-    "ast_hash": "067bf8aec31639d8971fb2c88987085f",
+    "mtime": 1785287630.4310274,
+    "ast_hash": "36667d0a480cb4c7062f928e988f651e",
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Pos/Reportes/PosGanancias.jsx": {
@@ -1882,11 +1882,6 @@
   "dismed/backend/src/assets/caduceo.png": {
     "mtime": 1784986168.3688014,
     "ast_hash": "cb11507dd4a8b2545a02dd370404bb7a",
-    "semantic_hash": ""
-  },
-  "dismed/backend/migrate_v38.js": {
-    "mtime": 1785289021.3041444,
-    "ast_hash": "21d84c24da6328de5d6ac983dcb6e89b",
     "semantic_hash": ""
   }
 }
