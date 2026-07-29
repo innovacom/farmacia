@@ -33,7 +33,7 @@ Dos modos:
 Requiere .env.server en la raíz (mismas credenciales SSH que deploy.py — root
 en el mismo VPS 72.249.60.175). Requiere: pip install paramiko.
 """
-import sys, os, json, secrets, tarfile, subprocess
+import sys, os, re, json, secrets, tarfile, subprocess
 from pathlib import Path
 import paramiko
 
@@ -149,7 +149,15 @@ def make_run(ssh):
     return run
 
 
-MIGRACIONES_ORDEN = [f"migrate_v{n}.js" for n in range(2, 31)]
+# Rango dinámico: detecta el migrate_vN.js más alto que exista en el repo local
+# en vez de un tope fijo (quedó hardcodeado en v30 una vez y --migrar-todas se
+# saltó v31..v38 en silencio — cada migración nueva hay que agregarla a mano
+# si esto vuelve a ser una lista fija).
+_N_LOCALES = [
+    int(m.group(1)) for f in BACK_LOCAL.glob("migrate_v*.js")
+    if (m := re.match(r"migrate_v(\d+)\.js$", f.name))
+]
+MIGRACIONES_ORDEN = [f"migrate_v{n}.js" for n in range(2, max(_N_LOCALES, default=30) + 1)]
 
 
 def modo_sync():
@@ -201,7 +209,7 @@ def modo_sync():
         run(f"cd '{BACK}' && node {MIGRAR}")
 
     if MIGRAR_TODAS:
-        print("== Corriendo migrate_v2..v30 en orden (idempotentes) ==")
+        print(f"== Corriendo {MIGRACIONES_ORDEN[0]}..{MIGRACIONES_ORDEN[-1]} en orden (idempotentes) ==")
         for m in MIGRACIONES_ORDEN:
             existe = run(f"[ -f '{BACK}/{m}' ] && echo SI || echo NO", show=False).strip()
             if existe != "SI":
