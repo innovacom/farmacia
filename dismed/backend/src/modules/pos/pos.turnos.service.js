@@ -91,6 +91,59 @@ async function registrarMovimiento(empresaId, turnoId, { tipo, monto, motivo, us
   }
 }
 
+const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+
+/**
+ * Reparto farmacia/médico de las ventas del turno (familia de producto
+ * 'MEDICO', ver pos.citas.service.js#listarServicios): el costo de esas
+ * partidas (inventario_movimientos.costo_unitario, misma fuente que
+ * pos.reportes.service.js#ganancias) es lo que se le paga al doctor en
+ * turno; venta − costo es la comisión que se queda la farmacia. El resto
+ * de las ventas (no-médico) es 100% farmacia.
+ * Partidas pre-agregadas por (venta_id, producto_id) antes de unir con el
+ * costo por folio+producto — si no, una venta que repite el mismo producto
+ * en dos partidas duplicaría el costo al unir (mismo bug evitado en
+ * pos.reportes.service.js).
+ */
+async function repartoMedicoFarmacia(conn, empresaId, turnoId, desdeFecha, hastaFecha) {
+  const [rows] = await conn.query(
+    `SELECT
+       CASE WHEN f.nombre IN ('MEDICO', 'MÉDICO') THEN 'medico' ELSE 'farmacia' END AS grupo,
+       COALESCE(SUM(ppa.importe), 0) AS venta,
+       COALESCE(SUM(costo.costo), 0) AS costo
+     FROM (
+       SELECT venta_id, producto_id, SUM(importe) AS importe
+       FROM pos_ventas_partidas
+       WHERE venta_id IN (
+         SELECT id FROM pos_ventas WHERE turno_id = ? AND empresa_id = ? AND estatus = 'completada'
+       )
+       GROUP BY venta_id, producto_id
+     ) ppa
+     JOIN pos_ventas v ON v.id = ppa.venta_id
+     JOIN productos p ON p.id = ppa.producto_id
+     LEFT JOIN familias f ON f.id = p.familia_id
+     LEFT JOIN (
+       SELECT im.referencia AS folio, im.producto_id, SUM(ABS(im.cantidad) * im.costo_unitario) AS costo
+       FROM inventario_movimientos im
+       WHERE im.tipo = 'salida' AND im.motivo = 'venta_pos'
+         AND im.created_at >= ? AND im.created_at < COALESCE(?, NOW())
+       GROUP BY im.referencia, im.producto_id
+     ) costo ON costo.folio = v.folio COLLATE utf8mb4_general_ci AND costo.producto_id = ppa.producto_id
+     GROUP BY grupo`,
+    [turnoId, empresaId, desdeFecha, hastaFecha]
+  );
+  const porGrupo = Object.fromEntries(rows.map((r) => [r.grupo, r]));
+  const ventaMedico = r2(porGrupo.medico?.venta);
+  const pagoMedico = r2(porGrupo.medico?.costo);
+  const ventaFarmacia = r2(porGrupo.farmacia?.venta);
+  const comisionFarmaciaPorMedico = r2(ventaMedico - pagoMedico);
+  return {
+    farmacia: r2(ventaFarmacia + comisionFarmaciaPorMedico),
+    medico: pagoMedico,
+    total: r2(ventaFarmacia + comisionFarmaciaPorMedico + pagoMedico),
+  };
+}
+
 /**
  * Corte (pre-cierre) de un turno:
  * esperado = fondo + ventas en efectivo - cambio entregado + depósitos - retiros.
@@ -117,6 +170,7 @@ async function corte(conn, empresaId, turnoId) {
   const efectivoEsperado =
     Number(turno.fondo_inicial) + Number(ventas.efectivo) - Number(ventas.cambio) +
     Number(movs.depositos) - Number(movs.retiros);
+  const desglose_farmacia_medico = await repartoMedicoFarmacia(conn, empresaId, turnoId, turno.abierto_en, turno.cerrado_en);
 
   return {
     turno_id: turno.id,
@@ -130,6 +184,7 @@ async function corte(conn, empresaId, turnoId) {
     depositos: Number(movs.depositos),
     retiros: Number(movs.retiros),
     efectivo_esperado: Math.round(efectivoEsperado * 100) / 100,
+    desglose_farmacia_medico,
   };
 }
 

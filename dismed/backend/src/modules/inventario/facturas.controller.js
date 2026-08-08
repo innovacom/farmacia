@@ -16,6 +16,8 @@ const { parseCfdi } = require('../cfdi/cfdi.parser');
 const { normalizar } = require('../solicitudes/matcher');
 const svc = require('./movimientos.service');
 const { normalizarPrecioPublico, validarPrecios, tienePrecioLista } = require('../productos/productos.pricing');
+const { resolverId } = require('../productos/taxonomia.util');
+const { clasificarProductosNuevos } = require('../productos/clasificador.ia');
 
 async function generarSku(conn) {
   await conn.query('CALL sp_generar_sku(@sku)');
@@ -37,16 +39,21 @@ async function ubicacionSugerida(conn, producto_id, almacen_id) {
 
 const PROD_COLS = 'id, sku_interno, control_lote_caducidad, vendible, clasificacion_cofepris';
 
-async function buscarProducto(conn, codigo) {
-  if (!codigo) return null;
-  const [[bySku]] = await conn.query(
-    `SELECT ${PROD_COLS} FROM productos WHERE sku_interno = ?`, [codigo]
+// Resuelve TODOS los códigos de la factura en dos consultas (no 1-2 por
+// renglón): prioridad sku_interno sobre ean, igual que la versión por-código.
+async function buscarProductosPorCodigos(conn, codigos) {
+  const porCodigo = new Map();
+  if (!codigos.length) return porCodigo;
+  const [rows] = await conn.query(
+    `SELECT ${PROD_COLS}, ean FROM productos WHERE sku_interno IN (?) OR ean IN (?)`,
+    [codigos, codigos]
   );
-  if (bySku) return bySku;
-  const [[byEan]] = await conn.query(
-    `SELECT ${PROD_COLS} FROM productos WHERE ean = ?`, [codigo]
-  );
-  return byEan || null;
+  const porSku = new Map(rows.filter((r) => codigos.includes(r.sku_interno)).map((r) => [r.sku_interno, r]));
+  const porEan = new Map(rows.filter((r) => r.ean && codigos.includes(r.ean)).map((r) => [r.ean, r]));
+  for (const codigo of codigos) {
+    porCodigo.set(codigo, porSku.get(codigo) || porEan.get(codigo) || null);
+  }
+  return porCodigo;
 }
 
 async function preview(req, res, next) {
@@ -102,11 +109,36 @@ async function preview(req, res, next) {
       proveedor = { id: r.insertId, nombre_empresa: nombre, rfc: comprobante.rfc_emisor, _nuevo: true };
     }
 
+    // Pre-resolución: se detecta primero qué conceptos NO matchean ningún producto
+    // existente (por SKU/EAN), antes del loop que los da de alta, para poder mandar
+    // todos los productos nuevos a clasificar por IA en un solo lote (en vez de una
+    // llamada a Gemini por renglón, que sería mucho más lento y pegaría contra el
+    // rate limit del free tier en facturas con muchos conceptos).
+    const codigosPorConcepto = conceptos.map((c) => (c.no_identificacion || '').trim());
+    const prodsPorCodigo = await buscarProductosPorCodigos(conn, [...new Set(codigosPorConcepto.filter(Boolean))]);
+    const prodsExistentes = codigosPorConcepto.map((codigo) => prodsPorCodigo.get(codigo) || null);
+    const idxNuevos = conceptos.map((_, i) => i).filter((i) => !prodsExistentes[i]);
+    const clasifPorIndice = new Map();
+    let sinClasificarIa = 0;
+    if (idxNuevos.length) {
+      const [familiasRows] = await conn.query('SELECT DISTINCT nombre FROM familias ORDER BY nombre');
+      const familiasExistentes = familiasRows.map((f) => f.nombre);
+      const paraClasificar = idxNuevos.map((i) => ({
+        descripcion: conceptos[i].descripcion || '',
+        clave_sat: conceptos[i].clave_prod_serv || '',
+      }));
+      const { resultados, noClasificados } = await clasificarProductosNuevos(paraClasificar, familiasExistentes);
+      idxNuevos.forEach((i, j) => { if (resultados[j]) clasifPorIndice.set(i, resultados[j]); });
+      sinClasificarIa = noClasificados;
+    }
+
+    const cacheTax = {};
     const renglones = [];
     let nuevosProductos = 0;
-    for (const c of conceptos) {
-      const codigo = (c.no_identificacion || '').trim();
-      let prod = await buscarProducto(conn, codigo);
+    for (let idx = 0; idx < conceptos.length; idx++) {
+      const c = conceptos[idx];
+      const codigo = codigosPorConcepto[idx];
+      let prod = prodsExistentes[idx];
       let productoNuevo = false;
 
       if (!prod) {
@@ -116,21 +148,46 @@ async function preview(req, res, next) {
         // IVA real del CFDI, no supuesto: TasaOCuota 0.000000 → iva_exento=1 (así lo usa
         // el POS: tasa 0 en medicamentos, NO exento legalmente, ver pos.ventas.service.js).
         const ivaExento = c.tasa_iva === 0 ? 1 : 0;
+
+        // Clasificación automática por IA (familia/categoría/subcategoría + COFEPRIS):
+        // el CFDI de compra no trae esta información, así que se intenta inferir de la
+        // descripción para no dejar el producto sin taxonomía. Si la IA no está disponible
+        // o no logra clasificarlo con confianza, sigue el flujo normal (sin taxonomía,
+        // clasificacion_cofepris 'libre'), editable a mano en esta misma pantalla o en
+        // Catálogo de productos — nunca bloquea el alta.
+        const clasif = clasifPorIndice.get(idx);
+        let familiaId = null, categoriaId = null, subcategoriaId = null;
+        if (clasif && clasif.familia) {
+          familiaId = await resolverId(conn, cacheTax, 'familias',
+            ['nombre'], [clasif.familia], ['nombre'], [clasif.familia]);
+          if (clasif.categoria) {
+            categoriaId = await resolverId(conn, cacheTax, 'categorias_prod',
+              ['familia_id', 'nombre'], [familiaId, clasif.categoria], ['familia_id', 'nombre'], [familiaId, clasif.categoria]);
+            if (clasif.subcategoria) {
+              subcategoriaId = await resolverId(conn, cacheTax, 'subcategorias_prod',
+                ['categoria_id', 'nombre'], [categoriaId, clasif.subcategoria], ['categoria_id', 'nombre'], [categoriaId, clasif.subcategoria]);
+            }
+          }
+        }
+        const clasificacionCofepris = (clasif && clasif.clasificacion_cofepris) || 'libre';
+
         const [r] = await conn.query(
           `INSERT INTO productos
              (sku_interno, descripcion, descripcion_norm, unidad_medida, clave_sat, clave_unidad_sat,
-              ean, precio_costo, control_lote_caducidad, vendible, iva_exento)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?)`,
+              ean, precio_costo, control_lote_caducidad, vendible, iva_exento,
+              familia_id, categoria_id, subcategoria_id, clasificacion_cofepris)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, ?, ?, ?)`,
           [sku, descripcion, normalizar(descripcion).substring(0, 800), unidad,
             c.clave_prod_serv || null, c.clave_unidad || null,
-            codigo || null, c.valor_unitario ?? null, ivaExento]
+            codigo || null, c.valor_unitario ?? null, ivaExento,
+            familiaId, categoriaId, subcategoriaId, clasificacionCofepris]
         );
         // Sin precio de venta capturado (el XML solo trae costo) → no vendible hasta que se
         // capture precio_lista/precio_publico (en esta misma pantalla o en Catálogo de productos).
-        // clasificacion_cofepris queda en el DEFAULT 'libre' de la columna (LGS Art. 226): el
-        // XML no trae esa clasificación, así que se ofrece editable en la pantalla para que el
-        // farmacéutico la corrija si es un controlado (antibiótico, fracción I-III).
-        prod = { id: r.insertId, sku_interno: sku, control_lote_caducidad: 1, vendible: 0, clasificacion_cofepris: 'libre' };
+        prod = {
+          id: r.insertId, sku_interno: sku, control_lote_caducidad: 1, vendible: 0,
+          clasificacion_cofepris: clasificacionCofepris,
+        };
         productoNuevo = true;
         nuevosProductos++;
       }
@@ -184,7 +241,10 @@ async function preview(req, res, next) {
       },
       proveedor,
       renglones,
-      resumen: { total: renglones.length, nuevos_productos: nuevosProductos, proveedor_nuevo: proveedor._nuevo },
+      resumen: {
+        total: renglones.length, nuevos_productos: nuevosProductos, proveedor_nuevo: proveedor._nuevo,
+        sin_clasificar_ia: sinClasificarIa,
+      },
     });
   } catch (err) {
     await conn.rollback();

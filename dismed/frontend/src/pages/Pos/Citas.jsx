@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  CalendarClock, Plus, Pencil, Ban, CreditCard, ChevronLeft, ChevronRight, Phone,
+  CalendarClock, Plus, Pencil, Ban, CreditCard, ChevronLeft, ChevronRight, Phone, CheckCircle2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 import Modal from '../../components/ui/Modal';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { linkWhatsApp, mensajeRecordatorioCita } from '../../utils/whatsapp';
 
 const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 const SLOT_INICIO = 10 * 60; // 10:00
@@ -85,6 +86,25 @@ export default function Citas() {
     onError: (e) => toast.error(e.response?.data?.error || 'Error al cancelar'),
   });
 
+  const confirmarCita = useMutation({
+    mutationFn: (id) => api.post(`/pos/citas/${id}/confirmar`, {}),
+    onSuccess: () => { toast.success('Cita confirmada'); qc.invalidateQueries({ queryKey: ['pos-citas'] }); },
+    onError: (e) => toast.error(e.response?.data?.error || 'Error al confirmar'),
+  });
+
+  // Si la API de WhatsApp ya está configurada (ver Configuración), el
+  // recordatorio se manda automático y la respuesta del paciente llega sola
+  // por webhook; si no, se usa el enlace manual wa.me de respaldo.
+  const { data: waEstado } = useQuery({
+    queryKey: ['whatsapp-estado'],
+    queryFn: () => api.get('/whatsapp/estado').then((r) => r.data),
+  });
+  const enviarRecordatorioApi = useMutation({
+    mutationFn: (id) => api.post(`/pos/citas/${id}/recordatorio-whatsapp`, {}),
+    onSuccess: () => toast.success('Recordatorio enviado por WhatsApp'),
+    onError: (e) => toast.error(e.response?.data?.error || 'Error al enviar el recordatorio'),
+  });
+
   async function onCancelar(cita) {
     const ok = await confirmar(
       `¿Cancelar la cita de ${cita.paciente_nombre} a las ${cita.hora_inicio.slice(0, 5)}?`,
@@ -152,6 +172,11 @@ export default function Citas() {
                 <div className="flex items-center gap-2">
                   <p className="font-semibold text-gray-900">{cita.paciente_nombre}</p>
                   <span className={ESTATUS_BADGE[cita.estatus]}>{ESTATUS_LABEL[cita.estatus]}</span>
+                  {cita.estatus === 'agendada' && (
+                    cita.confirmada
+                      ? <span className="badge-green">Confirmada</span>
+                      : <span className="badge-yellow">Sin confirmar</span>
+                  )}
                 </div>
                 {cita.paciente_telefono && (
                   <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
@@ -164,6 +189,11 @@ export default function Citas() {
                   </p>
                 )}
                 {cita.notas && <p className="text-sm text-gray-400 mt-0.5">{cita.notas}</p>}
+                {!!cita.reprogramar_solicitado && (
+                  <p className="text-xs text-amber-600 mt-1 font-medium">
+                    El paciente pidió reprogramar por WhatsApp — contactarlo para elegir nuevo horario.
+                  </p>
+                )}
                 {cita.estatus === 'atendida' && (
                   <p className="text-xs text-green-700 mt-1">
                     Cobrada — venta {cita.venta_folio} · {money(cita.venta_total)}
@@ -175,6 +205,36 @@ export default function Citas() {
               </div>
               {cita.estatus === 'agendada' && (
                 <div className="flex items-center gap-1 shrink-0">
+                  {!cita.confirmada && cita.paciente_telefono && (
+                    waEstado?.configurado ? (
+                      <button
+                        className="btn-secondary btn-sm"
+                        title="Enviar recordatorio por WhatsApp (automático)"
+                        disabled={enviarRecordatorioApi.isPending}
+                        onClick={() => enviarRecordatorioApi.mutate(cita.id)}
+                      >
+                        WhatsApp
+                      </button>
+                    ) : (
+                      <a
+                        className="btn-secondary btn-sm"
+                        title="Enviar recordatorio por WhatsApp (manual)"
+                        href={linkWhatsApp(cita.paciente_telefono, mensajeRecordatorioCita(cita))}
+                        target="_blank" rel="noreferrer"
+                      >
+                        WhatsApp
+                      </a>
+                    )
+                  )}
+                  {!cita.confirmada && (
+                    <button
+                      className="p-1.5 text-gray-400 hover:text-green-600 rounded-lg"
+                      title="Marcar como confirmada"
+                      onClick={() => confirmarCita.mutate(cita.id)}
+                    >
+                      <CheckCircle2 size={15} />
+                    </button>
+                  )}
                   <button
                     className="btn-primary btn-sm"
                     onClick={() => navigate(`/pos?cita_id=${cita.id}`)}

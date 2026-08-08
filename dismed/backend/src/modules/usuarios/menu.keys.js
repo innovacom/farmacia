@@ -13,8 +13,9 @@ const PERMISSIONABLE_KEYS = [
   'contabilidad-cfdi-por-comprobante', 'contabilidad-cfdi-resumen-general',
   'herramientas-importar', 'herramientas-exportar',
   'pos-venta', 'pos-turnos', 'pos-citas', 'pos-bitacora', 'pos-admin',
-  'pos-reportes', 'pos-reportes-ganancias',
+  'pos-reportes', 'pos-reportes-ganancias', 'pos-clientes-fidelidad',
   'expediente-medico',
+  'whatsapp-bandeja', 'pos-pedidos-whatsapp',
 ];
 
 module.exports = { PERMISSIONABLE_KEYS };

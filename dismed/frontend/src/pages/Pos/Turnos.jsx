@@ -141,6 +141,7 @@ export default function Turnos() {
                       />
                     </div>
                   </dl>
+                  <DesgloseFarmaciaMedico d={corte.desglose_farmacia_medico} />
                   {!!corte.movimientos?.length && (
                     <div className="mt-3 border-t border-gray-100 pt-2">
                       <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Movimientos</p>
@@ -234,6 +235,24 @@ export default function Turnos() {
         <ModalDesglose turnoId={desgloseId} onClose={() => setDesgloseId(null)} />
       )}
       {dialogoConfirm}
+    </div>
+  );
+}
+
+// Reparto de las ventas del turno entre farmacia y médico en turno (familia
+// de producto "MEDICO" — consultas): el médico se lleva el costo de esas
+// partidas (lo que se le paga), la diferencia contra el precio de venta es
+// comisión de la farmacia. Ver pos.turnos.service.js#repartoMedicoFarmacia.
+function DesgloseFarmaciaMedico({ d }) {
+  if (!d) return null;
+  return (
+    <div className="mt-3 border-t border-gray-100 pt-2">
+      <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Ventas: farmacia vs médico</p>
+      <dl className="text-sm space-y-1.5">
+        <Fila label="De la farmacia" valor={money(d.farmacia)} />
+        <Fila label="Del médico en turno" valor={money(d.medico)} />
+        <Fila label={<span className="font-semibold">Total</span>} valor={<span className="font-semibold">{money(d.total)}</span>} />
+      </dl>
     </div>
   );
 }
@@ -480,6 +499,7 @@ function ModalDesglose({ turnoId, onClose }) {
                 {money(data.diferencia)}
               </span>} />
           </div>
+          <DesgloseFarmaciaMedico d={data.desglose_farmacia_medico} />
           <div className="border-t border-gray-100 pt-1.5">
             <Fila label="Cerrado por" valor={data.cerrado_por || '—'} />
             <Fila label="Cerrado en" valor={data.cerrado_en ? new Date(data.cerrado_en).toLocaleString('es-MX') : '—'} />

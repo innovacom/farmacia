@@ -5,6 +5,7 @@ import { Plus, X, Loader2, Search, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRi
 import api from '../../services/api';
 import ImportExistenciasModal from './ImportExistenciasModal';
 import { usePagination } from '../../hooks/usePagination';
+import { useFabricantes } from '../../hooks/useFabricantes';
 import Pagination from '../../components/ui/Pagination';
 
 const TIPO_BADGE = {
@@ -32,6 +33,7 @@ function ModalShell({ title, onClose, children }) {
 function EntradaModal({ onClose, onDone }) {
   const [busc, setBusc] = useState('');
   const [prod, setProd] = useState(null);
+  const [presentacionId, setPresentacionId] = useState('');
   const [f, setF] = useState({ almacen_id: '', ubicacion_id: '', numero_lote: '', fecha_caducidad: '', cantidad: '', costo_unitario: '' });
 
   const { data: prods = [] } = useQuery({
@@ -43,6 +45,16 @@ function EntradaModal({ onClose, onDone }) {
     queryKey: ['ubicaciones', f.almacen_id], enabled: !!f.almacen_id,
     queryFn: () => api.get(`/almacenes/${f.almacen_id}/ubicaciones`).then((r) => r.data),
   });
+  // Presentaciones de venta del producto (ver migrate_v39): si se compra por
+  // vitrolero/caja pero el inventario se lleva en piezas, aquí se elige en qué
+  // unidad se está capturando la compra y se convierte antes de mandar al kardex.
+  const { data: presentaciones = [] } = useQuery({
+    queryKey: ['producto-presentaciones', prod?.id],
+    queryFn: () => api.get(`/productos/${prod.id}/presentaciones`).then((r) => r.data),
+    enabled: !!prod,
+  });
+  const presentacion = presentaciones.find((p) => String(p.id) === String(presentacionId));
+  const factor = presentacion ? Number(presentacion.factor_conversion) : 1;
 
   const mut = useMutation({
     mutationFn: (b) => api.post('/inventario/entradas', b),
@@ -55,7 +67,17 @@ function EntradaModal({ onClose, onDone }) {
     if (!f.almacen_id || !f.ubicacion_id) return toast.error('Almacén y ubicación requeridos');
     if (!(parseFloat(f.cantidad) > 0)) return toast.error('Cantidad > 0');
     if (prod.control_lote_caducidad && !f.numero_lote.trim()) return toast.error('Este producto requiere lote');
-    mut.mutate({ producto_id: prod.id, ...f, fecha_caducidad: f.fecha_caducidad || null });
+    // El kardex siempre se mueve en piezas: si se capturó "3 vitroleros" a $450
+    // c/u, entran 3*factor piezas con costo unitario = 450/factor por pieza.
+    const cantidadPiezas = Math.round(parseFloat(f.cantidad) * factor * 10000) / 10000;
+    const costoUnitarioPieza = f.costo_unitario === ''
+      ? ''
+      : Math.round((parseFloat(f.costo_unitario) / factor) * 10000) / 10000;
+    mut.mutate({
+      producto_id: prod.id, ...f,
+      cantidad: cantidadPiezas, costo_unitario: costoUnitarioPieza,
+      fecha_caducidad: f.fecha_caducidad || null,
+    });
   }
 
   return (
@@ -71,7 +93,7 @@ function EntradaModal({ onClose, onDone }) {
             {prods.length > 0 && (
               <div className="border border-gray-200 rounded-lg mt-1 max-h-44 overflow-y-auto">
                 {prods.map((p) => (
-                  <button key={p.id} onClick={() => { setProd(p); setBusc(''); }}
+                  <button key={p.id} onClick={() => { setProd(p); setPresentacionId(''); setBusc(''); }}
                     className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm border-b border-gray-50 last:border-0">
                     <span className="font-mono text-brand-500 text-xs">{p.sku_interno}</span> {p.descripcion}
                   </button>
@@ -84,6 +106,22 @@ function EntradaModal({ onClose, onDone }) {
             <span><span className="font-mono text-brand-500 text-xs">{prod.sku_interno}</span> {prod.descripcion}
               {prod.control_lote_caducidad ? <span className="badge-green ml-2">requiere lote</span> : <span className="badge-gray ml-2">genérico</span>}</span>
             <button onClick={() => setProd(null)} className="text-gray-400 hover:text-red-500"><X size={15} /></button>
+          </div>
+        )}
+
+        {prod && presentaciones.length > 0 && (
+          <div>
+            <label className="label">¿En qué unidad se está comprando?</label>
+            <select className="input" value={presentacionId} onChange={(e) => setPresentacionId(e.target.value)}>
+              <option value="">Piezas (unidad base de inventario)</option>
+              {presentaciones.map((p) => (
+                <option key={p.id} value={p.id}>{p.nombre} ({p.factor_conversion} pzas c/u)</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-400 mt-0.5">
+              La existencia siempre se guarda en piezas; captura la cantidad y el costo en la unidad que compraste
+              y aquí se convierte automáticamente.
+            </p>
           </div>
         )}
 
@@ -118,9 +156,21 @@ function EntradaModal({ onClose, onDone }) {
         )}
 
         <div className="grid grid-cols-2 gap-3">
-          <div><label className="label">Cantidad *</label><input type="number" min="0" step="0.01" className="input" value={f.cantidad} onChange={(e) => setF({ ...f, cantidad: e.target.value })} /></div>
-          <div><label className="label">Costo unitario</label><input type="number" min="0" step="0.01" className="input" value={f.costo_unitario} onChange={(e) => setF({ ...f, costo_unitario: e.target.value })} /></div>
+          <div>
+            <label className="label">Cantidad{presentacion ? ` (${presentacion.nombre}) ` : ''} *</label>
+            <input type="number" min="0" step="0.01" className="input" value={f.cantidad} onChange={(e) => setF({ ...f, cantidad: e.target.value })} />
+          </div>
+          <div>
+            <label className="label">Costo{presentacion ? ` por ${presentacion.nombre}` : ' unitario'}</label>
+            <input type="number" min="0" step="0.01" className="input" value={f.costo_unitario} onChange={(e) => setF({ ...f, costo_unitario: e.target.value })} />
+          </div>
         </div>
+        {presentacion && parseFloat(f.cantidad) > 0 && (
+          <p className="text-xs text-gray-500">
+            = {(parseFloat(f.cantidad) * factor).toLocaleString('es-MX')} piezas
+            {f.costo_unitario !== '' && ` a ${(parseFloat(f.costo_unitario) / factor).toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 4 })} c/u`}
+          </p>
+        )}
 
         <div className="flex gap-3 pt-1">
           <button onClick={submit} disabled={mut.isPending} className="btn-primary">{mut.isPending ? <Loader2 size={15} className="animate-spin" /> : null} Registrar entrada</button>
@@ -204,14 +254,18 @@ export default function Movimientos() {
   const [op, setOp] = useState(null);            // { tipo, lote }
   const [buscExist, setBuscExist] = useState('');
   const [filtroTipo, setFiltroTipo] = useState('');
+  const [filtroFabricante, setFiltroFabricante] = useState('');
 
+  const fabricantes = useFabricantes();
   const { data: existencias = [] } = useQuery({
     queryKey: ['existencias', buscExist], enabled: buscExist.length >= 2,
     queryFn: () => api.get('/inventario/existencias', { params: { q: buscExist } }).then((r) => r.data),
   });
   const { data: kardex = [], isLoading } = useQuery({
-    queryKey: ['kardex', filtroTipo],
-    queryFn: () => api.get('/inventario/movimientos', { params: { tipo: filtroTipo || undefined } }).then((r) => r.data),
+    queryKey: ['kardex', filtroTipo, filtroFabricante],
+    queryFn: () => api.get('/inventario/movimientos', {
+      params: { tipo: filtroTipo || undefined, fabricante: filtroFabricante || undefined },
+    }).then((r) => r.data),
   });
 
   const { pageItems: kardexPage, page, setPage, totalPages, total, from, to } = usePagination(kardex);
@@ -238,7 +292,7 @@ export default function Movimientos() {
         <p className="text-xs text-gray-400 mb-3">Busca una existencia y elige la operación.</p>
         <div className="relative mb-3">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input className="input pl-9 w-80" placeholder="Buscar SKU o descripción en existencias…" value={buscExist} onChange={(e) => setBuscExist(e.target.value)} />
+          <input className="input pl-9 w-80" placeholder="Buscar SKU, EAN o descripción en existencias…" value={buscExist} onChange={(e) => setBuscExist(e.target.value)} />
         </div>
         {buscExist.length >= 2 && (
           existencias.length === 0 ? <p className="text-sm text-gray-400">Sin existencias para esa búsqueda.</p> : (
@@ -271,13 +325,19 @@ export default function Movimientos() {
       <div className="card">
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <h2 className="font-semibold text-gray-800">Kardex (últimos movimientos)</h2>
-          <select className="input w-44" value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)}>
-            <option value="">Todos los tipos</option>
-            <option value="entrada">Entradas</option>
-            <option value="salida">Salidas</option>
-            <option value="traspaso">Traspasos</option>
-            <option value="ajuste">Ajustes</option>
-          </select>
+          <div className="flex gap-2">
+            <select className="input w-44" value={filtroFabricante} onChange={(e) => setFiltroFabricante(e.target.value)}>
+              <option value="">Todos los fabricantes</option>
+              {fabricantes.map((f) => <option key={f} value={f}>{f}</option>)}
+            </select>
+            <select className="input w-44" value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)}>
+              <option value="">Todos los tipos</option>
+              <option value="entrada">Entradas</option>
+              <option value="salida">Salidas</option>
+              <option value="traspaso">Traspasos</option>
+              <option value="ajuste">Ajustes</option>
+            </select>
+          </div>
         </div>
         {isLoading ? <p className="text-sm text-gray-400 text-center py-10">Cargando…</p> : kardex.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-10">Sin movimientos.</p>

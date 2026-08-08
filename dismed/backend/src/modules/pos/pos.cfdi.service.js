@@ -76,6 +76,13 @@ async function facturarVenta(empresaId, ventaId, receptor = {}, usuarioId) {
       // precio de lista con IVA → base sin IVA para el CFDI. La tasa viene del
       // snapshot de la venta (iva_tasa): medicamentos TASA 0, resto 0.16.
       // Ambos son TaxObject 02 (sí objeto) — tasa 0 NO es exento (01).
+      // `p.importe` YA VIENE NETO de cualquier descuento por promoción o
+      // precio editado a mano (ver pos.ventas.service.js#crearVenta), por
+      // eso Discount siempre es '0.00' — es correcto fiscalmente así. NO
+      // "mejorar" esto restando pp.descuento aparte: pp.precio_unitario y
+      // pp.descuento son montos CON IVA incluido, mientras que UnitPrice y
+      // Discount del CFDI deben ir SIN IVA — mezclar ambos produce un
+      // comprobante con la base fiscal incorrecta.
       const importeConIva = Number(p.importe);
       const tasa = Number(p.iva_tasa);
       const base = importeConIva / (1 + tasa);

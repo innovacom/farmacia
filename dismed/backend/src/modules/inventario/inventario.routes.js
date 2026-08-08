@@ -7,8 +7,10 @@ const facturas = require('./facturas.controller');
 router.use(auth);
 
 router.get('/existencias',          c.existencias);
+router.get('/existencias/exportar', c.exportarExistencias);
 router.get('/stock',                c.stockProducto);
 router.get('/alertas',              c.alertas);
+router.get('/fabricantes',          c.fabricantes);
 router.get('/movimientos',          c.kardex);
 router.get('/productos/:id/lotes',  c.lotesProducto);
 

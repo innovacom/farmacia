@@ -35,9 +35,9 @@
     "semantic_hash": "1309e47cab83f38a107aab84b3d4ebf1"
   },
   "dismed/backend/ecosystem.config.js": {
-    "mtime": 1777746901.6911774,
-    "ast_hash": "8733a7d4cc8e7a97135ed13b71b56a80",
-    "semantic_hash": "8733a7d4cc8e7a97135ed13b71b56a80"
+    "mtime": 1786129193.7626283,
+    "ast_hash": "57405cdbeebefc8f5e522f81226a8061",
+    "semantic_hash": ""
   },
   "dismed/backend/import_catalogo_cli.js": {
     "mtime": 1781828236.1110363,
@@ -115,8 +115,8 @@
     "semantic_hash": "f69face146b6b4cfb923f4c288eca54f"
   },
   "dismed/backend/src/app.js": {
-    "mtime": 1784940401.2134123,
-    "ast_hash": "18c959e508c239dfba3394474852605c",
+    "mtime": 1786205245.0786018,
+    "ast_hash": "3624dfdf70bc951e3157e5c4225f5b82",
     "semantic_hash": ""
   },
   "dismed/backend/src/config/db.js": {
@@ -200,18 +200,18 @@
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/inventario/catalogos.controller.js": {
-    "mtime": 1783827028.0609818,
-    "ast_hash": "4c27fed7d25292e787342f0c55f680f4",
+    "mtime": 1785875474.4213705,
+    "ast_hash": "b9c1a66ba856f74818cf1ef2b8c0bbe6",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/inventario/catalogos.routes.js": {
-    "mtime": 1783827040.454072,
-    "ast_hash": "ff601e286b73ee7cfa7d6ff0ab67e5b8",
+    "mtime": 1785877314.1536877,
+    "ast_hash": "c3c79d5035f5c9673f7bf6022fab0d36",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/inventario/import.catalogo.js": {
-    "mtime": 1784197580.8727894,
-    "ast_hash": "4853aedb4ff10ddd83412917279c7b9b",
+    "mtime": 1785945007.9517362,
+    "ast_hash": "fe1d47e4188ce19d4354610b406cdcd5",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/inventario/import.existencias.js": {
@@ -220,13 +220,13 @@
     "semantic_hash": "1bff73c7d8b1dacba63933aeb442f058"
   },
   "dismed/backend/src/modules/inventario/inventario.controller.js": {
-    "mtime": 1783025100.9811738,
-    "ast_hash": "36a2968512943553dee841218f665d57",
+    "mtime": 1785872323.0276332,
+    "ast_hash": "f8ae2cf836b184edd0e7f2c36ccbeb64",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/inventario/inventario.routes.js": {
-    "mtime": 1784215595.7770736,
-    "ast_hash": "f7b0724442726f810095c59db76941d2",
+    "mtime": 1785872329.9822412,
+    "ast_hash": "5a37a466a23ede602742ee53ea10142c",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/inventario/movimientos.service.js": {
@@ -235,13 +235,13 @@
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/productos/productos.controller.js": {
-    "mtime": 1784493089.2042792,
-    "ast_hash": "91676626ac58f9543f1a287db3bd4185",
+    "mtime": 1785947199.975672,
+    "ast_hash": "cd221d1722eab9b7d8fe79f9bc1f9517",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/productos/productos.routes.js": {
-    "mtime": 1784493097.8488598,
-    "ast_hash": "7c6859c437756d30de0316c9109b239d",
+    "mtime": 1785872305.1268654,
+    "ast_hash": "1958fb060183560ad984c31acdf53f9a",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/proveedores/proveedores.controller.js": {
@@ -290,8 +290,8 @@
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/usuarios/usuarios.controller.js": {
-    "mtime": 1784510831.905926,
-    "ast_hash": "3db1bcd7c996a3517379f0332deae64b",
+    "mtime": 1786205285.5201676,
+    "ast_hash": "65f87d17622b9117cee28395bfb5e7ac",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/usuarios/usuarios.routes.js": {
@@ -355,8 +355,8 @@
     "semantic_hash": ""
   },
   "dismed/frontend/src/App.jsx": {
-    "mtime": 1785287538.5843334,
-    "ast_hash": "74dac2bcd6855363a953882bb5c82668",
+    "mtime": 1786205313.957308,
+    "ast_hash": "d49ca794aa382a6dab72df5043cc1c57",
     "semantic_hash": ""
   },
   "dismed/frontend/src/components/layout/Layout.jsx": {
@@ -410,13 +410,13 @@
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Inventario/CatalogosApoyo.jsx": {
-    "mtime": 1783830772.8697257,
-    "ast_hash": "481d816efedbfe6fb48fd0b2eecf8762",
+    "mtime": 1785877382.8160868,
+    "ast_hash": "d566a284f692b1c12388f1f5daf4a5cb",
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Inventario/Existencias.jsx": {
-    "mtime": 1781965750.42637,
-    "ast_hash": "0d1524728510d444f759487d05a26c3d",
+    "mtime": 1785872373.091407,
+    "ast_hash": "ab98d8a7dbdacef931d74ab4d20d3602",
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Inventario/ImportExistenciasModal.jsx": {
@@ -425,8 +425,8 @@
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Inventario/Movimientos.jsx": {
-    "mtime": 1781965785.1312253,
-    "ast_hash": "191ad93bcff6139938242362785626c9",
+    "mtime": 1785785730.7735944,
+    "ast_hash": "2af658a937b8383c2eeee50ab4b136be",
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Login.jsx": {
@@ -435,13 +435,13 @@
     "semantic_hash": "0347b9cee48645fa536cff469ebfa91f"
   },
   "dismed/frontend/src/pages/Productos/ImportCatalogoModal.jsx": {
-    "mtime": 1783025124.4447112,
-    "ast_hash": "8e51a7391adc9205756a92dd2b2fa67a",
+    "mtime": 1785945099.4924636,
+    "ast_hash": "7da206ae475c7a0e441920f21a4f861d",
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Productos/ProductosList.jsx": {
-    "mtime": 1784215718.2250147,
-    "ast_hash": "7350ca7f817861e01f1c239ae339a136",
+    "mtime": 1785872355.0763497,
+    "ast_hash": "2a14e7fd99b645dc99c428a9ddfddd2c",
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Proveedores/CatalogoProveedor.jsx": {
@@ -480,8 +480,8 @@
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Usuarios/UsuariosList.jsx": {
-    "mtime": 1784510847.1650915,
-    "ast_hash": "2132d82963fcdfc28c6dc4fa1dba0466",
+    "mtime": 1786205479.6614957,
+    "ast_hash": "95dc1a31b279ea96a5ebb11e1c5a1036",
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Ventas/CrearPedido.jsx": {
@@ -580,8 +580,8 @@
     "semantic_hash": "7b2c90e57dd3e6a5efe8eeaab1dc17d7"
   },
   "CLAUDE.md": {
-    "mtime": 1784089529.4075644,
-    "ast_hash": "91aa27e5bf6a8fd132e8ab043a04924c",
+    "mtime": 1785446113.2667282,
+    "ast_hash": "fbe5d30775fba72e09bf98b8e60a47b5",
     "semantic_hash": ""
   },
   "DICCIONARIO_TECNICO.md": {
@@ -1040,8 +1040,8 @@
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/usuarios/menu.keys.js": {
-    "mtime": 1785287519.3833556,
-    "ast_hash": "b42ce688d08a5715336c42de2c59186f",
+    "mtime": 1786039474.088538,
+    "ast_hash": "ce85c33bd5c0e51e23c545fa64431e9a",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/ventas/cfdi.facturama.js": {
@@ -1070,8 +1070,8 @@
     "semantic_hash": ""
   },
   "dismed/frontend/src/config/menu.js": {
-    "mtime": 1785287530.0591834,
-    "ast_hash": "17df2787511907894273dbcd2034b0a7",
+    "mtime": 1786205303.7453907,
+    "ast_hash": "e51aeb7cbc4ba53100e692cea90c9f99",
     "semantic_hash": ""
   },
   "dismed/frontend/src/hooks/usePagination.js": {
@@ -1105,8 +1105,8 @@
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Configuracion/Configuracion.jsx": {
-    "mtime": 1782158613.4590678,
-    "ast_hash": "65b550e87ee4c9e75530c188dc15dc21",
+    "mtime": 1785445976.6469884,
+    "ast_hash": "b7beac2025fabf318b2a6140af0c7fa9",
     "semantic_hash": ""
   },
   "dismed/frontend/src/store/prefsStore.js": {
@@ -1640,18 +1640,18 @@
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/pos/pos.cfdi.service.js": {
-    "mtime": 1784479736.3560164,
-    "ast_hash": "fbf01c86b5285344a1b9b507c2c2aae1",
+    "mtime": 1785701046.5134823,
+    "ast_hash": "085b64aa9a9d7811a710ff1dcda951bd",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/pos/pos.controller.js": {
-    "mtime": 1785289063.7728062,
-    "ast_hash": "dd0fa8206ee6eb706cbe51fef122b91d",
+    "mtime": 1785775489.4175248,
+    "ast_hash": "f91040d00511fe8757c738e8f38b5cec",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/pos/pos.routes.js": {
-    "mtime": 1785289069.629398,
-    "ast_hash": "2281cfd30deee409d778b7713dfb154c",
+    "mtime": 1785775471.303932,
+    "ast_hash": "f87871644472b008eeed43045ee11253",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/pos/pos.tenant.helpers.js": {
@@ -1660,13 +1660,13 @@
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/pos/pos.turnos.service.js": {
-    "mtime": 1784510753.3061912,
-    "ast_hash": "89336d4732d91f70ea646b7609326a00",
+    "mtime": 1785688792.0155325,
+    "ast_hash": "c59d5c78025da5ab1e18454445dfb971",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/pos/pos.ventas.service.js": {
-    "mtime": 1785175768.806389,
-    "ast_hash": "e941b33639c76bbeab5cf2d1602a0f6a",
+    "mtime": 1785775450.9882832,
+    "ast_hash": "60bb0d230e75886592ce0abcb23ae667",
     "semantic_hash": ""
   },
   "dismed/backend/src/services/branding.service.js": {
@@ -1700,18 +1700,18 @@
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Pos/Sucursales.jsx": {
-    "mtime": 1785175796.6037655,
-    "ast_hash": "1084fa6b6564266c7d40b59286048372",
+    "mtime": 1785524987.2985933,
+    "ast_hash": "1f204a7536eb9f71ef992a381013851b",
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Pos/Turnos.jsx": {
-    "mtime": 1784512593.3136961,
-    "ast_hash": "8500f1a04df246167c4f82578d67555b",
+    "mtime": 1785688389.8652744,
+    "ast_hash": "6d0289deedebedfb67027aac5ad20888",
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Pos/VentaMostrador.jsx": {
-    "mtime": 1785287675.7109766,
-    "ast_hash": "430f0cc509963b8e39dae9f4e65ad8c6",
+    "mtime": 1786130841.3397577,
+    "ast_hash": "6486318ea82b6a9cbd8aa98a557e7abb",
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Pos/components/ModalCobro.jsx": {
@@ -1730,8 +1730,8 @@
     "semantic_hash": ""
   },
   "deploy_instancia.py": {
-    "mtime": 1784988010.475446,
-    "ast_hash": "e4b26f40cf8c96a6f056f09dce665b47",
+    "mtime": 1785343831.954469,
+    "ast_hash": "e470d29519f6b15acd72d8657c3ed960",
     "semantic_hash": ""
   },
   "dismed/backend/migrate_v29.js": {
@@ -1755,8 +1755,8 @@
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/inventario/facturas.controller.js": {
-    "mtime": 1784224703.7948122,
-    "ast_hash": "c90b2ffac19dd14f2d81762b68dfef83",
+    "mtime": 1785947307.5359626,
+    "ast_hash": "ba572234c2bc4d85a4e026b6728d5a37",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/productos/productos.pricing.js": {
@@ -1765,8 +1765,8 @@
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Inventario/CargaFacturas.jsx": {
-    "mtime": 1784224695.954791,
-    "ast_hash": "417964d8c461df32956294a0becbee89",
+    "mtime": 1785947343.4903948,
+    "ast_hash": "985457e4a2289a3a3daf34558997e988",
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Productos/PreciosVenta.jsx": {
@@ -1825,13 +1825,13 @@
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/pos/pos.citas.service.js": {
-    "mtime": 1785289055.7140307,
-    "ast_hash": "f5a66aa32d9a7889a2ebe4491b896bb7",
+    "mtime": 1785472975.3529992,
+    "ast_hash": "6b49aefa4b694365db6b26bc972e4555",
     "semantic_hash": ""
   },
   "dismed/backend/src/modules/pos/pos.reportes.service.js": {
-    "mtime": 1785013253.4859953,
-    "ast_hash": "d7363297430d14457eef84d1b2531819",
+    "mtime": 1785701162.2741659,
+    "ast_hash": "a3f308b8cbabee60e1f5eb5a485901de",
     "semantic_hash": ""
   },
   "dismed/frontend/src/hooks/useTurnoActivo.js": {
@@ -1845,8 +1845,8 @@
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Expediente/Medicos.jsx": {
-    "mtime": 1784986339.781894,
-    "ast_hash": "1bd32dc04b2b8a516726776b4feab64f",
+    "mtime": 1785525038.1744854,
+    "ast_hash": "fb02d31e49190ef3332780bab15dba4f",
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Expediente/PacientesList.jsx": {
@@ -1860,13 +1860,13 @@
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Pos/Citas.jsx": {
-    "mtime": 1785289115.0970063,
-    "ast_hash": "067bf8aec31639d8971fb2c88987085f",
+    "mtime": 1785440262.3632991,
+    "ast_hash": "afbb6b74caad54fc63195073c65ff265",
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Pos/Reportes/PosGanancias.jsx": {
-    "mtime": 1785012164.8748255,
-    "ast_hash": "833c25709bc93b1e40273de3e9ff41e7",
+    "mtime": 1785701201.8978624,
+    "ast_hash": "b9e6251512c5fef3fff2b56f50074bc2",
     "semantic_hash": ""
   },
   "dismed/frontend/src/pages/Pos/Reportes/PosReportes.jsx": {
@@ -1887,6 +1887,311 @@
   "dismed/backend/migrate_v38.js": {
     "mtime": 1785289021.3041444,
     "ast_hash": "21d84c24da6328de5d6ac983dcb6e89b",
+    "semantic_hash": ""
+  },
+  "dismed/backend/migrate_v39.js": {
+    "mtime": 1785348931.0525832,
+    "ast_hash": "a2a568bf0aaa99f12a295c02d1dd977e",
+    "semantic_hash": ""
+  },
+  "dismed/backend/migrate_v40.js": {
+    "mtime": 1785437244.025965,
+    "ast_hash": "317d8a7bd6b588add0f9debe80f40d22",
+    "semantic_hash": ""
+  },
+  "dismed/backend/migrate_v41.js": {
+    "mtime": 1785446095.8026106,
+    "ast_hash": "9d72be8d2e1d3be6d455800d16253da0",
+    "semantic_hash": ""
+  },
+  "dismed/backend/migrate_v42.js": {
+    "mtime": 1785512114.6164184,
+    "ast_hash": "bbd8a7b93ff9345d4aa74612386a92e6",
+    "semantic_hash": ""
+  },
+  "dismed/backend/migrate_v43.js": {
+    "mtime": 1785524668.6616306,
+    "ast_hash": "6d565c9cbd0a8ca815aa87c3b2e3ca76",
+    "semantic_hash": ""
+  },
+  "dismed/backend/migrate_v44.js": {
+    "mtime": 1785596099.2370484,
+    "ast_hash": "82a9abd5c23a89302c6b0953b6131af1",
+    "semantic_hash": ""
+  },
+  "dismed/backend/migrate_v45.js": {
+    "mtime": 1785692071.6127136,
+    "ast_hash": "8862aaef97e69fcbda46278e4440ef64",
+    "semantic_hash": ""
+  },
+  "dismed/backend/migrate_v46.js": {
+    "mtime": 1785700768.2683122,
+    "ast_hash": "3fc94e6a17312db24e2cf5879c6bb783",
+    "semantic_hash": ""
+  },
+  "dismed/backend/migrate_v47.js": {
+    "mtime": 1785728885.8934114,
+    "ast_hash": "3de35a62a6aff846ddc219492c400081",
+    "semantic_hash": ""
+  },
+  "dismed/backend/migrate_v48.js": {
+    "mtime": 1785785662.8797803,
+    "ast_hash": "ab96262e7da203e8291551946f9ab40d",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/inventario/import.catalogos.js": {
+    "mtime": 1785875450.597222,
+    "ast_hash": "18488a5ba0faa9f220c68a3dd3d3ce6a",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/pos/pos.clientesfidelidad.controller.js": {
+    "mtime": 1785728985.0217016,
+    "ast_hash": "2fade72516cd55c7e82906e0cd4ce531",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/pos/pos.clientesfidelidad.service.js": {
+    "mtime": 1785728967.1707735,
+    "ast_hash": "84b1a22d3d0e6e054015ece6d296148e",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/pos/pos.promociones.controller.js": {
+    "mtime": 1785701067.9994502,
+    "ast_hash": "770d5eb7ccf5871a6eb0e699929cc803",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/pos/pos.promociones.service.js": {
+    "mtime": 1785729099.5870092,
+    "ast_hash": "f4e5ba510f15d7f1837695403bfbf028",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/whatsapp/whatsapp.campanas.controller.js": {
+    "mtime": 1785512368.0465648,
+    "ast_hash": "698d69183bbb8fbb73bfba2788efe7ba",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/whatsapp/whatsapp.campanas.service.js": {
+    "mtime": 1785512231.5438507,
+    "ast_hash": "392ce6d33366103d15ead92e010d78b7",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/whatsapp/whatsapp.chatbot.service.js": {
+    "mtime": 1786041935.874079,
+    "ast_hash": "678aaf0bffa259d199fca0940340243b",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/whatsapp/whatsapp.client.js": {
+    "mtime": 1786039495.0549128,
+    "ast_hash": "8ae017c5f97669ab71deb280b3498e6f",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/whatsapp/whatsapp.config.js": {
+    "mtime": 1785445991.6114852,
+    "ast_hash": "f04981f1f8dad8d48dcc23ee31cfefe5",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/whatsapp/whatsapp.contactos.controller.js": {
+    "mtime": 1785512362.8959293,
+    "ast_hash": "97e95ec39f40a305ab23208bd8e7ee9b",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/whatsapp/whatsapp.contactos.service.js": {
+    "mtime": 1785512177.5107858,
+    "ast_hash": "b608e6dd777de8280ae69308a5954ae3",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/whatsapp/whatsapp.controller.js": {
+    "mtime": 1785446026.0057247,
+    "ast_hash": "8ff0a2d3c8cece5b0d947c379454cd8d",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/whatsapp/whatsapp.faqs.controller.js": {
+    "mtime": 1785596114.7872424,
+    "ast_hash": "b4afdff43e9792d6350e77f8fe6f3c28",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/whatsapp/whatsapp.faqs.service.js": {
+    "mtime": 1785596109.3457232,
+    "ast_hash": "c118cc326ca6fa777e4d323eba903974",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/whatsapp/whatsapp.mensajeria.controller.js": {
+    "mtime": 1786130808.6574466,
+    "ast_hash": "551995417c68bc9ce333ff24e4b52a3e",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/whatsapp/whatsapp.mensajeria.service.js": {
+    "mtime": 1786130800.7551603,
+    "ast_hash": "6f510d0dd0c8510154f6ecce0c89f401",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/whatsapp/whatsapp.plantillas.util.js": {
+    "mtime": 1785512157.555304,
+    "ast_hash": "01cd8c8657f063e7256b5bcfff5ea6b3",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/whatsapp/whatsapp.routes.js": {
+    "mtime": 1786130814.395838,
+    "ast_hash": "731bec6ed80a49963ba3651a20fae45d",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/whatsapp/whatsapp.service.js": {
+    "mtime": 1786045257.4430745,
+    "ast_hash": "4bda6c03b786a9755abc9d3b95207597",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/whatsapp/whatsapp.util.js": {
+    "mtime": 1785512128.553788,
+    "ast_hash": "8a99ee463184b3e824f2538600e0029b",
+    "semantic_hash": ""
+  },
+  "dismed/backend/whatsapp_suscribir.js": {
+    "mtime": 1785440179.8311975,
+    "ast_hash": "96b0a0ecbd41c11f99a5793f37cd2062",
+    "semantic_hash": ""
+  },
+  "dismed/frontend/src/pages/Inventario/ImportCatalogosApoyoModal.jsx": {
+    "mtime": 1785877348.3805895,
+    "ast_hash": "774cc23aa972fd58c711fd9bfa9335ee",
+    "semantic_hash": ""
+  },
+  "dismed/frontend/src/pages/Pos/ClientesFidelidad.jsx": {
+    "mtime": 1785730214.7228367,
+    "ast_hash": "e71f498b599e58399a85b617f4824100",
+    "semantic_hash": ""
+  },
+  "dismed/frontend/src/pages/Pos/Promociones.jsx": {
+    "mtime": 1785730498.92906,
+    "ast_hash": "19e190dc25e761f01d4c289ab7ce1eea",
+    "semantic_hash": ""
+  },
+  "dismed/frontend/src/pages/Pos/components/ModalExistencia.jsx": {
+    "mtime": 1785775522.9325655,
+    "ast_hash": "0a2047b75914015d5679d0517b266451",
+    "semantic_hash": ""
+  },
+  "dismed/frontend/src/pages/Pos/components/ModalPrecio.jsx": {
+    "mtime": 1785701577.4975886,
+    "ast_hash": "75ffbc86b8b57795e76e3ae0c5c4936b",
+    "semantic_hash": ""
+  },
+  "dismed/frontend/src/pages/WhatsApp/Bandeja.jsx": {
+    "mtime": 1785516561.5379102,
+    "ast_hash": "bcf3854c87f1615afaf0d0cd9b6c2093",
+    "semantic_hash": ""
+  },
+  "dismed/frontend/src/pages/WhatsApp/Contactos.jsx": {
+    "mtime": 1785516582.2923584,
+    "ast_hash": "a61333e10c374abfd5aba306f5134e86",
+    "semantic_hash": ""
+  },
+  "dismed/frontend/src/pages/WhatsApp/EnvioMasivo.jsx": {
+    "mtime": 1785516611.8119838,
+    "ast_hash": "61a43c34399daed67fc2c960f3c80191",
+    "semantic_hash": ""
+  },
+  "dismed/frontend/src/pages/WhatsApp/PreguntasFrecuentes.jsx": {
+    "mtime": 1785960411.8813965,
+    "ast_hash": "00095c852416bf609c74e67881fee941",
+    "semantic_hash": ""
+  },
+  "dismed/frontend/src/utils/whatsapp.js": {
+    "mtime": 1785437314.5423436,
+    "ast_hash": "68cb656b0aee96cd463e9cf901c9f1ab",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/whatsapp/README.md": {
+    "mtime": 1785473360.8401334,
+    "ast_hash": "49ae5cbca7988b3487e9ce37f60f9d6d",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/productos/clasificador.ia.js": {
+    "mtime": 1785947230.6442828,
+    "ast_hash": "06c7e4d75078a76614edf738a8ec194b",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/productos/taxonomia.util.js": {
+    "mtime": 1785947187.4638228,
+    "ast_hash": "24c19aad91d8d65c82a2e690c0b873a3",
+    "semantic_hash": ""
+  },
+  "dismed/backend/migrate_v49.js": {
+    "mtime": 1785960061.9947085,
+    "ast_hash": "e2d7bda664848cdfd25c469dcbe26050",
+    "semantic_hash": ""
+  },
+  "dismed/backend/migrate_v50.js": {
+    "mtime": 1786040917.0599577,
+    "ast_hash": "cfbf0f7eefe4dc24591509c4dc47c0bf",
+    "semantic_hash": ""
+  },
+  "dismed/backend/migrate_v51.js": {
+    "mtime": 1786145509.9102254,
+    "ast_hash": "1496c9b53f753430d8a9bf769baa5153",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/supervisor/supervisor.alertas.service.js": {
+    "mtime": 1786205202.9128852,
+    "ast_hash": "54bb1d20026b59ad6f8da7737e67d109",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/supervisor/supervisor.controller.js": {
+    "mtime": 1786205221.4102716,
+    "ast_hash": "076a8292bf0ed5a9da2662a6fdc477fc",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/supervisor/supervisor.cron.js": {
+    "mtime": 1786205214.7976253,
+    "ast_hash": "130f156cd784a5e54419c23f19e87c73",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/supervisor/supervisor.routes.js": {
+    "mtime": 1786205229.2668018,
+    "ast_hash": "210533617060adbbad43fdfb3fdc9582",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/supervisor/supervisor.service.js": {
+    "mtime": 1786205183.6072688,
+    "ast_hash": "6942ed44e69335ec85a417502e7ceeb5",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/supervisor/supervisor.umbrales.service.js": {
+    "mtime": 1786145682.2208438,
+    "ast_hash": "8332788466b4be2e7d6087dd96c59ca5",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/whatsapp/whatsapp.carrito.service.js": {
+    "mtime": 1786045251.6603222,
+    "ast_hash": "c8d534543c586c46e63abca1b739b315",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/whatsapp/whatsapp.config.controller.js": {
+    "mtime": 1785960078.79155,
+    "ast_hash": "7a917ada2309b23a2a8be3720f4be492",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/whatsapp/whatsapp.config.service.js": {
+    "mtime": 1785960068.6199038,
+    "ast_hash": "609fb3a7660f8052da471f952069ca36",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/whatsapp/whatsapp.pedidos.controller.js": {
+    "mtime": 1786040096.4340885,
+    "ast_hash": "63eb3ec043b8d97e7b54699483d015a5",
+    "semantic_hash": ""
+  },
+  "dismed/backend/src/modules/whatsapp/whatsapp.pedidos.service.js": {
+    "mtime": 1786128258.89189,
+    "ast_hash": "01a15c1d42eaa27d366f6401a75c768d",
+    "semantic_hash": ""
+  },
+  "dismed/frontend/src/pages/Pos/PedidosWhatsApp.jsx": {
+    "mtime": 1786045336.0163615,
+    "ast_hash": "dbe9f092fcca8066a2d2a36285f4f0b5",
+    "semantic_hash": ""
+  },
+  "dismed/frontend/src/pages/Supervisor/PanelSupervisor.jsx": {
+    "mtime": 1786205440.8364658,
+    "ast_hash": "cd164dea6e6ff9b4ab8c370b5c993115",
     "semantic_hash": ""
   }
 }

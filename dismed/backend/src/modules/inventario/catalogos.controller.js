@@ -1,4 +1,7 @@
 const { pool } = require('../../config/db');
+const fs = require('fs');
+const XLSX = require('xlsx');
+const { parseCatalogosApoyo } = require('./import.catalogos');
 
 // ── Familias ────────────────────────────────────────────────────────────────
 function condActivo(req) {
@@ -195,9 +198,126 @@ async function updateUnidad(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// ── Importación de catálogos de apoyo (preview) ──────────────────────────────
+async function importPreview(req, res, next) {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Archivo requerido' });
+    const result = parseCatalogosApoyo(req.file.path);
+    try { fs.unlinkSync(req.file.path); } catch { /* noop */ }
+    if (!result.taxonomia.length && !result.unidades.length) {
+      return res.status(400).json({ error: 'No se encontraron columnas FAMILIA o UNIDAD en el archivo' });
+    }
+    res.json(result);
+  } catch (err) { next(err); }
+}
+
+// ── Importación de catálogos de apoyo (confirmar) ────────────────────────────
+async function importConfirm(req, res, next) {
+  const conn = await pool.getConnection();
+  try {
+    const { taxonomia, unidades } = req.body;
+    await conn.beginTransaction();
+
+    const famCache = {};
+    const catCache = {};
+    const subSet = new Set();
+
+    for (const t of (Array.isArray(taxonomia) ? taxonomia : [])) {
+      const familiaNombre = norm_(t.familia);
+      if (!familiaNombre) continue;
+
+      let famId = famCache[familiaNombre];
+      if (!famId) {
+        const [r] = await conn.query(
+          'INSERT INTO familias (nombre) VALUES (?) ON DUPLICATE KEY UPDATE activo = 1, id = LAST_INSERT_ID(id)',
+          [familiaNombre]
+        );
+        famId = r.insertId;
+        famCache[familiaNombre] = famId;
+      }
+
+      const categoriaNombre = norm_(t.categoria);
+      if (!categoriaNombre) continue;
+      const catKey = `${famId}|${categoriaNombre}`;
+      let catId = catCache[catKey];
+      if (!catId) {
+        const [r] = await conn.query(
+          'INSERT INTO categorias_prod (familia_id, nombre) VALUES (?, ?) ON DUPLICATE KEY UPDATE activo = 1, id = LAST_INSERT_ID(id)',
+          [famId, categoriaNombre]
+        );
+        catId = r.insertId;
+        catCache[catKey] = catId;
+      }
+
+      const subNombre = norm_(t.subcategoria);
+      if (!subNombre) continue;
+      await conn.query(
+        'INSERT INTO subcategorias_prod (categoria_id, nombre) VALUES (?, ?) ON DUPLICATE KEY UPDATE activo = 1',
+        [catId, subNombre]
+      );
+      subSet.add(`${catId}|${subNombre}`);
+    }
+
+    let unidadesN = 0;
+    for (const u of (Array.isArray(unidades) ? unidades : [])) {
+      const nombre = norm_(u.unidad);
+      if (!nombre) continue;
+      await conn.query(
+        `INSERT INTO unidades_medida (nombre, factor_sugerido) VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE activo = 1, factor_sugerido = VALUES(factor_sugerido)`,
+        [nombre, u.factor ?? null]
+      );
+      unidadesN++;
+    }
+
+    await conn.commit();
+    res.json({
+      ok: true,
+      familias: Object.keys(famCache).length,
+      categorias: Object.keys(catCache).length,
+      subcategorias: subSet.size,
+      unidades: unidadesN,
+    });
+  } catch (err) {
+    await conn.rollback();
+    next(err);
+  } finally {
+    conn.release();
+  }
+}
+
+function norm_(s) { return s == null ? '' : String(s).trim(); }
+
+/** GET /catalogos/import/plantilla → xlsx de ejemplo con el layout que espera el import. */
+function plantillaImport(req, res, next) {
+  try {
+    const wsTax = XLSX.utils.aoa_to_sheet([
+      ['FAMILIA', 'CATEGORIA', 'SUBCATEGORIA'],
+      ['MATERIAL DE CURACION', 'GASAS Y APOSITOS', 'GASA ESTERIL'],
+      ['MATERIAL DE CURACION', 'GASAS Y APOSITOS', 'GASA NO ESTERIL'],
+      ['MATERIAL DE CURACION', 'CINTAS Y VENDAS', ''],
+      ['EQUIPO MEDICO', '', ''],
+    ]);
+    const wsUni = XLSX.utils.aoa_to_sheet([
+      ['UNIDAD', 'FACTOR'],
+      ['PIEZA', 1],
+      ['CAJA C/50', 50],
+      ['PAQUETE C/10', 10],
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, wsTax, 'TAXONOMIA');
+    XLSX.utils.book_append_sheet(wb, wsUni, 'UNIDADES');
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="plantilla_catalogos_apoyo.xlsx"');
+    res.send(buf);
+  } catch (err) { next(err); }
+}
+
 module.exports = {
   listFamilias, createFamilia, updateFamilia, removeFamilia,
   listCategorias, createCategoria, updateCategoria, removeCategoria,
   listSubcategorias, createSubcategoria, updateSubcategoria, removeSubcategoria,
   listUnidades, createUnidad, updateUnidad, removeUnidad,
+  importPreview, importConfirm, plantillaImport,
 };

@@ -57,6 +57,8 @@ export default function UsuariosList() {
         puesto:  d.puesto || null,
         rol:     d.rol,
         email:   d.email,
+        telefono: d.telefono || null,
+        recibe_alertas: d.recibe_alertas ? 1 : 0,
         jefe_id: d.jefe_id || null,
         empresa_id: d.empresa_id || 1,
         activo:  d.activo ? 1 : 0,
@@ -108,6 +110,8 @@ export default function UsuariosList() {
       puesto:   u.puesto || '',
       rol:      u.rol,
       email:    u.email,
+      telefono: u.telefono || '',
+      recibe_alertas: !!u.recibe_alertas,
       jefe_id:  u.jefe_id || '',
       empresa_id: u.empresa_id || 1,
       activo:   !!u.activo,
@@ -258,6 +262,20 @@ export default function UsuariosList() {
                 <input type="email" className="input" {...register('email', { required: 'Requerido' })} />
                 {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>}
               </div>
+
+              <div className="col-span-2">
+                <label className="label">Teléfono (WhatsApp)</label>
+                <input className="input" placeholder="521XXXXXXXXXX" {...register('telefono')} />
+              </div>
+
+              {watch('rol') === 'admin' && (
+                <div className="col-span-2 flex items-center gap-2">
+                  <input type="checkbox" id="recibe_alertas" className="rounded" {...register('recibe_alertas')} />
+                  <label htmlFor="recibe_alertas" className="text-sm text-gray-700">
+                    Recibe alertas del Panel de Supervisor por WhatsApp
+                  </label>
+                </div>
+              )}
 
               <div className="col-span-2">
                 <label className="label">

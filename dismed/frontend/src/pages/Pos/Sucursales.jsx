@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Warehouse, Plus, Pencil, Monitor, Receipt, Zap, X, Search } from 'lucide-react';
+import { Warehouse, Plus, Pencil, Monitor, Receipt, Zap, X, Search, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 import Modal from '../../components/ui/Modal';
+
+// Un favorito puede apuntar al producto o a una presentación suya específica
+// (ej. "Paleta suelta") — la clave para comparar/excluir no puede ser solo el
+// id del producto (ver también VentaMostrador.jsx).
+const claveFavorito = (p) => (p.presentacion_id ? `pres-${p.presentacion_id}` : `prod-${p.producto_id}`);
 
 // Elige texto claro u oscuro según la luminosidad del color de fondo elegido.
 function textColorFor(hex) {
@@ -156,7 +161,9 @@ function ModalSucursal({ sucursal, onClose, onSaved }) {
     mutationFn: () => (sucursal
       ? api.put(`/pos/sucursales/${sucursal.id}`, {
           ...form, activo: form.activo ? 1 : 0,
-          productos_favoritos: favoritos.map((p) => ({ id: p.id, color: p.color || null })),
+          productos_favoritos: favoritos.map((p) => ({
+            id: p.producto_id, color: p.color || null, presentacion_id: p.presentacion_id || undefined,
+          })),
         })
       : api.post('/pos/sucursales', form)),
     onSuccess: () => { toast.success('Sucursal guardada'); onSaved(); },
@@ -226,7 +233,7 @@ function ModalSucursal({ sucursal, onClose, onSaved }) {
               <div className="flex flex-wrap gap-2 mb-2">
                 {favoritos.map((p) => (
                   <span
-                    key={p.id}
+                    key={claveFavorito(p)}
                     className="flex items-center gap-1.5 pl-1 pr-1.5 py-1 rounded-full border text-xs"
                     style={{
                       backgroundColor: p.color || '#eff6ff',
@@ -237,12 +244,12 @@ function ModalSucursal({ sucursal, onClose, onSaved }) {
                     <input
                       type="color"
                       value={p.color || '#dbeafe'}
-                      onChange={(e) => setFavoritos((f) => f.map((x) => (x.id === p.id ? { ...x, color: e.target.value } : x)))}
+                      onChange={(e) => setFavoritos((f) => f.map((x) => (claveFavorito(x) === claveFavorito(p) ? { ...x, color: e.target.value } : x)))}
                       className="w-5 h-5 rounded-full border-0 cursor-pointer bg-transparent p-0"
                       title="Color de fondo del botón"
                     />
                     <span className="truncate max-w-[8rem]">{p.descripcion}</span>
-                    <button type="button" className="hover:text-red-500" onClick={() => setFavoritos((f) => f.filter((x) => x.id !== p.id))}>
+                    <button type="button" className="hover:text-red-500" onClick={() => setFavoritos((f) => f.filter((x) => claveFavorito(x) !== claveFavorito(p)))}>
                       <X size={12} />
                     </button>
                   </span>
@@ -252,10 +259,16 @@ function ModalSucursal({ sucursal, onClose, onSaved }) {
             {favoritos.length < 5 && (
               <BuscadorFavoritos
                 sucursalId={sucursal.id}
-                excluir={favoritos.map((p) => p.id)}
+                excluir={favoritos.map(claveFavorito)}
                 onElegir={(p) => setFavoritos((f) => [...f, p])}
               />
             )}
+          </div>
+        )}
+
+        {sucursal && (
+          <div className="border-t border-gray-100 pt-3">
+            <HorarioSucursal sucursalId={sucursal.id} />
           </div>
         )}
 
@@ -282,7 +295,7 @@ function BuscadorFavoritos({ sucursalId, excluir, onElegir }) {
     if (!q.trim()) { setResultados([]); return; }
     const t = setTimeout(() => {
       api.get('/pos/productos/buscar', { params: { q: q.trim(), sucursal_id: sucursalId } })
-        .then((r) => setResultados(r.data.filter((p) => !excluir.includes(p.id))))
+        .then((r) => setResultados(r.data.filter((p) => !excluir.includes(claveFavorito(p)))))
         .catch(() => setResultados([]));
     }, 300);
     return () => clearTimeout(t);
@@ -303,7 +316,7 @@ function BuscadorFavoritos({ sucursalId, excluir, onElegir }) {
         <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
           {resultados.map((p) => (
             <button
-              key={p.id}
+              key={claveFavorito(p)}
               type="button"
               className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left hover:bg-gray-50 border-b border-gray-50 text-sm"
               onClick={() => { onElegir(p); setQ(''); setResultados([]); }}
@@ -312,6 +325,84 @@ function BuscadorFavoritos({ sucursalId, excluir, onElegir }) {
               <span className="text-xs text-gray-400 font-mono shrink-0">{p.sku_interno}</span>
             </button>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const DIAS_SEMANA = [
+  { v: 1, label: 'Lunes' }, { v: 2, label: 'Martes' }, { v: 3, label: 'Miércoles' },
+  { v: 4, label: 'Jueves' }, { v: 5, label: 'Viernes' }, { v: 6, label: 'Sábado' }, { v: 7, label: 'Domingo' },
+];
+
+// Horario semanal que consulta el chatbot de WhatsApp para contestar
+// "¿están abiertos?" (whatsapp.chatbot.service.js). Reemplazo total de la
+// semana en cada guardado — más simple que diffear día por día.
+function HorarioSucursal({ sucursalId }) {
+  const [dias, setDias] = useState(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['pos-horarios-sucursal', sucursalId],
+    queryFn: () => api.get(`/pos/sucursales/${sucursalId}/horarios`).then((r) => r.data),
+  });
+
+  useEffect(() => {
+    if (!data) return;
+    setDias(DIAS_SEMANA.map((d) => {
+      const existente = data.find((h) => h.dia_semana === d.v);
+      return {
+        dia_semana: d.v,
+        hora_inicio: existente?.hora_inicio ? existente.hora_inicio.slice(0, 5) : '10:00',
+        hora_fin: existente?.hora_fin ? existente.hora_fin.slice(0, 5) : '20:00',
+        cerrado: existente ? !!existente.cerrado : false,
+      };
+    }));
+  }, [data]);
+
+  const set = (v, campo, valor) => setDias((ds) => ds.map((d) => (d.dia_semana === v ? { ...d, [campo]: valor } : d)));
+
+  const guardar = useMutation({
+    mutationFn: () => api.put(`/pos/sucursales/${sucursalId}/horarios`, { dias }),
+    onSuccess: () => toast.success('Horario guardado'),
+    onError: (e) => toast.error(e.response?.data?.error || 'Error al guardar horario'),
+  });
+
+  return (
+    <div>
+      <label className="label flex items-center gap-1.5">
+        <Clock size={13} className="text-brand-500" /> Horario de atención
+      </label>
+      <p className="text-xs text-gray-400 mb-2">
+        Lo usa el chatbot de WhatsApp para contestar "¿están abiertos?".
+      </p>
+      {!dias || isLoading ? (
+        <p className="text-xs text-gray-400">Cargando…</p>
+      ) : (
+        <div className="space-y-1.5">
+          {dias.map((d) => (
+            <div key={d.dia_semana} className="flex items-center gap-2 text-sm">
+              <span className="w-20 shrink-0 text-gray-600">{DIAS_SEMANA.find((x) => x.v === d.dia_semana).label}</span>
+              <label className="flex items-center gap-1 text-xs text-gray-500 w-20 shrink-0">
+                <input type="checkbox" checked={d.cerrado} onChange={(e) => set(d.dia_semana, 'cerrado', e.target.checked)} />
+                Cerrado
+              </label>
+              {!d.cerrado && (
+                <>
+                  <input type="time" className="input py-1 text-xs w-24" value={d.hora_inicio}
+                    onChange={(e) => set(d.dia_semana, 'hora_inicio', e.target.value)} />
+                  <span className="text-gray-400">a</span>
+                  <input type="time" className="input py-1 text-xs w-24" value={d.hora_fin}
+                    onChange={(e) => set(d.dia_semana, 'hora_fin', e.target.value)} />
+                </>
+              )}
+            </div>
+          ))}
+          <div className="flex justify-end pt-1">
+            <button type="button" className="btn-secondary btn-sm" disabled={guardar.isPending} onClick={() => guardar.mutate()}>
+              {guardar.isPending ? 'Guardando…' : 'Guardar horario'}
+            </button>
+          </div>
         </div>
       )}
     </div>

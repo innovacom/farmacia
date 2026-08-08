@@ -94,6 +94,7 @@ Key Controllers:
 - cotprov.controller.js: initiate supplier quotes, register prices, calculate best price
 - cotcli.controller.js: generate customer quote, generate PDF, change status
 - Standard CRUD in clientes, proveedores, productos
+- whatsapp.controller.js: webhook (verify/receive) de WhatsApp Cloud API (número dedicado) + estado de configuración; whatsapp.service.js liga las respuestas del paciente (confirmar/reprogramar/cancelar) a pos_citas
 
 ### Frontend Route Structure
 
@@ -110,6 +111,7 @@ Backend (.env in dismed/backend/):
 - UPLOAD_DIR (./uploads), OUTPUT_DIR (./outputs), BASE_URL (http://localhost:3001)
 - PORT (3001)
 - EMPRESA_NOMBRE, EMPRESA_RFC, EMPRESA_TELEFONO, EMPRESA_EMAIL, EMPRESA_DIRECCION (PDF letterhead)
+- META_APP_SECRET, WHATSAPP_WABA_ID, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_ACCESS_TOKEN, WHATSAPP_WEBHOOK_VERIFY_TOKEN, WHATSAPP_TEMPLATE_RECORDATORIO(_LANG) — todas opcionales; sin ellas el recordatorio de citas (módulo `whatsapp`) cae a un enlace manual `wa.me`. Usa un número dedicado que nunca tuvo WhatsApp (sin Coexistence). Ver `src/modules/whatsapp/README.md`.
 
 Frontend: vite.config.js already proxies /api and /outputs to http://localhost:3001. Ensure backend is running.
 

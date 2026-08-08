@@ -5,6 +5,7 @@ const { buscarCandidatos, normalizar } = require('../solicitudes/matcher');
 const { desempatarConIA } = require('../solicitudes/matcher.ia');
 const fs = require('fs');
 const { normalizarPrecioPublico, validarPrecios, tienePrecioLista } = require('./productos.pricing');
+const { resolverId } = require('./taxonomia.util');
 
 // Campos editables de producto (alta/edición)
 const PROD_FIELDS = [
@@ -35,15 +36,22 @@ function autoVendibleUpdate(body) {
   body.vendible = tienePrecioLista(body.precio_lista) ? 1 : 0;
 }
 
+// Filtro compartido por list() y exportarExcel() (mismos criterios de
+// búsqueda/estatus/familia/categoría; solo cambia paginación vs. exportación completa).
+function construirFiltroProductos(query) {
+  const search = query.q ? `%${query.q}%` : '%';
+  const estatus = query.estatus || 'activos'; // activos | inactivos | todos
+  const where = ['(p.sku_interno LIKE ? OR p.descripcion LIKE ?)'];
+  const vals = [search, search];
+  if (estatus !== 'todos') where.push(`p.activo = ${estatus === 'inactivos' ? 0 : 1}`);
+  if (query.familia_id)    { where.push('p.familia_id = ?');    vals.push(query.familia_id); }
+  if (query.categoria_id)  { where.push('p.categoria_id = ?');  vals.push(query.categoria_id); }
+  return { where, vals };
+}
+
 async function list(req, res, next) {
   try {
-    const search = req.query.q ? `%${req.query.q}%` : '%';
-    const estatus = req.query.estatus || 'activos'; // activos | inactivos | todos
-    const where = ['(p.sku_interno LIKE ? OR p.descripcion LIKE ?)'];
-    const vals = [search, search];
-    if (estatus !== 'todos') where.push(`p.activo = ${estatus === 'inactivos' ? 0 : 1}`);
-    if (req.query.familia_id)    { where.push('p.familia_id = ?');    vals.push(req.query.familia_id); }
-    if (req.query.categoria_id)  { where.push('p.categoria_id = ?');  vals.push(req.query.categoria_id); }
+    const { where, vals } = construirFiltroProductos(req.query);
     const limit  = Math.min(parseInt(req.query.limit) || 100, 500);
     // Con ?offset= responde { rows, total } (paginación real). Sin él conserva
     // la respuesta plana (array) para los consumidores existentes.
@@ -75,6 +83,52 @@ async function list(req, res, next) {
       vals
     );
     res.json({ rows, total });
+  } catch (err) { next(err); }
+}
+
+// GET /productos/exportar → xlsx con el catálogo filtrado (mismos filtros que list, sin paginar).
+async function exportarExcel(req, res, next) {
+  try {
+    const { where, vals } = construirFiltroProductos(req.query);
+
+    const [rows] = await pool.query(
+      `SELECT p.sku_interno, p.descripcion, p.fabricante,
+              f.nombre AS familia_nombre, c.nombre AS categoria_nombre, s.nombre AS subcategoria_nombre,
+              p.unidad_medida, p.control_lote_caducidad, p.iva_exento,
+              p.precio_costo, p.precio_lista, p.precio_publico, p.margen_ganancia,
+              p.clave_sat, p.clave_unidad_sat, p.ean, p.activo, p.vendible
+       FROM productos p
+       LEFT JOIN familias f           ON f.id = p.familia_id
+       LEFT JOIN categorias_prod c    ON c.id = p.categoria_id
+       LEFT JOIN subcategorias_prod s ON s.id = p.subcategoria_id
+       WHERE ${where.join(' AND ')}
+       ORDER BY p.sku_interno`,
+      vals
+    );
+
+    const headers = [
+      'SKU', 'Descripción', 'Fabricante', 'Familia', 'Categoría', 'Subcategoría',
+      'U. Medida', 'Lote/Caducidad', 'IVA', 'Precio costo', 'Precio lista', 'Precio público',
+      'Margen %', 'Clave SAT', 'Unidad SAT', 'EAN', 'Estado', 'Vendible',
+    ];
+    const aoa = [headers, ...rows.map((r) => [
+      r.sku_interno, r.descripcion, r.fabricante || '',
+      r.familia_nombre || '', r.categoria_nombre || '', r.subcategoria_nombre || '',
+      r.unidad_medida || '', r.control_lote_caducidad ? 'Sí' : 'No', r.iva_exento ? 'Exento' : '16%',
+      r.precio_costo != null ? Number(r.precio_costo) : '',
+      r.precio_lista != null ? Number(r.precio_lista) : '',
+      r.precio_publico != null ? Number(r.precio_publico) : '',
+      r.margen_ganancia != null ? Number(r.margen_ganancia) : '',
+      r.clave_sat || '', r.clave_unidad_sat || '', r.ean || '',
+      r.activo ? 'Activo' : 'Inactivo', r.vendible ? 'Sí' : 'No',
+    ])];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Catalogo');
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="catalogo_productos.xlsx"');
+    res.send(buf);
   } catch (err) { next(err); }
 }
 
@@ -255,50 +309,219 @@ async function updateVenta(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// Campos obligatorios para dar de ALTA un producto nuevo (no aplica a actualizaciones
+// en modo parcial: ahí solo se exigen los campos cuya columna vino en el archivo).
+const CAMPOS_OBLIGATORIOS_ALTA = [
+  { campo: 'descripcion',   label: 'Descripción',  columna: 'DESCRIPCION' },
+  { campo: 'familia',       label: 'Familia',       columna: 'FAMILIA' },
+  { campo: 'categoria',     label: 'Categoría',     columna: 'CATEGORIA' },
+  { campo: 'subcategoria',  label: 'Subcategoría',  columna: 'SUBCATEGORIA' },
+  { campo: 'precio_lista',  label: 'Precio lista',  columna: 'PRECIO_LISTA' },
+  { campo: 'unidad_medida', label: 'Unidad',        columna: 'UNIDAD_VENTA' },
+];
+
+// Determina _errores/_ok/_duplicado de cada fila según el modo de importación:
+// - Modo completo (default): todo producto (nuevo o existente) debe traer los campos obligatorios.
+// - Modo parcial: los productos YA EN BD solo exigen que las columnas presentes en el
+//   archivo traigan valor; los productos NUEVOS siguen requiriendo el set completo
+//   (no se puede insertar un producto a medias).
+function validarFilasImportacion(productos, columnasPresentes, modoParcial) {
+  productos.forEach((p) => {
+    const errores = [];
+    if (!p.sku_interno) errores.push('SKU (Id) vacío');
+
+    if (modoParcial && p._ya_en_bd) {
+      for (const { campo, label } of CAMPOS_OBLIGATORIOS_ALTA) {
+        if (columnasPresentes[campo] && (p[campo] == null || p[campo] === '')) {
+          errores.push(`${label} vacío (la columna viene en el archivo pero sin valor en esta fila)`);
+        }
+      }
+    } else {
+      for (const { campo, label, columna } of CAMPOS_OBLIGATORIOS_ALTA) {
+        if (p[campo] == null || p[campo] === '') {
+          errores.push(modoParcial
+            ? `${label} vacío — producto nuevo: falta la columna ${columna} en el archivo`
+            : `${label} vacío`);
+        }
+      }
+    }
+
+    p._errores = errores;
+    p._ok = errores.length === 0 && !p._duplicado;
+  });
+
+  return {
+    ok: productos.filter((p) => p._ok).length,
+    con_errores: productos.filter((p) => p._errores.length > 0).length,
+  };
+}
+
 // ── Importación del catálogo (preview) ────────────────────────────────────────
 async function importPreview(req, res, next) {
   try {
     if (!req.file) return res.status(400).json({ error: 'Archivo requerido' });
+    const modoParcial = req.body.modo_parcial === 'true' || req.body.modo_parcial === '1';
     const result = parseCatalogo(req.file.path);
     // Marcar también duplicados contra la BD (SKU ya existente)
     const skus = result.productos.map((p) => p.sku_interno).filter(Boolean);
+    let yaEnBd = 0;
     if (skus.length) {
       const [existentes] = await pool.query(
         'SELECT sku_interno FROM productos WHERE sku_interno IN (?)', [skus]
       );
       const set = new Set(existentes.map((e) => e.sku_interno));
       result.productos.forEach((p) => { p._ya_en_bd = set.has(p.sku_interno); });
-      result.resumen.ya_en_bd = existentes.length;
+      yaEnBd = existentes.length;
     }
+    const { ok, con_errores } = validarFilasImportacion(result.productos, result.columnasPresentes, modoParcial);
+    result.resumen.ok = ok;
+    result.resumen.con_errores = con_errores;
+    result.resumen.ya_en_bd = yaEnBd;
+    result.modo_parcial = modoParcial;
     try { fs.unlinkSync(req.file.path); } catch { /* noop */ }
     res.json(result);
   } catch (err) { next(err); }
 }
 
-// Resuelve (o crea) un id de taxonomía/unidad usando un cache en memoria
-async function resolverId(conn, cache, tabla, whereCols, whereVals, insertCols, insertVals) {
-  const key = tabla + '|' + whereVals.join('|');
-  if (cache[key]) return cache[key];
-  const wsql = whereCols.map((c) => `${c} = ?`).join(' AND ');
-  const [[row]] = await conn.query(`SELECT id FROM ${tabla} WHERE ${wsql} LIMIT 1`, whereVals);
-  if (row) { cache[key] = row.id; return row.id; }
+// Inserta o reemplaza por completo un producto (modo de importación "completo",
+// usado también para dar de ALTA productos nuevos aunque el modo sea "parcial":
+// un producto nuevo no puede quedar a medias).
+async function insertarOReemplazarCompleto(conn, cache, p, sku) {
+  const familiaId = await resolverId(conn, cache, 'familias',
+    ['nombre'], [p.familia], ['nombre'], [p.familia]);
+  const categoriaId = await resolverId(conn, cache, 'categorias_prod',
+    ['familia_id', 'nombre'], [familiaId, p.categoria], ['familia_id', 'nombre'], [familiaId, p.categoria]);
+  const subcatId = await resolverId(conn, cache, 'subcategorias_prod',
+    ['categoria_id', 'nombre'], [categoriaId, p.subcategoria], ['categoria_id', 'nombre'], [categoriaId, p.subcategoria]);
+  const unidadId = await resolverId(conn, cache, 'unidades_medida',
+    ['nombre'], [p.unidad_medida], ['nombre', 'factor_sugerido'], [p.unidad_medida, p.factor_empaque ?? null]);
+
   const [r] = await conn.query(
-    `INSERT INTO ${tabla} (${insertCols.join(', ')}) VALUES (${insertCols.map(() => '?').join(', ')})`,
-    insertVals
+    `INSERT INTO productos
+       (sku_interno, descripcion, descripcion_norm, familia_id, categoria_id, subcategoria_id,
+        unidad_medida, unidad_medida_id, unidad_base, factor_empaque,
+        control_lote_caducidad, precio_lista, precio_publico, precio_costo, iva_exento, ieps,
+        clave_sat, clave_unidad_sat, clave_cuadro_basico, fabricante, ean,
+        sustancia_activa, tamano, calibre, especificacion)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+     ON DUPLICATE KEY UPDATE
+       descripcion = VALUES(descripcion), descripcion_norm = VALUES(descripcion_norm),
+       familia_id = VALUES(familia_id),
+       categoria_id = VALUES(categoria_id), subcategoria_id = VALUES(subcategoria_id),
+       unidad_medida = VALUES(unidad_medida), unidad_medida_id = VALUES(unidad_medida_id),
+       factor_empaque = VALUES(factor_empaque),
+       control_lote_caducidad = VALUES(control_lote_caducidad),
+       precio_lista = VALUES(precio_lista), precio_publico = VALUES(precio_publico),
+       precio_costo = VALUES(precio_costo),
+       iva_exento = VALUES(iva_exento), ieps = VALUES(ieps),
+       clave_sat = VALUES(clave_sat), clave_unidad_sat = VALUES(clave_unidad_sat),
+       clave_cuadro_basico = VALUES(clave_cuadro_basico),
+       fabricante = VALUES(fabricante), ean = VALUES(ean),
+       sustancia_activa = VALUES(sustancia_activa), tamano = VALUES(tamano),
+       calibre = VALUES(calibre), especificacion = VALUES(especificacion)`,
+    [sku, p.descripcion, normalizar(p.descripcion).substring(0, 800),
+     familiaId, categoriaId, subcatId,
+     p.unidad_medida, unidadId, p.unidad_base || 'pieza', p.factor_empaque ?? 1,
+     p.control_lote_caducidad ? 1 : 0,
+     p.precio_lista, p.precio_publico ?? null, p.precio_costo ?? null, p.iva_exento ? 1 : 0, p.ieps ?? null,
+     p.clave_sat || null, p.clave_unidad_sat || null, p.clave_cuadro_basico || null,
+     p.fabricante || null, p.ean || null,
+     p.sustancia_activa || null, p.tamano || null, p.calibre || null, p.especificacion || null]
   );
-  cache[key] = r.insertId;
-  return r.insertId;
+  return r.affectedRows === 1 ? 'insertado' : 'actualizado'; // affectedRows: 1 = insert, 2 = update (ON DUPLICATE KEY)
+}
+
+// Actualiza SOLO los campos cuya columna vino en el archivo (modo parcial),
+// dejando el resto del producto intacto. `actual` es la fila vigente en BD
+// (necesaria para resolver jerarquías familia→categoría→subcategoría cuando
+// solo una parte de la jerarquía viene en el archivo, y para validar la regla
+// de precios contra el valor efectivo final).
+async function actualizarParcial(conn, cache, p, sku, cp, actual) {
+  const sets = []; const vals = [];
+  const trae = (campo) => cp[campo] && p[campo] != null && p[campo] !== '';
+
+  if (trae('descripcion')) {
+    sets.push('descripcion = ?', 'descripcion_norm = ?');
+    vals.push(p.descripcion, normalizar(p.descripcion).substring(0, 800));
+  }
+
+  let familiaId = actual.familia_id;
+  if (trae('familia')) {
+    familiaId = await resolverId(conn, cache, 'familias', ['nombre'], [p.familia], ['nombre'], [p.familia]);
+    sets.push('familia_id = ?'); vals.push(familiaId);
+  }
+  let categoriaId = actual.categoria_id;
+  if (trae('categoria')) {
+    categoriaId = await resolverId(conn, cache, 'categorias_prod',
+      ['familia_id', 'nombre'], [familiaId, p.categoria], ['familia_id', 'nombre'], [familiaId, p.categoria]);
+    sets.push('categoria_id = ?'); vals.push(categoriaId);
+  }
+  if (trae('subcategoria')) {
+    const subcatId = await resolverId(conn, cache, 'subcategorias_prod',
+      ['categoria_id', 'nombre'], [categoriaId, p.subcategoria], ['categoria_id', 'nombre'], [categoriaId, p.subcategoria]);
+    sets.push('subcategoria_id = ?'); vals.push(subcatId);
+  }
+  if (trae('unidad_medida')) {
+    const unidadId = await resolverId(conn, cache, 'unidades_medida',
+      ['nombre'], [p.unidad_medida], ['nombre', 'factor_sugerido'], [p.unidad_medida, p.factor_empaque ?? null]);
+    sets.push('unidad_medida = ?', 'unidad_medida_id = ?'); vals.push(p.unidad_medida, unidadId);
+    if (p.factor_empaque != null) { sets.push('factor_empaque = ?'); vals.push(p.factor_empaque); }
+  }
+
+  // Regla legal (precio_lista <= precio_publico) contra el valor EFECTIVO final:
+  // el nuevo si vino en el archivo, o el que ya tenía el producto si no vino.
+  const precioListaFinal = trae('precio_lista') ? p.precio_lista : actual.precio_lista;
+  const precioPublicoFinal = trae('precio_publico') ? normalizarPrecioPublico(p.precio_publico) : actual.precio_publico;
+  const errorPrecios = validarPrecios(precioListaFinal, precioPublicoFinal);
+  if (errorPrecios) return { error: errorPrecios };
+
+  if (trae('precio_lista'))   { sets.push('precio_lista = ?');   vals.push(p.precio_lista); }
+  if (trae('precio_publico')) { sets.push('precio_publico = ?'); vals.push(precioPublicoFinal); }
+  if (trae('precio_costo'))   { sets.push('precio_costo = ?');   vals.push(p.precio_costo); }
+  if (cp.iva_exento && p._ivaCeldaProvista) { sets.push('iva_exento = ?'); vals.push(p.iva_exento ? 1 : 0); }
+  if (trae('ieps'))              { sets.push('ieps = ?');              vals.push(p.ieps); }
+  if (trae('clave_sat'))         { sets.push('clave_sat = ?');         vals.push(p.clave_sat); }
+  if (trae('clave_unidad_sat'))  { sets.push('clave_unidad_sat = ?');  vals.push(p.clave_unidad_sat); }
+  if (trae('sustancia_activa'))  { sets.push('sustancia_activa = ?');  vals.push(p.sustancia_activa); }
+  if (trae('tamano'))            { sets.push('tamano = ?');            vals.push(p.tamano); }
+  if (trae('calibre'))           { sets.push('calibre = ?');           vals.push(p.calibre); }
+  if (trae('especificacion'))    { sets.push('especificacion = ?');    vals.push(p.especificacion); }
+  if (trae('fabricante'))        { sets.push('fabricante = ?');        vals.push(p.fabricante); }
+  if (trae('ean'))               { sets.push('ean = ?');               vals.push(p.ean); }
+
+  if (!sets.length) return { error: null, sinCambios: true };
+
+  vals.push(sku);
+  await conn.query(`UPDATE productos SET ${sets.join(', ')} WHERE sku_interno = ?`, vals);
+  return { error: null };
 }
 
 // ── Importación del catálogo (confirmar e insertar) ───────────────────────────
 async function importConfirm(req, res, next) {
   const conn = await pool.getConnection();
   try {
-    const { productos } = req.body;
+    const { productos, modo_parcial, columnas_presentes } = req.body;
     if (!Array.isArray(productos) || !productos.length) {
       return res.status(400).json({ error: 'productos[] requerido' });
     }
+    const modoParcial = !!modo_parcial;
+    const cp = columnas_presentes || {};
     await conn.beginTransaction();
+
+    // En modo parcial necesitamos la fila vigente de los productos que ya existen,
+    // tanto para saber si el SKU es alta o actualización como para resolver
+    // jerarquías y validar precios contra el valor efectivo final.
+    let actualesPorSku = new Map();
+    if (modoParcial) {
+      const skus = productos.map((p) => (p.sku_interno || '').toString().trim()).filter(Boolean);
+      if (skus.length) {
+        const [rows] = await conn.query(
+          `SELECT sku_interno, familia_id, categoria_id, subcategoria_id, precio_lista, precio_publico
+           FROM productos WHERE sku_interno IN (?)`, [skus]
+        );
+        actualesPorSku = new Map(rows.map((r) => [r.sku_interno, r]));
+      }
+    }
 
     const cache = {};
     let insertados = 0, actualizados = 0, omitidos = 0;
@@ -306,67 +529,39 @@ async function importConfirm(req, res, next) {
 
     for (const p of productos) {
       const sku = (p.sku_interno || '').toString().trim();
-      // Validación mínima de obligatorias
-      if (!sku || !p.descripcion || !p.familia || !p.categoria || !p.subcategoria
-          || p.precio_lista == null || !p.unidad_medida) {
-        omitidos++;
-        if (errores.length < 20) errores.push({ sku, motivo: 'Faltan campos obligatorios' });
+      if (!sku) { omitidos++; errores.length < 20 && errores.push({ sku, motivo: 'SKU vacío' }); continue; }
+
+      const actual = modoParcial ? actualesPorSku.get(sku) : null;
+
+      if (!modoParcial || !actual) {
+        // Alta (siempre) o modo completo (siempre): exige el set obligatorio completo.
+        if (!p.descripcion || !p.familia || !p.categoria || !p.subcategoria
+            || p.precio_lista == null || !p.unidad_medida) {
+          omitidos++;
+          if (errores.length < 20) errores.push({ sku, motivo: 'Faltan campos obligatorios' });
+          continue;
+        }
+        p.precio_publico = normalizarPrecioPublico(p.precio_publico);
+        const errorPrecios = validarPrecios(p.precio_lista, p.precio_publico);
+        if (errorPrecios) {
+          omitidos++;
+          if (errores.length < 20) errores.push({ sku, motivo: errorPrecios });
+          continue;
+        }
+        const resultado = await insertarOReemplazarCompleto(conn, cache, p, sku);
+        if (resultado === 'insertado') insertados++; else actualizados++;
         continue;
       }
 
-      // Regla legal: precio_lista nunca mayor a precio_publico (0/vacío = sin tope)
-      p.precio_publico = normalizarPrecioPublico(p.precio_publico);
-      const errorPrecios = validarPrecios(p.precio_lista, p.precio_publico);
-      if (errorPrecios) {
+      // Modo parcial + producto ya existente: solo se tocan los campos cuya columna vino en el archivo.
+      const { error, sinCambios } = await actualizarParcial(conn, cache, p, sku, cp, actual);
+      if (error) {
         omitidos++;
-        if (errores.length < 20) errores.push({ sku, motivo: errorPrecios });
+        if (errores.length < 20) errores.push({ sku, motivo: error });
         continue;
       }
-
-      // Resolver taxonomía (crea lo que falte, aunque la precarga debería cubrir todo)
-      const familiaId = await resolverId(conn, cache, 'familias',
-        ['nombre'], [p.familia], ['nombre'], [p.familia]);
-      const categoriaId = await resolverId(conn, cache, 'categorias_prod',
-        ['familia_id', 'nombre'], [familiaId, p.categoria], ['familia_id', 'nombre'], [familiaId, p.categoria]);
-      const subcatId = await resolverId(conn, cache, 'subcategorias_prod',
-        ['categoria_id', 'nombre'], [categoriaId, p.subcategoria], ['categoria_id', 'nombre'], [categoriaId, p.subcategoria]);
-      const unidadId = await resolverId(conn, cache, 'unidades_medida',
-        ['nombre'], [p.unidad_medida], ['nombre', 'factor_sugerido'], [p.unidad_medida, p.factor_empaque ?? null]);
-
-      const [r] = await conn.query(
-        `INSERT INTO productos
-           (sku_interno, descripcion, descripcion_norm, familia_id, categoria_id, subcategoria_id,
-            unidad_medida, unidad_medida_id, unidad_base, factor_empaque,
-            control_lote_caducidad, precio_lista, precio_publico, precio_costo, iva_exento, ieps,
-            clave_sat, clave_unidad_sat, clave_cuadro_basico, fabricante, ean,
-            sustancia_activa, tamano, calibre, especificacion)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-         ON DUPLICATE KEY UPDATE
-           descripcion = VALUES(descripcion), descripcion_norm = VALUES(descripcion_norm),
-           familia_id = VALUES(familia_id),
-           categoria_id = VALUES(categoria_id), subcategoria_id = VALUES(subcategoria_id),
-           unidad_medida = VALUES(unidad_medida), unidad_medida_id = VALUES(unidad_medida_id),
-           factor_empaque = VALUES(factor_empaque),
-           control_lote_caducidad = VALUES(control_lote_caducidad),
-           precio_lista = VALUES(precio_lista), precio_publico = VALUES(precio_publico),
-           precio_costo = VALUES(precio_costo),
-           iva_exento = VALUES(iva_exento), ieps = VALUES(ieps),
-           clave_sat = VALUES(clave_sat), clave_unidad_sat = VALUES(clave_unidad_sat),
-           clave_cuadro_basico = VALUES(clave_cuadro_basico),
-           fabricante = VALUES(fabricante), ean = VALUES(ean),
-           sustancia_activa = VALUES(sustancia_activa), tamano = VALUES(tamano),
-           calibre = VALUES(calibre), especificacion = VALUES(especificacion)`,
-        [sku, p.descripcion, normalizar(p.descripcion).substring(0, 800),
-         familiaId, categoriaId, subcatId,
-         p.unidad_medida, unidadId, p.unidad_base || 'pieza', p.factor_empaque ?? 1,
-         p.control_lote_caducidad ? 1 : 0,
-         p.precio_lista, p.precio_publico ?? null, p.precio_costo ?? null, p.iva_exento ? 1 : 0, p.ieps ?? null,
-         p.clave_sat || null, p.clave_unidad_sat || null, p.clave_cuadro_basico || null,
-         p.fabricante || null, p.ean || null,
-         p.sustancia_activa || null, p.tamano || null, p.calibre || null, p.especificacion || null]
-      );
-      // affectedRows: 1 = insert, 2 = update (ON DUPLICATE KEY)
-      if (r.affectedRows === 1) insertados++; else actualizados++;
+      if (sinCambios) { omitidos++; continue; }
+      actualizados++;
     }
 
     await conn.commit();
@@ -376,6 +571,82 @@ async function importConfirm(req, res, next) {
     next(err);
   } finally {
     conn.release();
+  }
+}
+
+// ── Presentaciones de venta (mismo producto, misma existencia en piezas,
+// precio y código de barras propios por presentación — ver migrate_v39) ──
+
+async function listPresentaciones(req, res, next) {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, producto_id, nombre, factor_conversion, precio_lista, ean, activo_pos, orden
+       FROM producto_presentaciones WHERE producto_id = ? ORDER BY orden, id`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) { next(err); }
+}
+
+async function createPresentacion(req, res, next) {
+  try {
+    const { nombre, factor_conversion, precio_lista, ean, activo_pos, orden } = req.body;
+    if (!nombre?.trim()) return res.status(400).json({ error: 'nombre requerido' });
+    const factor = Number(factor_conversion);
+    if (!(factor > 0)) return res.status(400).json({ error: 'factor_conversion debe ser > 0' });
+    const [[prod]] = await pool.query('SELECT id FROM productos WHERE id = ?', [req.params.id]);
+    if (!prod) return res.status(404).json({ error: 'Producto no encontrado' });
+    const [r] = await pool.query(
+      `INSERT INTO producto_presentaciones
+         (producto_id, nombre, factor_conversion, precio_lista, ean, activo_pos, orden)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [req.params.id, nombre.trim(), factor, precio_lista ?? null, ean?.trim() || null,
+       activo_pos === undefined ? 1 : (activo_pos ? 1 : 0), orden || 0]
+    );
+    res.status(201).json({ id: r.insertId });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Ese código de barras ya está asignado a otra presentación' });
+    next(err);
+  }
+}
+
+async function updatePresentacion(req, res, next) {
+  try {
+    const sets = []; const vals = [];
+    if (req.body.nombre !== undefined) {
+      if (!req.body.nombre?.trim()) return res.status(400).json({ error: 'nombre no puede quedar vacío' });
+      sets.push('nombre = ?'); vals.push(req.body.nombre.trim());
+    }
+    if (req.body.factor_conversion !== undefined) {
+      const factor = Number(req.body.factor_conversion);
+      if (!(factor > 0)) return res.status(400).json({ error: 'factor_conversion debe ser > 0' });
+      sets.push('factor_conversion = ?'); vals.push(factor);
+    }
+    if (req.body.precio_lista !== undefined) { sets.push('precio_lista = ?'); vals.push(req.body.precio_lista); }
+    if (req.body.ean !== undefined) { sets.push('ean = ?'); vals.push(req.body.ean?.trim() || null); }
+    if (req.body.activo_pos !== undefined) { sets.push('activo_pos = ?'); vals.push(req.body.activo_pos ? 1 : 0); }
+    if (req.body.orden !== undefined) { sets.push('orden = ?'); vals.push(req.body.orden); }
+    if (!sets.length) return res.status(400).json({ error: 'Sin campos para actualizar' });
+    vals.push(req.params.presentacionId);
+    const [r] = await pool.query(`UPDATE producto_presentaciones SET ${sets.join(', ')} WHERE id = ?`, vals);
+    if (!r.affectedRows) return res.status(404).json({ error: 'Presentación no encontrada' });
+    res.json({ ok: true });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Ese código de barras ya está asignado a otra presentación' });
+    next(err);
+  }
+}
+
+async function removePresentacion(req, res, next) {
+  try {
+    const [r] = await pool.query('DELETE FROM producto_presentaciones WHERE id = ?', [req.params.presentacionId]);
+    if (!r.affectedRows) return res.status(404).json({ error: 'Presentación no encontrada' });
+    res.json({ ok: true });
+  } catch (err) {
+    if (err.code === 'ER_ROW_IS_REFERENCED_2' || err.code === 'ER_ROW_IS_REFERENCED') {
+      return res.status(409).json({ error: 'Esta presentación ya se usó en ventas; desactívala (activo_pos) en vez de borrarla' });
+    }
+    next(err);
   }
 }
 
@@ -419,4 +690,7 @@ function plantillaCatalogo(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { list, match, matchIa, getById, create, update, updateVenta, importPreview, importConfirm, plantillaCatalogo, remove, removeMultiple };
+module.exports = {
+  list, match, matchIa, getById, create, update, updateVenta, importPreview, importConfirm, plantillaCatalogo, remove, removeMultiple,
+  listPresentaciones, createPresentacion, updatePresentacion, removePresentacion, exportarExcel,
+};

@@ -5,7 +5,7 @@ const { PERMISSIONABLE_KEYS } = require('./menu.keys');
 async function list(req, res, next) {
   try {
     const [rows] = await pool.query(
-      `SELECT u.id, u.nombre, u.puesto, u.email, u.rol, u.activo,
+      `SELECT u.id, u.nombre, u.puesto, u.email, u.telefono, u.recibe_alertas, u.rol, u.activo,
               u.jefe_id, j.nombre AS jefe_nombre,
               u.empresa_id, e.nombre AS empresa_nombre,
               (u.clave_supervisor_hash IS NOT NULL) AS tiene_clave_supervisor
@@ -21,7 +21,7 @@ async function list(req, res, next) {
 async function getById(req, res, next) {
   try {
     const [[u]] = await pool.query(
-      `SELECT u.id, u.nombre, u.puesto, u.email, u.rol, u.activo,
+      `SELECT u.id, u.nombre, u.puesto, u.email, u.telefono, u.recibe_alertas, u.rol, u.activo,
               u.jefe_id, j.nombre AS jefe_nombre,
               u.empresa_id, e.nombre AS empresa_nombre,
               (u.clave_supervisor_hash IS NOT NULL) AS tiene_clave_supervisor
@@ -38,15 +38,15 @@ async function getById(req, res, next) {
 
 async function create(req, res, next) {
   try {
-    const { nombre, puesto, email, password, rol, jefe_id, empresa_id } = req.body;
+    const { nombre, puesto, email, telefono, recibe_alertas, password, rol, jefe_id, empresa_id } = req.body;
     if (!nombre || !email || !password) {
       return res.status(400).json({ error: 'nombre, email y contraseña son requeridos' });
     }
     const hash = await bcrypt.hash(password, 10);
     const [r] = await pool.query(
-      `INSERT INTO usuarios (nombre, puesto, email, password_hash, rol, jefe_id, empresa_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [nombre, puesto || null, email, hash, rol || 'operador', jefe_id || null, empresa_id || 1]
+      `INSERT INTO usuarios (nombre, puesto, email, telefono, recibe_alertas, password_hash, rol, jefe_id, empresa_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [nombre, puesto || null, email, telefono || null, recibe_alertas ? 1 : 0, hash, rol || 'operador', jefe_id || null, empresa_id || 1]
     );
     res.status(201).json({ id: r.insertId, nombre, email });
   } catch (err) {
@@ -59,11 +59,11 @@ async function create(req, res, next) {
 
 async function update(req, res, next) {
   try {
-    const { nombre, puesto, email, rol, jefe_id, activo, password, empresa_id, clave_supervisor } = req.body;
+    const { nombre, puesto, email, telefono, recibe_alertas, rol, jefe_id, activo, password, empresa_id, clave_supervisor } = req.body;
     const rolFinal = rol || 'operador';
 
-    const sets = ['nombre=?', 'puesto=?', 'email=?', 'rol=?', 'jefe_id=?', 'activo=?', 'empresa_id=?'];
-    const vals = [nombre, puesto || null, email, rolFinal,
+    const sets = ['nombre=?', 'puesto=?', 'email=?', 'telefono=?', 'recibe_alertas=?', 'rol=?', 'jefe_id=?', 'activo=?', 'empresa_id=?'];
+    const vals = [nombre, puesto || null, email, telefono || null, recibe_alertas ? 1 : 0, rolFinal,
       jefe_id || null, activo !== undefined ? activo : 1, empresa_id || 1];
 
     if (password) {

@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import { Plus, Loader2, Stethoscope, Search } from 'lucide-react';
+import { Plus, Loader2, Stethoscope, Search, Clock, X } from 'lucide-react';
 import api from '../../services/api';
 import Modal from '../../components/ui/Modal';
 
@@ -153,6 +153,13 @@ export default function Medicos() {
               <label className="label">Institución (emisora de la cédula)</label>
               <input className="input" {...register('institucion')} />
             </div>
+
+            {editando && (
+              <div className="border-t border-gray-100 pt-3">
+                <HorarioMedico medicoId={editando.id} />
+              </div>
+            )}
+
             <div className="flex gap-3 pt-2">
               <button type="submit" disabled={guardarMut.isPending} className="btn-primary">
                 {guardarMut.isPending ? <Loader2 size={15} className="animate-spin" /> : null}
@@ -162,6 +169,78 @@ export default function Medicos() {
             </div>
           </form>
         </Modal>
+      )}
+    </div>
+  );
+}
+
+const DIAS_SEMANA = [
+  { v: 1, label: 'Lunes' }, { v: 2, label: 'Martes' }, { v: 3, label: 'Miércoles' },
+  { v: 4, label: 'Jueves' }, { v: 5, label: 'Viernes' }, { v: 6, label: 'Sábado' }, { v: 7, label: 'Domingo' },
+];
+
+// Turnos semanales que consulta el chatbot de WhatsApp para decir quién está
+// en turno ahora mismo (whatsapp.chatbot.service.js) — no liga con pos_citas
+// (las citas no distinguen médico, ver migrate_v37). Varios turnos por día
+// son válidos (matutino + vespertino), por eso es una lista y no un rango fijo.
+function HorarioMedico({ medicoId }) {
+  const [turnos, setTurnos] = useState(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['medico-horarios', medicoId],
+    queryFn: () => api.get(`/pos/medicos/${medicoId}/horarios`).then((r) => r.data),
+  });
+
+  useEffect(() => {
+    if (data) setTurnos(data.map((t) => ({ dia_semana: t.dia_semana, hora_inicio: t.hora_inicio.slice(0, 5), hora_fin: t.hora_fin.slice(0, 5) })));
+  }, [data]);
+
+  const set = (idx, campo, valor) => setTurnos((ts) => ts.map((t, i) => (i === idx ? { ...t, [campo]: valor } : t)));
+  const quitar = (idx) => setTurnos((ts) => ts.filter((_, i) => i !== idx));
+  const agregar = () => setTurnos((ts) => [...(ts || []), { dia_semana: 1, hora_inicio: '09:00', hora_fin: '14:00' }]);
+
+  const guardar = useMutation({
+    mutationFn: () => api.put(`/pos/medicos/${medicoId}/horarios`, { turnos: turnos || [] }),
+    onSuccess: () => toast.success('Turnos guardados'),
+    onError: (e) => toast.error(e.response?.data?.error || 'Error al guardar turnos'),
+  });
+
+  return (
+    <div>
+      <label className="label flex items-center gap-1.5">
+        <Clock size={13} className="text-brand-500" /> Turnos (para el chatbot de WhatsApp)
+      </label>
+      <p className="text-xs text-gray-400 mb-2">
+        El chatbot contesta "¿hay doctor?" según estos turnos. Puede haber más de uno por día (ej. matutino y vespertino).
+      </p>
+      {!turnos || isLoading ? (
+        <p className="text-xs text-gray-400">Cargando…</p>
+      ) : (
+        <div className="space-y-1.5">
+          {turnos.map((t, idx) => (
+            <div key={idx} className="flex items-center gap-2 text-sm">
+              <select className="input py-1 text-xs w-28" value={t.dia_semana}
+                onChange={(e) => set(idx, 'dia_semana', Number(e.target.value))}>
+                {DIAS_SEMANA.map((d) => <option key={d.v} value={d.v}>{d.label}</option>)}
+              </select>
+              <input type="time" className="input py-1 text-xs w-24" value={t.hora_inicio}
+                onChange={(e) => set(idx, 'hora_inicio', e.target.value)} />
+              <span className="text-gray-400">a</span>
+              <input type="time" className="input py-1 text-xs w-24" value={t.hora_fin}
+                onChange={(e) => set(idx, 'hora_fin', e.target.value)} />
+              <button type="button" className="text-gray-400 hover:text-red-500" onClick={() => quitar(idx)}>
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+          {!turnos.length && <p className="text-xs text-gray-400">Sin turnos cargados.</p>}
+          <div className="flex justify-between items-center pt-1">
+            <button type="button" className="text-xs text-brand-500 hover:underline" onClick={agregar}>+ Agregar turno</button>
+            <button type="button" className="btn-secondary btn-sm" disabled={guardar.isPending} onClick={() => guardar.mutate()}>
+              {guardar.isPending ? 'Guardando…' : 'Guardar turnos'}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -3,6 +3,7 @@ import { useAuthStore } from './store/authStore';
 import Layout from './components/layout/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import PanelSupervisor from './pages/Supervisor/PanelSupervisor';
 import SolicitudesList from './pages/Solicitudes/SolicitudesList';
 import NuevaSolicitud from './pages/Solicitudes/NuevaSolicitud';
 import DetalleSolicitud from './pages/Solicitudes/DetalleSolicitud';
@@ -39,8 +40,11 @@ import CfdiResumenGeneral from './pages/Contabilidad/CfdiResumenGeneral';
 import Configuracion from './pages/Configuracion/Configuracion';
 import Empresas from './pages/Configuracion/Empresas';
 import PosSucursales from './pages/Pos/Sucursales';
+import Promociones from './pages/Pos/Promociones';
+import ClientesFidelidad from './pages/Pos/ClientesFidelidad';
 import PosTurnos from './pages/Pos/Turnos';
 import PosCitas from './pages/Pos/Citas';
+import PosPedidosWhatsApp from './pages/Pos/PedidosWhatsApp';
 import VentaMostrador from './pages/Pos/VentaMostrador';
 import HistorialVentas from './pages/Pos/HistorialVentas';
 import Bitacora from './pages/Pos/Bitacora';
@@ -53,6 +57,10 @@ import Medicos from './pages/Expediente/Medicos';
 import ImportarDatos from './pages/Herramientas/ImportarDatos';
 import ExportarDatos from './pages/Herramientas/ExportarDatos';
 import Ayuda from './pages/Ayuda/Ayuda';
+import WhatsAppBandeja from './pages/WhatsApp/Bandeja';
+import WhatsAppContactos from './pages/WhatsApp/Contactos';
+import WhatsAppEnvioMasivo from './pages/WhatsApp/EnvioMasivo';
+import WhatsAppPreguntasFrecuentes from './pages/WhatsApp/PreguntasFrecuentes';
 
 function RequireAuth({ children }) {
   const token = useAuthStore((s) => s.token);
@@ -73,6 +81,7 @@ export default function App() {
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard"                           element={<Dashboard />} />
+        <Route path="supervisor"                          element={<PanelSupervisor />} />
         <Route path="solicitudes"                         element={<SolicitudesList />} />
         <Route path="solicitudes/nueva"                   element={<NuevaSolicitud />} />
         <Route path="solicitudes/:id"                     element={<DetalleSolicitud />} />
@@ -115,13 +124,20 @@ export default function App() {
         <Route path="pos/ventas"                          element={<HistorialVentas />} />
         <Route path="pos/bitacora"                        element={<Bitacora />} />
         <Route path="pos/sucursales"                      element={<PosSucursales />} />
+        <Route path="pos/promociones"                     element={<Promociones />} />
+        <Route path="pos/clientes-fidelidad"              element={<ClientesFidelidad />} />
         <Route path="pos/facturas-globales"               element={<FacturasGlobales />} />
         <Route path="pos/turnos"                          element={<PosTurnos />} />
         <Route path="pos/citas"                           element={<PosCitas />} />
+        <Route path="pos/pedidos-whatsapp"                element={<PosPedidosWhatsApp />} />
         <Route path="pos/reportes"                        element={<PosReportes />} />
         <Route path="pos/ganancias"                       element={<PosGanancias />} />
         <Route path="herramientas/importar"               element={<ImportarDatos />} />
         <Route path="herramientas/exportar"               element={<ExportarDatos />} />
+        <Route path="whatsapp/bandeja"                    element={<WhatsAppBandeja />} />
+        <Route path="whatsapp/contactos"                  element={<WhatsAppContactos />} />
+        <Route path="whatsapp/masivos"                    element={<WhatsAppEnvioMasivo />} />
+        <Route path="whatsapp/preguntas-frecuentes"       element={<WhatsAppPreguntasFrecuentes />} />
         <Route path="ayuda"                               element={<Ayuda />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

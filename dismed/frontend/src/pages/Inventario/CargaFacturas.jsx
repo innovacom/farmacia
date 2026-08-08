@@ -40,6 +40,9 @@ export default function CargaFacturas() {
       setPreview(data);
       setRenglones(data.renglones);
       toast.success(`${data.renglones.length} productos leídos del CFDI`);
+      if (data.resumen.sin_clasificar_ia > 0) {
+        toast(`${data.resumen.sin_clasificar_ia} producto(s) nuevo(s) no se pudieron clasificar automáticamente — revisa familia/categoría y la clasificación COFEPRIS a mano.`, { icon: '⚠️', duration: 6000 });
+      }
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al leer el XML');
     } finally { setParsing(false); }
@@ -155,6 +158,11 @@ export default function CargaFacturas() {
               {preview.resumen.nuevos_productos > 0 && (
                 <span className="bg-amber-50 text-amber-700 rounded-lg px-3 py-1.5">
                   {preview.resumen.nuevos_productos} nuevos en catálogo — captura su precio abajo para dejarlos vendibles
+                </span>
+              )}
+              {preview.resumen.sin_clasificar_ia > 0 && (
+                <span className="bg-red-50 text-red-600 rounded-lg px-3 py-1.5">
+                  {preview.resumen.sin_clasificar_ia} sin clasificar por IA — revisa familia/categoría/COFEPRIS en Catálogo de productos
                 </span>
               )}
               {ubicaciones.length === 0 && (

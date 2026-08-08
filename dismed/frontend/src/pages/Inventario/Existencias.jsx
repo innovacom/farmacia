@@ -1,8 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Search, Boxes } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { Search, Boxes, Download, Loader2 } from 'lucide-react';
 import api from '../../services/api';
+import { descargarArchivo } from '../../services/descargas';
 import { usePagination } from '../../hooks/usePagination';
+import { useFabricantes } from '../../hooks/useFabricantes';
 import Pagination from '../../components/ui/Pagination';
 
 const fmtMXN = (n) => Number(n || 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
@@ -20,14 +23,17 @@ export default function Existencias() {
   const [q, setQ] = useState('');
   const [almacen, setAlmacen] = useState('');
   const [estado, setEstado] = useState('');
+  const [fabricante, setFabricante] = useState('');
+  const [exportando, setExportando] = useState(false);
 
   const { data: almacenes = [] } = useQuery({
     queryKey: ['almacenes'], queryFn: () => api.get('/almacenes').then((r) => r.data),
   });
+  const fabricantes = useFabricantes();
   const { data = [], isLoading } = useQuery({
-    queryKey: ['existencias', q, almacen, estado],
+    queryKey: ['existencias', q, almacen, estado, fabricante],
     queryFn: () => api.get('/inventario/existencias', {
-      params: { q: q || undefined, almacen_id: almacen || undefined, estado: estado || undefined },
+      params: { q: q || undefined, almacen_id: almacen || undefined, estado: estado || undefined, fabricante: fabricante || undefined },
     }).then((r) => r.data),
     keepPreviousData: true,
   });
@@ -37,25 +43,47 @@ export default function Existencias() {
 
   const { pageItems, page, setPage, totalPages, total, from, to } = usePagination(data);
 
+  async function exportarExcel() {
+    setExportando(true);
+    try {
+      await descargarArchivo('/inventario/existencias/exportar', 'existencias.xlsx', {
+        q: q || undefined, almacen_id: almacen || undefined, estado: estado || undefined, fabricante: fabricante || undefined,
+      });
+    } catch {
+      toast.error('Error al generar el Excel');
+    } finally {
+      setExportando(false);
+    }
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-gray-900">Existencias</h1>
-        <div className="flex gap-4 text-sm">
-          <div className="text-right"><p className="text-xs text-gray-400">Renglones</p><p className="font-bold">{data.length}</p></div>
-          <div className="text-right"><p className="text-xs text-gray-400">Unidades</p><p className="font-bold">{unidadesTotal.toLocaleString('es-MX')}</p></div>
-          <div className="text-right"><p className="text-xs text-gray-400">Valor</p><p className="font-bold text-brand-600">{fmtMXN(valorTotal)}</p></div>
+        <div className="flex items-center gap-4">
+          <button onClick={exportarExcel} disabled={exportando} className="btn-secondary">
+            {exportando ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} Exportar Excel
+          </button>
+          <div className="flex gap-4 text-sm">
+            <div className="text-right"><p className="text-xs text-gray-400">Renglones</p><p className="font-bold">{data.length}</p></div>
+            <div className="text-right"><p className="text-xs text-gray-400">Unidades</p><p className="font-bold">{unidadesTotal.toLocaleString('es-MX')}</p></div>
+            <div className="text-right"><p className="text-xs text-gray-400">Valor</p><p className="font-bold text-brand-600">{fmtMXN(valorTotal)}</p></div>
+          </div>
         </div>
       </div>
 
       <div className="flex gap-3 mb-4 flex-wrap">
         <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input className="input pl-9 w-72" placeholder="Buscar SKU o descripción…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className="input pl-9 w-72" placeholder="Buscar SKU, EAN o descripción…" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         <select className="input w-48" value={almacen} onChange={(e) => setAlmacen(e.target.value)}>
           <option value="">Todos los almacenes</option>
           {almacenes.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+        </select>
+        <select className="input w-48" value={fabricante} onChange={(e) => setFabricante(e.target.value)}>
+          <option value="">Todos los fabricantes</option>
+          {fabricantes.map((f) => <option key={f} value={f}>{f}</option>)}
         </select>
         <select className="input w-44" value={estado} onChange={(e) => setEstado(e.target.value)}>
           <option value="">Toda caducidad</option>

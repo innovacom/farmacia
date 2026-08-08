@@ -10,6 +10,35 @@ const ventas = require('./pos.ventas.service');
 const posCfdi = require('./pos.cfdi.service');
 const reportes = require('./pos.reportes.service');
 const citas = require('./pos.citas.service');
+const whatsapp = require('../whatsapp/whatsapp.service');
+
+// Reemplazo total de una tabla-hija tenant-scoped dependiente de un padre
+// (DELETE de todas sus filas + reinsertar las nuevas dentro de una
+// transacción) — mismo patrón detrás de "horarios de sucursal" y "horarios
+// de médico": más simple que diffear fila por fila. `validarFila` corre
+// ANTES de tocar la BD (así un dato inválido no deja la tabla vacía) y
+// `filaValores` mapea cada elemento de `filas` a los valores del INSERT, en
+// el mismo orden que `columnas`.
+async function reemplazarFilasHijas(conn, {
+  tablaPadre, idPadre, empresaId, tablaHija, columnaFk, columnas, filas, validarFila, filaValores,
+}) {
+  await conn.beginTransaction();
+  try {
+    await getScoped(conn, tablaPadre, idPadre, empresaId, { forUpdate: true });
+    if (validarFila) filas.forEach(validarFila);
+    await conn.query(`DELETE FROM ${tablaHija} WHERE ${columnaFk} = ?`, [idPadre]);
+    for (const fila of filas) {
+      await conn.query(
+        `INSERT INTO ${tablaHija} (${columnas.join(', ')}) VALUES (${columnas.map(() => '?').join(', ')})`,
+        filaValores(fila)
+      );
+    }
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  }
+}
 
 // ── Sucursales ────────────────────────────────────────────────────────
 
@@ -62,10 +91,11 @@ async function updateSucursal(req, res, next) {
       const items = req.body.productos_favoritos;
       if (!Array.isArray(items) || items.length > 5 || !items.every((e) =>
         Number.isInteger(e?.id) && e.id > 0 && (e.color == null || HEX.test(e.color))
+        && (e.presentacion_id == null || (Number.isInteger(e.presentacion_id) && e.presentacion_id > 0))
       )) {
-        return res.status(400).json({ error: 'productos_favoritos: máximo 5 {id, color} válidos' });
+        return res.status(400).json({ error: 'productos_favoritos: máximo 5 {id, color, presentacion_id?} válidos' });
       }
-      const norm = items.map((e) => ({ id: e.id, color: e.color || null }));
+      const norm = items.map((e) => ({ id: e.id, color: e.color || null, presentacion_id: e.presentacion_id || null }));
       sets.push('productos_favoritos = ?');
       vals.push(norm.length ? JSON.stringify(norm) : null);
     }
@@ -76,6 +106,49 @@ async function updateSucursal(req, res, next) {
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Ese código ya existe' });
     next(err);
+  }
+}
+
+// ── Horarios de sucursal (consulta del chatbot de WhatsApp) ────────────
+// Reemplazo total por sucursal en cada guardado (más simple que diffear
+// día por día); un día sin fila = "sin información" para el chatbot, no
+// "cerrado" — evita que el bot invente un cierre que nadie configuró.
+
+async function listHorariosSucursal(req, res, next) {
+  try {
+    await getScoped(pool, 'sucursales', req.params.id, req.empresaId);
+    const [rows] = await pool.query(
+      `SELECT dia_semana, hora_inicio, hora_fin, cerrado FROM sucursal_horarios
+       WHERE sucursal_id = ? ORDER BY dia_semana`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) { next(err); }
+}
+
+async function setHorariosSucursal(req, res, next) {
+  const conn = await pool.getConnection();
+  try {
+    const dias = Array.isArray(req.body.dias) ? req.body.dias : [];
+    await reemplazarFilasHijas(conn, {
+      tablaPadre: 'sucursales', idPadre: req.params.id, empresaId: req.empresaId,
+      tablaHija: 'sucursal_horarios', columnaFk: 'sucursal_id',
+      columnas: ['empresa_id', 'sucursal_id', 'dia_semana', 'hora_inicio', 'hora_fin', 'cerrado'],
+      filas: dias,
+      validarFila: (d) => {
+        if (!Number.isInteger(d.dia_semana) || d.dia_semana < 1 || d.dia_semana > 7) {
+          throw Object.assign(new Error('dia_semana inválido (1-7)'), { status: 400 });
+        }
+      },
+      filaValores: (d) => [req.empresaId, req.params.id, d.dia_semana,
+        d.cerrado ? null : (d.hora_inicio || null), d.cerrado ? null : (d.hora_fin || null), d.cerrado ? 1 : 0],
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  } finally {
+    conn.release();
   }
 }
 
@@ -287,17 +360,29 @@ async function listTurnos(req, res, next) {
 
 async function buscarProductos(req, res, next) {
   try {
-    const { q, sucursal_id } = req.query;
+    const { q, sucursal_id, cliente_fidelidad_id } = req.query;
     if (!sucursal_id) return res.status(400).json({ error: 'sucursal_id requerido' });
-    res.json(await ventas.buscarProductos(req.empresaId, { q, sucursal_id }));
+    res.json(await ventas.buscarProductos(req.empresaId, { q, sucursal_id, cliente_fidelidad_id }));
   } catch (err) { next(err); }
 }
 
 async function favoritosProductos(req, res, next) {
   try {
-    const { sucursal_id } = req.query;
+    const { sucursal_id, cliente_fidelidad_id } = req.query;
     if (!sucursal_id) return res.status(400).json({ error: 'sucursal_id requerido' });
-    res.json(await ventas.favoritos(req.empresaId, { sucursal_id }));
+    res.json(await ventas.favoritos(req.empresaId, { sucursal_id, cliente_fidelidad_id }));
+  } catch (err) { next(err); }
+}
+
+async function registrarExistencia(req, res, next) {
+  try {
+    const { sucursal_id, presentacion_id, cantidad, costo_unitario, numero_lote, fecha_caducidad } = req.body;
+    if (!sucursal_id) return res.status(400).json({ error: 'sucursal_id requerido' });
+    const r = await ventas.registrarExistencia(req.empresaId, {
+      sucursal_id, producto_id: req.params.id, presentacion_id, cantidad,
+      costo_unitario, numero_lote, fecha_caducidad, usuario_id: req.user.id,
+    });
+    res.status(201).json(r);
   } catch (err) { next(err); }
 }
 
@@ -399,6 +484,48 @@ async function updateMedico(req, res, next) {
   }
 }
 
+// ── Horarios de médico (consulta del chatbot de WhatsApp: "quién está en
+// turno ahora") — informativo, no liga con pos_citas (ver migrate_v37: las
+// citas no distinguen médico). Varias filas por día son válidas (turno
+// matutino + vespertino), por eso es lista de turnos, no un solo rango.
+
+async function listHorariosMedico(req, res, next) {
+  try {
+    await getScoped(pool, 'medicos', req.params.id, req.empresaId);
+    const [rows] = await pool.query(
+      `SELECT id, dia_semana, hora_inicio, hora_fin FROM medico_horarios
+       WHERE medico_id = ? ORDER BY dia_semana, hora_inicio`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) { next(err); }
+}
+
+async function setHorariosMedico(req, res, next) {
+  const conn = await pool.getConnection();
+  try {
+    const turnosBody = Array.isArray(req.body.turnos) ? req.body.turnos : [];
+    await reemplazarFilasHijas(conn, {
+      tablaPadre: 'medicos', idPadre: req.params.id, empresaId: req.empresaId,
+      tablaHija: 'medico_horarios', columnaFk: 'medico_id',
+      columnas: ['empresa_id', 'medico_id', 'dia_semana', 'hora_inicio', 'hora_fin'],
+      filas: turnosBody,
+      validarFila: (t) => {
+        if (!Number.isInteger(t.dia_semana) || t.dia_semana < 1 || t.dia_semana > 7 || !t.hora_inicio || !t.hora_fin) {
+          throw Object.assign(new Error('Cada turno requiere dia_semana (1-7), hora_inicio y hora_fin'), { status: 400 });
+        }
+      },
+      filaValores: (t) => [req.empresaId, req.params.id, t.dia_semana, t.hora_inicio, t.hora_fin],
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  } finally {
+    conn.release();
+  }
+}
+
 // ── Citas médicas (agenda del mostrador) ────────────────────────────────
 // No importa qué médico esté de guardia: solo se aparta horario + paciente.
 // El cobro reusa la venta normal de mostrador (ver VentaMostrador.jsx con
@@ -447,6 +574,25 @@ async function pagarCita(req, res, next) {
   try {
     if (!req.body?.venta_id) return res.status(400).json({ error: 'venta_id requerido' });
     res.json(await citas.marcarPagada(req.empresaId, req.params.id, { venta_id: req.body.venta_id }));
+  } catch (err) { next(err); }
+}
+
+async function citasPendientesConfirmar(req, res, next) {
+  try {
+    if (!req.query.sucursal_id) return res.status(400).json({ error: 'sucursal_id requerido' });
+    res.json(await citas.pendientesConfirmar(req.empresaId, req.query.sucursal_id));
+  } catch (err) { next(err); }
+}
+
+async function confirmarCita(req, res, next) {
+  try {
+    res.json(await citas.confirmarCita(req.empresaId, req.params.id, { usuario_id: req.user.id }));
+  } catch (err) { next(err); }
+}
+
+async function recordatorioWhatsappCita(req, res, next) {
+  try {
+    res.json(await whatsapp.enviarRecordatorioCita(req.empresaId, req.params.id, { usuario_id: req.user.id }));
   } catch (err) { next(err); }
 }
 
@@ -568,16 +714,24 @@ async function reporteGananciasProductos(req, res, next) {
   try { res.json(await reportes.gananciasPorProducto(req.empresaId, req.query)); }
   catch (err) { next(err); }
 }
+async function reportePreciosModificados(req, res, next) {
+  try { res.json(await reportes.preciosModificados(req.empresaId, req.query)); }
+  catch (err) { next(err); }
+}
 
 module.exports = {
   listSucursales, createSucursal, updateSucursal,
+  listHorariosSucursal, setHorariosSucursal,
   listCajas, createCaja, updateCaja,
   turnoActual, abrirTurno, crearMovimiento, corteTurno, cerrarTurno, listTurnos,
   autorizarSupervisorCierre, desgloseTurno,
-  buscarProductos, favoritosProductos, crearVenta, listarVentas, detalleVenta, cancelarVenta,
+  buscarProductos, favoritosProductos, registrarExistencia, crearVenta, listarVentas, detalleVenta, cancelarVenta,
   listMedicos, createMedico, updateMedico, bitacora,
+  listHorariosMedico, setHorariosMedico,
   listServiciosCitas, listCitas, detalleCita, crearCita, updateCita, cancelarCita, pagarCita,
+  citasPendientesConfirmar, confirmarCita, recordatorioWhatsappCita,
   facturarVenta, crearFacturaGlobal, timbrarFacturaGlobal, liberarFacturaGlobal, listarFacturasGlobales,
   reporteResumen, reporteVentasSucursal, reporteTopProductos, reporteFormasPago,
   reporteExistencias, reporteRecetas, reporteGanancias, reporteGananciasProductos,
+  reportePreciosModificados,
 };

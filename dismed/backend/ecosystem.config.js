@@ -6,7 +6,7 @@ module.exports = {
     {
       name: 'dismed-api',
       script: 'src/app.js',
-      instances: 1,           // 1 instancia (ajustar según CPU del VPS)
+      instances: 2,           // 2 instancias (evita que una tarea pesada bloquee el event loop del webhook de WhatsApp)
       autorestart: true,
       watch: false,           // NUNCA watch en producción
       max_memory_restart: '500M',

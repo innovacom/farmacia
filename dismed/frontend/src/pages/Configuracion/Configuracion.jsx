@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { SlidersHorizontal, Check, Loader2, ShieldCheck, Save, Clock } from 'lucide-react';
+import { SlidersHorizontal, Check, Loader2, ShieldCheck, Save, Clock, MessageCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { usePrefsStore, ROWS_PER_PAGE_OPTIONS } from '../../store/prefsStore';
 import { usePermisos } from '../../hooks/usePermisos';
@@ -54,6 +54,9 @@ export default function Configuracion() {
 
       {/* Vigencia de precios (solo admin) */}
       {isAdmin && <VigenciaPrecios />}
+
+      {/* WhatsApp API (recordatorio de citas, solo admin) */}
+      {isAdmin && <WhatsAppEstado />}
 
       {/* Permisos por usuario (solo admin) */}
       {isAdmin && <PermisosUsuarios />}
@@ -144,6 +147,38 @@ function VigenciaPrecios() {
             <span className="text-xs text-gray-400">Valores permitidos: 1 a 120 meses.</span>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+// Solo lectura: la configuración real (token, WABA ID, plantilla) se pone en
+// el .env del backend y se activa desde la propia consola de Meta — ver
+// src/modules/whatsapp/README.md. Aquí solo se confirma si ya quedó activa.
+function WhatsAppEstado() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['whatsapp-estado'],
+    queryFn: () => api.get('/whatsapp/estado').then((r) => r.data),
+  });
+
+  return (
+    <div className="card mt-6">
+      <div className="flex items-center gap-2 mb-1">
+        <MessageCircle size={18} className="text-brand-500" />
+        <h2 className="font-semibold text-gray-900">WhatsApp API (recordatorio de citas)</h2>
+      </div>
+      <p className="text-sm text-gray-500 mb-3">
+        Envío automático del recordatorio de citas y recepción de la respuesta del paciente
+        (confirmar/reprogramar/cancelar) vía WhatsApp Cloud API. Se configura con variables de
+        entorno en el servidor — ver <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">
+        src/modules/whatsapp/README.md</code> en el backend.
+      </p>
+      {isLoading ? (
+        <p className="text-sm text-gray-400">Cargando…</p>
+      ) : data?.configurado ? (
+        <span className="badge-green">Configurado — el envío automático está activo</span>
+      ) : (
+        <span className="badge-yellow">Sin configurar — Citas usa por ahora el enlace manual de WhatsApp</span>
       )}
     </div>
   );

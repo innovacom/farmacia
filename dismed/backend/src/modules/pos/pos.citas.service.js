@@ -160,7 +160,8 @@ async function updateCita(empresaId, id, { fecha, hora_inicio, producto_id, paci
   await pool.query(
     `UPDATE pos_citas
      SET fecha = ?, hora_inicio = ?, producto_id = ?, servicio_descripcion = ?, servicio_precio = ?,
-         paciente_nombre = ?, paciente_telefono = ?, notas = ?
+         paciente_nombre = ?, paciente_telefono = ?, notas = ?,
+         reprogramar_solicitado = 0, reprogramar_solicitado_en = NULL
      WHERE id = ? AND empresa_id = ?`,
     [fecha, hora_inicio, servicio.id, servicio.descripcion, servicio.precio_lista,
      paciente_nombre.trim(), paciente_telefono?.trim() || null, notas?.trim() || null, id, empresaId]
@@ -184,6 +185,54 @@ async function cancelarCita(empresaId, id, { motivo, usuario_id }) {
     `UPDATE pos_citas SET estatus = 'cancelada', cancelada_en = NOW(), cancelada_por = ?, motivo_cancelacion = ?
      WHERE id = ? AND empresa_id = ?`,
     [usuario_id, motivo?.trim() || null, id, empresaId]
+  );
+  return { ok: true };
+}
+
+// Citas de hoy/mañana que siguen "agendada" y sin confirmar con el paciente:
+// el POS de venta las muestra como recordatorio para que el empleado llame o
+// escriba por WhatsApp antes de que se presente (o no) a su cita.
+async function pendientesConfirmar(empresaId, sucursalId) {
+  const [rows] = await pool.query(
+    `SELECT id, sucursal_id, fecha, hora_inicio, paciente_nombre, paciente_telefono, servicio_descripcion
+     FROM pos_citas
+     WHERE empresa_id = ? AND sucursal_id = ? AND estatus = 'agendada' AND confirmada = 0
+       AND fecha BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 1 DAY)
+     ORDER BY fecha, hora_inicio`,
+    [empresaId, sucursalId]
+  );
+  return rows;
+}
+
+async function confirmarCita(empresaId, id, { usuario_id }) {
+  const cita = await getScoped(pool, 'pos_citas', id, empresaId);
+  if (cita.estatus !== 'agendada') {
+    const err = new Error('Solo se puede confirmar una cita agendada');
+    err.status = 409;
+    throw err;
+  }
+  if (cita.confirmada) {
+    const err = new Error('Esa cita ya estaba confirmada');
+    err.status = 409;
+    throw err;
+  }
+  await pool.query(
+    `UPDATE pos_citas SET confirmada = 1, confirmada_en = NOW(), confirmada_por = ?
+     WHERE id = ? AND empresa_id = ?`,
+    [usuario_id, id, empresaId]
+  );
+  return { ok: true };
+}
+
+// El paciente pidió reprogramar por WhatsApp: no se reagenda solo (requiere
+// elegir nuevo horario), solo se marca para que el empleado le devuelva el
+// contacto. No cambia el estatus 'agendada' — sigue apareciendo en la agenda.
+async function marcarReprogramarSolicitado(empresaId, id) {
+  await getScoped(pool, 'pos_citas', id, empresaId);
+  await pool.query(
+    `UPDATE pos_citas SET reprogramar_solicitado = 1, reprogramar_solicitado_en = NOW()
+     WHERE id = ? AND empresa_id = ?`,
+    [id, empresaId]
   );
   return { ok: true };
 }
@@ -212,4 +261,7 @@ async function marcarPagada(empresaId, id, { venta_id }) {
   return { ok: true };
 }
 
-module.exports = { listarServicios, listarCitas, detalleCita, crearCita, updateCita, cancelarCita, marcarPagada };
+module.exports = {
+  listarServicios, listarCitas, detalleCita, crearCita, updateCita, cancelarCita, marcarPagada,
+  pendientesConfirmar, confirmarCita, marcarReprogramarSolicitado,
+};

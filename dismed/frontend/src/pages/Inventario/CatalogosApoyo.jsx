@@ -1,12 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { Plus, Loader2, Layers, Trash2 } from 'lucide-react';
+import { Plus, Loader2, Layers, Trash2, Upload } from 'lucide-react';
 import api from '../../services/api';
 import { usePagination } from '../../hooks/usePagination';
 import Pagination from '../../components/ui/Pagination';
 import Modal from '../../components/ui/Modal';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import ImportCatalogosApoyoModal from './ImportCatalogosApoyoModal';
 
 const TABS = [
   { key: 'familias',      label: 'Familias',              endpoint: 'familias' },
@@ -25,6 +26,7 @@ export default function CatalogosApoyo() {
   const [nuevo, setNuevo] = useState('');
   const [factor, setFactor] = useState('');
   const [editando, setEditando] = useState(null); // { nombre, factor_sugerido, ...item }
+  const [importando, setImportando] = useState(false);
 
   const familias = useQuery({
     queryKey: ['familias', estatus],
@@ -118,7 +120,12 @@ export default function CatalogosApoyo() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Catálogos de apoyo</h1>
+      <div className="flex items-start justify-between gap-3 mb-1 flex-wrap">
+        <h1 className="text-2xl font-bold text-gray-900">Catálogos de apoyo</h1>
+        <button onClick={() => setImportando(true)} className="btn-secondary">
+          <Upload size={15} /> Importar desde Excel
+        </button>
+      </div>
       <p className="text-sm text-gray-500 mb-5">Mantenimiento de la taxonomía de productos y unidades de medida.</p>
 
       <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
@@ -245,6 +252,13 @@ export default function CatalogosApoyo() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {importando && (
+        <ImportCatalogosApoyoModal
+          onClose={() => setImportando(false)}
+          onDone={() => { setImportando(false); invalidarTodo(); }}
+        />
       )}
 
       {dialogoConfirm}

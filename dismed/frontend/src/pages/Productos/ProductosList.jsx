@@ -1,9 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { Plus, Loader2, Package, Search, Upload, Trash2 } from 'lucide-react';
+import { Plus, Loader2, Package, Search, Upload, Download, Trash2, Layers, X } from 'lucide-react';
 import api from '../../services/api';
 import ImportCatalogoModal from './ImportCatalogoModal';
+import { descargarArchivo } from '../../services/descargas';
 import { usePrefsStore } from '../../store/prefsStore';
 import Pagination from '../../components/ui/Pagination';
 import Modal from '../../components/ui/Modal';
@@ -32,6 +33,7 @@ export default function ProductosList() {
   const [page, setPage] = useState(0);
   const [form, setForm] = useState(FORM_VACIO);
   const [seleccionados, setSeleccionados] = useState(new Set());
+  const [exportando, setExportando] = useState(false);
   const pageSize = usePrefsStore((s) => s.rowsPerPage);
 
   useEffect(() => { setPage(0); }, [pageSize, filtroFamilia, estatus]);
@@ -181,6 +183,21 @@ export default function ProductosList() {
     });
   }
 
+  async function exportarExcel() {
+    setExportando(true);
+    try {
+      await descargarArchivo('/productos/exportar', 'catalogo_productos.xlsx', {
+        q: busquedaDeb || undefined,
+        familia_id: filtroFamilia || undefined,
+        estatus,
+      });
+    } catch {
+      toast.error('Error al generar el Excel');
+    } finally {
+      setExportando(false);
+    }
+  }
+
   const todosEnPaginaSeleccionados = pageItems.length > 0 && pageItems.every((p) => seleccionados.has(p.id));
 
   function toggleTodos() {
@@ -204,6 +221,9 @@ export default function ProductosList() {
       <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
         <h1 className="text-2xl font-bold text-gray-900">Catálogo de productos</h1>
         <div className="flex gap-2">
+          <button onClick={exportarExcel} disabled={exportando} className="btn-secondary">
+            {exportando ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} Exportar Excel
+          </button>
           <button onClick={() => setShowImport(true)} className="btn-secondary">
             <Upload size={16} /> Importar catálogo
           </button>
@@ -507,6 +527,21 @@ export default function ProductosList() {
               </p>
             </div>
 
+            {/* Presentaciones de venta: mismo producto, misma existencia (en piezas),
+                pero se puede vender suelto o en empaque cerrado, cada uno con su
+                propio precio y (opcional) código de barras — ver migrate_v39. */}
+            {editando && (
+              <div className="border-t border-gray-100 pt-4">
+                <PresentacionesEditor productoId={editando.id} />
+              </div>
+            )}
+            {!editando && (
+              <p className="text-xs text-gray-400 border-t border-gray-100 pt-4">
+                Para vender este producto tanto suelto como en empaque cerrado (ej. pieza / vitrolero)
+                primero guárdalo; la opción de presentaciones aparece al editarlo.
+              </p>
+            )}
+
             {/* Cuentas contables (Código Agrupador SAT) */}
             <div className="border-t border-gray-100 pt-4">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Contabilidad</p>
@@ -552,6 +587,170 @@ export default function ProductosList() {
       )}
 
       {dialogoConfirm}
+    </div>
+  );
+}
+
+const PRES_VACIA = { nombre: '', factor_conversion: '1', precio_lista: '', ean: '' };
+
+// Presentaciones de venta de un producto (pieza suelta, vitrolero, etc.):
+// comparten la existencia (siempre en piezas) pero cada una tiene su propio
+// precio y, opcionalmente, su propio código de barras. Sin filas aquí, el
+// producto se sigue vendiendo tal cual (sin cambio de comportamiento).
+function PresentacionesEditor({ productoId }) {
+  const qc = useQueryClient();
+  const [nueva, setNueva] = useState(PRES_VACIA);
+
+  const { data: presentaciones = [], isLoading } = useQuery({
+    queryKey: ['producto-presentaciones', productoId],
+    queryFn: () => api.get(`/productos/${productoId}/presentaciones`).then((r) => r.data),
+  });
+
+  const invalidar = () => qc.invalidateQueries({ queryKey: ['producto-presentaciones', productoId] });
+
+  const crearMut = useMutation({
+    mutationFn: (payload) => api.post(`/productos/${productoId}/presentaciones`, payload),
+    onSuccess: () => { setNueva(PRES_VACIA); invalidar(); toast.success('Presentación agregada'); },
+    onError: (e) => toast.error(e.response?.data?.error || 'Error al agregar la presentación'),
+  });
+
+  const editarMut = useMutation({
+    mutationFn: ({ id, ...payload }) => api.put(`/productos/presentaciones/${id}`, payload),
+    onSuccess: invalidar,
+    onError: (e) => toast.error(e.response?.data?.error || 'Error al guardar'),
+  });
+
+  const borrarMut = useMutation({
+    mutationFn: (id) => api.delete(`/productos/presentaciones/${id}`),
+    onSuccess: () => { invalidar(); toast.success('Presentación eliminada'); },
+    onError: (e) => toast.error(e.response?.data?.error || 'No se pudo eliminar'),
+  });
+
+  function agregar() {
+    if (!nueva.nombre.trim()) return toast.error('Nombre de la presentación requerido');
+    const factor = Number(nueva.factor_conversion);
+    if (!(factor > 0)) return toast.error('El factor debe ser mayor a 0');
+    crearMut.mutate({
+      nombre: nueva.nombre.trim(),
+      factor_conversion: factor,
+      precio_lista: nueva.precio_lista === '' ? null : Number(nueva.precio_lista),
+      ean: nueva.ean.trim() || null,
+    });
+  }
+
+  return (
+    <div>
+      <label className="label flex items-center gap-1.5">
+        <Layers size={13} className="text-brand-500" /> Presentaciones de venta
+      </label>
+      <p className="text-xs text-gray-400 mb-2">
+        Para productos que se compran en empaque pero también se venden sueltos (ej. vitrolero de 150 piezas
+        que también se vende por pieza). Comparten la MISMA existencia — se descuenta siempre en piezas,
+        así que si ya se vendieron piezas sueltas puede no alcanzar para vender el empaque completo.
+      </p>
+
+      {isLoading ? (
+        <p className="text-xs text-gray-400">Cargando…</p>
+      ) : (
+        <>
+          {!!presentaciones.length && (
+            <div className="overflow-x-auto mb-2">
+              <table className="table-auto w-full text-xs">
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th className="text-center">Factor (pzas)</th>
+                    <th className="text-right">Precio</th>
+                    <th>EAN</th>
+                    <th className="text-center">Activa en POS</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {presentaciones.map((p) => (
+                    <tr key={p.id}>
+                      <td>
+                        <input
+                          className="input py-1 text-xs"
+                          defaultValue={p.nombre}
+                          onBlur={(e) => e.target.value.trim() && e.target.value !== p.nombre &&
+                            editarMut.mutate({ id: p.id, nombre: e.target.value.trim() })}
+                        />
+                      </td>
+                      <td className="text-center">
+                        <input
+                          type="number" min="0.01" step="0.01" className="input py-1 text-xs text-center w-20"
+                          defaultValue={p.factor_conversion}
+                          onBlur={(e) => {
+                            const v = Number(e.target.value);
+                            if (v > 0 && v !== Number(p.factor_conversion)) editarMut.mutate({ id: p.id, factor_conversion: v });
+                          }}
+                        />
+                      </td>
+                      <td className="text-right">
+                        <input
+                          type="number" min="0" step="0.01" className="input py-1 text-xs text-right w-24"
+                          defaultValue={p.precio_lista ?? ''}
+                          onBlur={(e) => {
+                            const v = e.target.value === '' ? null : Number(e.target.value);
+                            if (v !== (p.precio_lista == null ? null : Number(p.precio_lista))) editarMut.mutate({ id: p.id, precio_lista: v });
+                          }}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className="input py-1 text-xs font-mono w-32"
+                          defaultValue={p.ean || ''}
+                          onBlur={(e) => (e.target.value.trim() || null) !== (p.ean || null) &&
+                            editarMut.mutate({ id: p.id, ean: e.target.value.trim() })}
+                        />
+                      </td>
+                      <td className="text-center">
+                        <input
+                          type="checkbox" className="h-4 w-4 accent-brand-500"
+                          checked={!!p.activo_pos}
+                          onChange={(e) => editarMut.mutate({ id: p.id, activo_pos: e.target.checked ? 1 : 0 })}
+                        />
+                      </td>
+                      <td>
+                        <button type="button" className="text-gray-300 hover:text-red-500" onClick={() => borrarMut.mutate(p.id)} title="Eliminar">
+                          <X size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="flex items-end gap-2 flex-wrap bg-gray-50 border border-gray-200 rounded-lg p-2">
+            <div>
+              <label className="text-xs text-gray-500">Nombre</label>
+              <input className="input py-1 text-xs" placeholder="Pieza suelta / Vitrolero"
+                value={nueva.nombre} onChange={(e) => setNueva((f) => ({ ...f, nombre: e.target.value }))} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500">Factor (pzas)</label>
+              <input type="number" min="0.01" step="0.01" className="input py-1 text-xs w-20"
+                value={nueva.factor_conversion} onChange={(e) => setNueva((f) => ({ ...f, factor_conversion: e.target.value }))} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500">Precio</label>
+              <input type="number" min="0" step="0.01" className="input py-1 text-xs w-24" placeholder="opcional"
+                value={nueva.precio_lista} onChange={(e) => setNueva((f) => ({ ...f, precio_lista: e.target.value }))} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500">EAN</label>
+              <input className="input py-1 text-xs font-mono w-32" placeholder="opcional"
+                value={nueva.ean} onChange={(e) => setNueva((f) => ({ ...f, ean: e.target.value }))} />
+            </div>
+            <button type="button" className="btn-secondary py-1 text-xs" disabled={crearMut.isPending} onClick={agregar}>
+              <Plus size={13} /> Agregar
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

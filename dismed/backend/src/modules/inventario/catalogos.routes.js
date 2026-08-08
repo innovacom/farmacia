@@ -1,8 +1,13 @@
 const router = require('express').Router();
 const auth = require('../../middleware/auth');
+const upload = require('../../middleware/upload');
 const c = require('./catalogos.controller');
 
 router.use(auth);
+
+router.get('/import/plantilla',  c.plantillaImport);
+router.post('/import',           upload.single('archivo'), c.importPreview);
+router.post('/import/confirmar', c.importConfirm);
 
 router.get('/familias',          c.listFamilias);
 router.post('/familias',         c.createFamilia);

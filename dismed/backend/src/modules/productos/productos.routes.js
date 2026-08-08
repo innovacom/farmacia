@@ -17,9 +17,16 @@ router.post('/import-catalogo',         upload.single('archivo'), c.importPrevie
 router.post('/import-catalogo/confirmar', c.importConfirm);
 
 router.post('/baja-masiva', c.removeMultiple);
+router.get('/exportar', c.exportarExcel);
 
 // Pantalla admin-only de precios y estatus vendible en masa.
 router.patch('/:id/venta', adminOnly, c.updateVenta);
+
+// Presentaciones de venta (pieza/paquete sobre la misma existencia — ver migrate_v39)
+router.get('/:id/presentaciones',  c.listPresentaciones);
+router.post('/:id/presentaciones', c.createPresentacion);
+router.put('/presentaciones/:presentacionId',    c.updatePresentacion);
+router.delete('/presentaciones/:presentacionId', c.removePresentacion);
 
 router.get('/:id',    c.getById);
 router.post('/',      c.create);

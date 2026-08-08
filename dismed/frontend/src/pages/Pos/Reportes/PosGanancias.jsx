@@ -26,6 +26,7 @@ export default function PosGanancias() {
   const { data: sucursales = [] } = useSucursales();
   const { data: kpiData, isFetching, isError, error } = useReportePos('/pos/reportes/ganancias', applied);
   const { data: prodData } = useReportePos('/pos/reportes/ganancias-productos', applied);
+  const { data: preciosData } = useReportePos('/pos/reportes/precios-modificados', applied);
 
   return (
     <div>
@@ -48,8 +49,9 @@ export default function PosGanancias() {
       <EstadoReporte isError={isError} error={error} data={kpiData}>
         {kpiData && (
           <>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
               <TarjetaKpi label="Venta" valor={fmt(kpiData.kpi.venta)} tono="brand" />
+              <TarjetaKpi label="Descuento (promociones)" valor={fmt(kpiData.kpi.descuento)} />
               <TarjetaKpi label="Costo" valor={fmt(kpiData.kpi.costo)} />
               <TarjetaKpi label="Ganancia" valor={fmt(kpiData.kpi.ganancia)} tono="green" />
               <TarjetaKpi label="Margen" valor={fpct(kpiData.kpi.margen_pct)} tono="green" />
@@ -125,7 +127,8 @@ export default function PosGanancias() {
               <thead>
                 <tr>
                   <th>Producto</th><th className="text-center">Cantidad</th>
-                  <th className="text-right">Venta</th><th className="text-right">Costo</th>
+                  <th className="text-right">Venta</th><th className="text-right">Descuento</th>
+                  <th className="text-right">Costo</th>
                   <th className="text-right">Ganancia</th><th className="text-right">Margen</th>
                 </tr>
               </thead>
@@ -135,13 +138,14 @@ export default function PosGanancias() {
                     <td>{r.descripcion}</td>
                     <td className="text-center">{r.cantidad}</td>
                     <td className="text-right">{fmt(r.venta)}</td>
+                    <td className="text-right text-gray-500">{r.descuento ? `− ${fmt(r.descuento)}` : '—'}</td>
                     <td className="text-right">{fmt(r.costo)}</td>
                     <td className="text-right text-green-700 font-medium">{fmt(r.ganancia)}</td>
                     <td className="text-right">{fpct(r.margen_pct)}</td>
                   </tr>
                 ))}
                 {!prodData?.rows?.length && (
-                  <tr><td colSpan={6} className="text-center text-gray-400 py-8">Sin ventas en el periodo</td></tr>
+                  <tr><td colSpan={7} className="text-center text-gray-400 py-8">Sin ventas en el periodo</td></tr>
                 )}
               </tbody>
             </table>
@@ -149,6 +153,46 @@ export default function PosGanancias() {
           <NotaReporte nota={kpiData.nota} />
         </>
       )}
+
+      {preciosData && (
+        <div className="mt-6">
+          <h3 className="font-semibold text-gray-800 mb-2">Precios modificados en el mostrador</h3>
+          <div className="card p-0 overflow-x-auto">
+            <table className="table-auto w-full">
+              <thead>
+                <tr>
+                  <th>Fecha</th><th>Folio</th><th>Sucursal</th><th>Cajero</th>
+                  <th>Producto</th><th className="text-right">Lista</th>
+                  <th className="text-right">Cobrado</th><th className="text-right">Diferencia</th>
+                  <th>Motivo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {preciosData.rows.map((r, i) => (
+                  <tr key={`${r.folio}-${i}`}>
+                    <td className="whitespace-nowrap">{new Date(r.created_at).toLocaleString('es-MX')}</td>
+                    <td className="font-mono text-xs">{r.folio}</td>
+                    <td>{r.sucursal}</td>
+                    <td>{r.cajero}</td>
+                    <td>{r.descripcion}</td>
+                    <td className="text-right">{fmt(r.precio_lista)}</td>
+                    <td className="text-right font-medium">{fmt(r.precio_cobrado)}</td>
+                    <td className={`text-right ${r.diferencia < 0 ? 'text-red-600' : 'text-green-700'}`}>
+                      {fmt(r.diferencia)}
+                    </td>
+                    <td className="max-w-xs">{r.motivo}</td>
+                  </tr>
+                ))}
+                {!preciosData.rows.length && (
+                  <tr><td colSpan={9} className="text-center text-gray-400 py-8">Sin precios modificados en el periodo</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <NotaReporte nota={preciosData.nota} />
+        </div>
+      )}
+
       {isFetching && kpiData && <p className="text-xs text-gray-400 mt-2 no-print">Actualizando…</p>}
     </div>
   );

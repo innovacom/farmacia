@@ -67,6 +67,29 @@ function parseCatalogo(filePath) {
     laboratorio:   col('LABORATORIO'),
   };
 
+  // Qué columnas trae el archivo (para el modo de actualización parcial: solo se
+  // tocan en BD los campos cuya columna vino en el archivo; el resto se conserva).
+  const columnasPresentes = {
+    descripcion:      idx.descripcion >= 0,
+    familia:           idx.familia >= 0,
+    categoria:         idx.categoria >= 0,
+    subcategoria:      idx.subcategoria >= 0,
+    unidad_medida:     idx.unidad >= 0,
+    precio_lista:      idx.precio_lista >= 0,
+    precio_publico:    idx.precio_publico >= 0,
+    precio_costo:      idx.precio_costo >= 0,
+    iva_exento:        idx.iva >= 0,
+    ieps:              idx.ieps >= 0,
+    clave_sat:         idx.codigo_sat >= 0,
+    clave_unidad_sat:  idx.unidad_sat >= 0,
+    sustancia_activa:  idx.sustancia >= 0,
+    tamano:            idx.tamano >= 0,
+    calibre:           idx.calibre >= 0,
+    especificacion:    idx.especificacion >= 0,
+    fabricante:        idx.laboratorio >= 0,
+    ean:               idx.ean >= 0,
+  };
+
   const val = (r, i) => (i >= 0 ? r[i] : null);
   const productos = [];
   const skuCount = {};
@@ -97,6 +120,7 @@ function parseCatalogo(filePath) {
       precio_publico: numOrNull(val(r, idx.precio_publico)),
       precio_costo:   numOrNull(val(r, idx.precio_costo)),
       iva_exento:     ivaNum > 0 ? 0 : 1,                  // IVA 0.16 → no exento; 0 → exento
+      _ivaCeldaProvista: val(r, idx.iva) != null && norm(val(r, idx.iva)) !== '',
       ieps:           numOrNull(val(r, idx.ieps)),
       clave_sat:      norm(val(r, idx.codigo_sat)) || null,
       clave_unidad_sat: norm(val(r, idx.unidad_sat)) || null,
@@ -109,32 +133,21 @@ function parseCatalogo(filePath) {
     });
   });
 
-  // Validación por fila (campos obligatorios + duplicados)
+  // Duplicados dentro del mismo archivo (esto sí es independiente del modo de
+  // importación). La validación de campos obligatorios se hace en el controlador,
+  // porque depende de si el producto ya existe en BD y del modo (completo/parcial).
   productos.forEach((p) => {
-    const errores = [];
-    if (!p.sku_interno) errores.push('SKU (Id) vacío');
-    if (!p.descripcion) errores.push('Descripción vacía');
-    if (!p.familia) errores.push('Familia vacía');
-    if (!p.categoria) errores.push('Categoría vacía');
-    if (!p.subcategoria) errores.push('Subcategoría vacía');
-    if (p.precio_lista == null) errores.push('Precio lista vacío');
-    if (!p.unidad_medida) errores.push('Unidad vacía');
-    const duplicado = p.sku_interno && skuCount[p.sku_interno] > 1;
-    p._duplicado = !!duplicado;
-    p._errores = errores;
-    p._ok = errores.length === 0 && !duplicado;
+    p._duplicado = !!(p.sku_interno && skuCount[p.sku_interno] > 1);
   });
 
   const resumen = {
     total: productos.length,
-    ok: productos.filter((p) => p._ok).length,
     duplicados: productos.filter((p) => p._duplicado).length,
-    con_errores: productos.filter((p) => p._errores.length > 0).length,
     skus_duplicados: [...new Set(productos.filter((p) => p._duplicado).map((p) => p.sku_interno))],
     hoja: sheetName,
   };
 
-  return { columnas: rows[0], productos, resumen };
+  return { columnas: rows[0], columnasPresentes, productos, resumen };
 }
 
-module.exports = { parseCatalogo, deducirFactor };
+module.exports = { parseCatalogo, deducirFactor, norm, up, numOrNull };

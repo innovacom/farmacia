@@ -5,19 +5,58 @@ const svc = require('./movimientos.service');
 const { parseExistencias } = require('./import.existencias');
 
 // ── Existencias (vista) ───────────────────────────────────────────────────────
+// Filtros compartidos por existencias() y exportarExistencias() — mismo
+// WHERE, la única diferencia entre ambas es el LIMIT/formato de salida.
+function filtroExistencias(query) {
+  const where = ['cantidad_actual > 0'];
+  const vals = [];
+  if (query.almacen_id)   { where.push('almacen_id = ?');   vals.push(query.almacen_id); }
+  if (query.producto_id)  { where.push('producto_id = ?');  vals.push(query.producto_id); }
+  if (query.q)            { where.push('(sku_interno LIKE ? OR descripcion LIKE ? OR ean LIKE ?)'); vals.push(`%${query.q}%`, `%${query.q}%`, `%${query.q}%`); }
+  if (query.estado)       { where.push('estado_caducidad = ?'); vals.push(query.estado); }
+  if (query.fabricante)   { where.push('fabricante = ?');   vals.push(query.fabricante); }
+  return { where, vals };
+}
+
 async function existencias(req, res, next) {
   try {
-    const where = ['cantidad_actual > 0'];
-    const vals = [];
-    if (req.query.almacen_id)   { where.push('almacen_id = ?');   vals.push(req.query.almacen_id); }
-    if (req.query.producto_id)  { where.push('producto_id = ?');  vals.push(req.query.producto_id); }
-    if (req.query.q)            { where.push('(sku_interno LIKE ? OR descripcion LIKE ?)'); vals.push(`%${req.query.q}%`, `%${req.query.q}%`); }
-    if (req.query.estado)       { where.push('estado_caducidad = ?'); vals.push(req.query.estado); }
+    const { where, vals } = filtroExistencias(req.query);
     const [rows] = await pool.query(
       `SELECT * FROM v_existencias WHERE ${where.join(' AND ')}
        ORDER BY descripcion, fecha_caducidad IS NULL, fecha_caducidad LIMIT 500`, vals
     );
     res.json(rows);
+  } catch (err) { next(err); }
+}
+
+// GET /inventario/existencias/exportar → xlsx con las existencias filtradas (mismos filtros que existencias, sin límite de 500).
+async function exportarExistencias(req, res, next) {
+  try {
+    const { where, vals } = filtroExistencias(req.query);
+    const [rows] = await pool.query(
+      `SELECT * FROM v_existencias WHERE ${where.join(' AND ')}
+       ORDER BY descripcion, fecha_caducidad IS NULL, fecha_caducidad`, vals
+    );
+
+    const headers = [
+      'SKU', 'Descripción', 'Fabricante', 'Almacén', 'Ubicación', 'Lote', 'Caducidad', 'Estado',
+      'Cantidad', 'U. Medida', 'Costo unitario', 'Valor',
+    ];
+    const aoa = [headers, ...rows.map((r) => [
+      r.sku_interno, r.descripcion, r.fabricante || '',
+      r.almacen || '', r.ubicacion || '',
+      r.es_generico ? 'Genérico' : (r.numero_lote || ''),
+      r.fecha_caducidad || '', r.estado_caducidad || '',
+      Number(r.cantidad_actual || 0), r.unidad_medida || '',
+      Number(r.costo_unitario || 0), Number(r.valor || 0),
+    ])];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Existencias');
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="existencias.xlsx"');
+    res.send(buf);
   } catch (err) { next(err); }
 }
 
@@ -30,6 +69,18 @@ async function stockProducto(req, res, next) {
       `SELECT * FROM v_stock_producto WHERE ${where.join(' AND ')} ORDER BY descripcion LIMIT 500`, vals
     );
     res.json(rows);
+  } catch (err) { next(err); }
+}
+
+// Fabricantes distintos entre los productos con existencia (para el filtro de Existencias/Movimientos).
+async function fabricantes(req, res, next) {
+  try {
+    const [rows] = await pool.query(
+      `SELECT DISTINCT p.fabricante FROM productos p
+       WHERE p.fabricante IS NOT NULL AND p.fabricante <> ''
+       ORDER BY p.fabricante`
+    );
+    res.json(rows.map((r) => r.fabricante));
   } catch (err) { next(err); }
 }
 
@@ -65,6 +116,7 @@ async function kardex(req, res, next) {
     const vals = [];
     if (req.query.producto_id) { where.push('m.producto_id = ?'); vals.push(req.query.producto_id); }
     if (req.query.tipo)        { where.push('m.tipo = ?');        vals.push(req.query.tipo); }
+    if (req.query.fabricante)  { where.push('p.fabricante = ?');  vals.push(req.query.fabricante); }
     const wsql = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const [rows] = await pool.query(
       `SELECT m.*, p.sku_interno, p.descripcion,
@@ -203,7 +255,7 @@ function plantillaExistencias(req, res, next) {
 }
 
 module.exports = {
-  existencias, stockProducto, alertas, lotesProducto, kardex,
+  existencias, exportarExistencias, stockProducto, alertas, lotesProducto, kardex, fabricantes,
   entrada, salida, traspaso, ajuste,
   importPreview, importConfirm, plantillaExistencias,
 };

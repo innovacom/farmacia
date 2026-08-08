@@ -10,13 +10,13 @@
  * Lanza error 404 si no hay fila. `tabla` debe venir de código propio,
  * nunca de entrada del usuario (se interpola en el SQL).
  */
-async function getScoped(conn, tabla, id, empresaId, { forUpdate = false } = {}) {
+async function getScoped(conn, tabla, id, empresaId, { forUpdate = false, notFoundMsg = 'No encontrado' } = {}) {
   const [rows] = await conn.query(
     `SELECT * FROM ${tabla} WHERE id = ? AND empresa_id = ?${forUpdate ? ' FOR UPDATE' : ''}`,
     [id, empresaId]
   );
   if (!rows.length) {
-    const err = new Error('No encontrado');
+    const err = new Error(notFoundMsg);
     err.status = 404;
     throw err;
   }

@@ -4,7 +4,8 @@ import {
   HelpCircle, Receipt, SlidersHorizontal, Settings, Download, Upload, Wrench,
   Calculator, TrendingUp, Scale, BookOpenCheck, ListTree, Landmark, BookText,
   FileSpreadsheet, BarChart3, Store, Clock, Pill, Building2, FileUp, Tags,
-  HeartPulse, Stethoscope, PiggyBank, CalendarClock,
+  HeartPulse, Stethoscope, PiggyBank, CalendarClock, MessageCircle, Megaphone,
+  FileQuestion, Percent, Heart, ShoppingBag, Gauge,
 } from 'lucide-react';
 
 // Catálogo canónico del menú. Debe mantenerse en sincronía con el backend
@@ -17,6 +18,7 @@ import {
 export const MENU = {
   top: [
     { key: 'dashboard', to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { key: 'supervisor', to: '/supervisor', label: 'Panel de Supervisor', icon: Gauge, adminOnly: true },
   ],
   groups: [
     {
@@ -68,12 +70,23 @@ export const MENU = {
     {
       label: 'POS Farmacia', icon: Store, items: [
         { key: 'pos-venta',    to: '/pos',            label: 'Venta mostrador',      icon: Store },
+        { key: 'pos-pedidos-whatsapp', to: '/pos/pedidos-whatsapp', label: 'Pedidos WhatsApp', icon: ShoppingBag },
         { key: 'pos-turnos',   to: '/pos/turnos',     label: 'Caja y turnos',        icon: Clock },
         { key: 'pos-citas',    to: '/pos/citas',      label: 'Citas médicas',        icon: CalendarClock },
+        { key: 'pos-clientes-fidelidad', to: '/pos/clientes-fidelidad', label: 'Clientes de fidelidad', icon: Heart },
         { key: 'pos-bitacora', to: '/pos/bitacora',   label: 'Bitácora COFEPRIS',    icon: Pill },
         { key: 'pos-admin',    to: '/pos/sucursales', label: 'Sucursales y cajas',   icon: Warehouse },
+        { key: 'pos-promociones', to: '/pos/promociones', label: 'Promociones', icon: Percent, adminOnly: true },
         { key: 'pos-reportes',           to: '/pos/reportes',  label: 'Reportes',   icon: BarChart3 },
         { key: 'pos-reportes-ganancias', to: '/pos/ganancias', label: 'Ganancias',  icon: PiggyBank },
+      ],
+    },
+    {
+      label: 'WhatsApp', icon: MessageCircle, items: [
+        { key: 'whatsapp-bandeja', to: '/whatsapp/bandeja',   label: 'Bandeja',       icon: MessageCircle },
+        { key: 'whatsapp-bandeja', to: '/whatsapp/contactos', label: 'Contactos',     icon: Users },
+        { key: 'whatsapp-masivos', to: '/whatsapp/masivos',   label: 'Envío masivo',  icon: Megaphone, adminOnly: true },
+        { key: 'whatsapp-faqs',    to: '/whatsapp/preguntas-frecuentes', label: 'Preguntas frecuentes', icon: FileQuestion, adminOnly: true },
       ],
     },
     {

@@ -10,6 +10,7 @@ export default function ImportCatalogoModal({ onClose, onDone }) {
   const [confirmando, setConfirmando] = useState(false);
   const [resultado, setResultado] = useState(null);   // { productos, resumen }
   const [incluir, setIncluir] = useState({});         // idx → bool (solo para filas con incidencia)
+  const [modoParcial, setModoParcial] = useState(false);
 
   const onDrop = async (files) => {
     const file = files[0];
@@ -18,6 +19,7 @@ export default function ImportCatalogoModal({ onClose, onDone }) {
     try {
       const form = new FormData();
       form.append('archivo', file);
+      form.append('modo_parcial', modoParcial ? 'true' : 'false');
       const { data } = await api.post('/productos/import-catalogo', form, {
         headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000,
       });
@@ -63,7 +65,8 @@ export default function ImportCatalogoModal({ onClose, onDone }) {
     setConfirmando(true);
     try {
       const { data } = await api.post('/productos/import-catalogo/confirmar',
-        { productos: aImportar }, { timeout: 300000 });
+        { productos: aImportar, modo_parcial: resultado.modo_parcial, columnas_presentes: resultado.columnasPresentes },
+        { timeout: 300000 });
       toast.success(`Importados: ${data.insertados} nuevos, ${data.actualizados} actualizados${data.omitidos ? `, ${data.omitidos} omitidos` : ''}`);
       onDone();
     } catch (err) {
@@ -84,10 +87,27 @@ export default function ImportCatalogoModal({ onClose, onDone }) {
         </div>
 
         <div className="px-6 py-5 space-y-4">
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between">
+            <label className={`flex items-start gap-2 text-sm ${resultado ? 'opacity-50' : ''}`}>
+              <input
+                type="checkbox"
+                className="h-4 w-4 mt-0.5 accent-brand-500"
+                checked={modoParcial}
+                disabled={!!resultado}
+                onChange={(e) => setModoParcial(e.target.checked)}
+              />
+              <span>
+                <span className="font-medium text-gray-700">Actualización parcial</span>
+                <br />
+                <span className="text-xs text-gray-500">
+                  Para productos que ya existen, solo se actualizan las columnas incluidas en el archivo
+                  (las que omitas conservan su valor actual). Los productos nuevos siempre requieren todos los campos obligatorios.
+                </span>
+              </span>
+            </label>
             <button
               onClick={descargarPlantilla}
-              className="inline-flex items-center gap-1.5 text-sm text-brand-500 hover:underline"
+              className="inline-flex items-center gap-1.5 text-sm text-brand-500 hover:underline shrink-0"
             >
               <Download size={15} /> Descargar plantilla de ejemplo
             </button>
@@ -121,7 +141,10 @@ export default function ImportCatalogoModal({ onClose, onDone }) {
                 <div className="bg-red-50 rounded-lg px-3 py-2"><p className="text-xs text-red-600">Con errores</p><p className="font-bold text-red-700">{r.con_errores}</p></div>
               </div>
               {r.ya_en_bd > 0 && (
-                <p className="text-xs text-gray-500">{r.ya_en_bd} productos ya existen en el sistema y se <strong>actualizarán</strong>.</p>
+                <p className="text-xs text-gray-500">
+                  {r.ya_en_bd} productos ya existen en el sistema y se <strong>actualizarán</strong>
+                  {resultado.modo_parcial ? ' solo en las columnas que trae el archivo' : ' por completo'}.
+                </p>
               )}
 
               {/* Tabla de incidencias para decidir */}

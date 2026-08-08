@@ -128,7 +128,8 @@ async function topProductos(empresaId, filtros) {
   const limit = clampInt(filtros.limit, 20, 1, 100);
 
   const [rows] = await pool.query(
-    `SELECT pp.producto_id, pp.descripcion, SUM(pp.cantidad) AS cantidad, COALESCE(SUM(pp.importe),0) AS importe
+    `SELECT pp.producto_id, pp.descripcion, SUM(pp.piezas_equivalentes) AS cantidad,
+            COALESCE(SUM(pp.importe),0) AS importe, COALESCE(SUM(pp.descuento),0) AS descuento
      FROM pos_ventas_partidas pp JOIN pos_ventas v ON v.id = pp.venta_id
      WHERE ${where}
      GROUP BY pp.producto_id, pp.descripcion
@@ -137,7 +138,7 @@ async function topProductos(empresaId, filtros) {
   );
   return {
     ...(await meta(empresaId, periodo, 'Productos más vendidos', { reporte: 'top_productos' })),
-    rows: rows.map((r) => ({ ...r, cantidad: Number(r.cantidad), importe: r2(r.importe) })),
+    rows: rows.map((r) => ({ ...r, cantidad: Number(r.cantidad), importe: r2(r.importe), descuento: r2(r.descuento) })),
     nota: NOTA_OPERATIVO,
   };
 }
@@ -248,7 +249,7 @@ async function recetasCofepris(empresaId, filtros) {
   if (sucursalId) { where += ' AND v.sucursal_id = ?'; params.push(sucursalId); }
 
   const [rows] = await pool.query(
-    `SELECT pp.clasificacion_cofepris, COUNT(*) AS partidas, COALESCE(SUM(pp.cantidad),0) AS unidades
+    `SELECT pp.clasificacion_cofepris, COUNT(*) AS partidas, COALESCE(SUM(pp.piezas_equivalentes),0) AS unidades
      FROM pos_ventas_partidas pp JOIN pos_ventas v ON v.id = pp.venta_id
      WHERE ${where}
      GROUP BY pp.clasificacion_cofepris ORDER BY partidas DESC`,
@@ -283,7 +284,7 @@ function subconsultaCosto(periodo) {
 // costo se cuenta de más (encontrado en code review).
 const SQL_PARTIDAS_AGRUPADAS = `
   SELECT venta_id, producto_id, MAX(descripcion) AS descripcion,
-         SUM(importe) AS importe, SUM(cantidad) AS cantidad
+         SUM(importe) AS importe, SUM(cantidad) AS cantidad, SUM(descuento) AS descuento
   FROM pos_ventas_partidas GROUP BY venta_id, producto_id`;
 
 async function ganancias(empresaId, filtros) {
@@ -293,7 +294,8 @@ async function ganancias(empresaId, filtros) {
   const costoSub = subconsultaCosto(periodo);
 
   const [[kpi]] = await pool.query(
-    `SELECT COALESCE(SUM(ppa.importe),0) AS venta, COALESCE(SUM(costo.costo),0) AS costo
+    `SELECT COALESCE(SUM(ppa.importe),0) AS venta, COALESCE(SUM(costo.costo),0) AS costo,
+            COALESCE(SUM(ppa.descuento),0) AS descuento
      FROM pos_ventas v
      JOIN (${SQL_PARTIDAS_AGRUPADAS}) ppa ON ppa.venta_id = v.id
      LEFT JOIN (${costoSub.sql}) costo ON costo.folio = v.folio COLLATE utf8mb4_general_ci AND costo.producto_id = ppa.producto_id
@@ -314,7 +316,7 @@ async function ganancias(empresaId, filtros) {
   const venta = r2(kpi.venta); const costo = r2(kpi.costo); const ganancia = r2(venta - costo);
   return {
     ...(await meta(empresaId, periodo, 'Ganancia / margen', { reporte: 'ganancias' })),
-    kpi: { venta, costo, ganancia, margen_pct: venta ? r2((ganancia / venta) * 100) : 0 },
+    kpi: { venta, costo, ganancia, margen_pct: venta ? r2((ganancia / venta) * 100) : 0, descuento: r2(kpi.descuento) },
     serie: serie.map((s) => {
       const v = r2(s.venta); const c = r2(s.costo); const g = r2(v - c);
       return { periodo: s.periodo, venta: v, costo: c, ganancia: g, margen_pct: v ? r2((g / v) * 100) : 0 };
@@ -332,7 +334,8 @@ async function gananciasPorProducto(empresaId, filtros) {
 
   const [rows] = await pool.query(
     `SELECT ppa.producto_id, MAX(ppa.descripcion) AS descripcion, SUM(ppa.cantidad) AS cantidad,
-            COALESCE(SUM(ppa.importe),0) AS venta, COALESCE(SUM(costo.costo),0) AS costo
+            COALESCE(SUM(ppa.importe),0) AS venta, COALESCE(SUM(costo.costo),0) AS costo,
+            COALESCE(SUM(ppa.descuento),0) AS descuento
      FROM pos_ventas v
      JOIN (${SQL_PARTIDAS_AGRUPADAS}) ppa ON ppa.venta_id = v.id
      LEFT JOIN (${costoSub.sql}) costo ON costo.folio = v.folio COLLATE utf8mb4_general_ci AND costo.producto_id = ppa.producto_id
@@ -345,7 +348,7 @@ async function gananciasPorProducto(empresaId, filtros) {
     const venta = r2(r.venta); const costo = r2(r.costo); const ganancia = r2(venta - costo);
     return {
       producto_id: r.producto_id, descripcion: r.descripcion, cantidad: Number(r.cantidad),
-      venta, costo, ganancia, margen_pct: venta ? r2((ganancia / venta) * 100) : 0,
+      venta, costo, ganancia, margen_pct: venta ? r2((ganancia / venta) * 100) : 0, descuento: r2(r.descuento),
     };
   });
   return {
@@ -357,7 +360,50 @@ async function gananciasPorProducto(empresaId, filtros) {
   };
 }
 
+// Bitácora de precios modificados en el mostrador (migrate_v45): el cajero
+// puede cobrar distinto al precio de catálogo por cualquier situación, sin
+// autorización de supervisor (ver pos.ventas.service.js#crearVenta), pero el
+// backend exige motivo y lo snapshotea en la partida — este reporte es,
+// literalmente, listar las partidas con motivo_cambio_precio no nulo. Mismo
+// permiso que ganancias/márgenes: información sensible que el admin decide
+// si comparte con operadores.
+async function preciosModificados(empresaId, filtros) {
+  const periodo = resolverRango(filtros);
+  const sucursalId = filtros.sucursal_id || null;
+  const { where, params } = condVentas({ empresaId, ...periodo, sucursalId });
+  const limit = clampInt(filtros.limit, 100, 1, 500);
+
+  const [rows] = await pool.query(
+    `SELECT v.folio, v.created_at, s.nombre AS sucursal, u.nombre AS cajero,
+            pp.descripcion, pp.precio_original, pp.precio_unitario, pp.cantidad,
+            pp.motivo_cambio_precio
+     FROM pos_ventas_partidas pp
+     JOIN pos_ventas v ON v.id = pp.venta_id
+     JOIN sucursales s ON s.id = v.sucursal_id
+     JOIN usuarios u ON u.id = v.usuario_id
+     WHERE ${where} AND pp.motivo_cambio_precio IS NOT NULL
+     ORDER BY v.created_at DESC LIMIT ${limit}`,
+    params
+  );
+  return {
+    ...(await meta(empresaId, periodo, 'Precios modificados en el mostrador', { reporte: 'precios_modificados' })),
+    rows: rows.map((r) => ({
+      folio: r.folio,
+      created_at: r.created_at,
+      sucursal: r.sucursal,
+      cajero: r.cajero,
+      descripcion: r.descripcion,
+      cantidad: Number(r.cantidad),
+      precio_lista: r2(r.precio_original),
+      precio_cobrado: r2(r.precio_unitario),
+      diferencia: r2(r.precio_unitario - r.precio_original),
+      motivo: r.motivo_cambio_precio,
+    })),
+    nota: 'Ventas donde el cajero capturó un precio distinto al de catálogo, con el motivo que registró en el momento.',
+  };
+}
+
 module.exports = {
   resumenVentas, ventasPorSucursal, topProductos, formasPago, existencias, recetasCofepris,
-  ganancias, gananciasPorProducto,
+  ganancias, gananciasPorProducto, preciosModificados,
 };
