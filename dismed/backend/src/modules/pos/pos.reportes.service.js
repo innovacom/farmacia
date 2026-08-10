@@ -143,6 +143,57 @@ async function topProductos(empresaId, filtros) {
   };
 }
 
+// Venta detallada por producto con EAN y proveedor(es), pensado para armar
+// pedidos de compra a partir de lo que se va vendiendo. El proveedor sale de
+// proveedores_catalogo (match_estado='confirmado'); un producto puede tener
+// más de un proveedor confirmado en el tarifario, por eso se agrupan con
+// GROUP_CONCAT en vez de unir directo (evitaría duplicar/inflar la cantidad
+// vendida por el fan-out del JOIN — ambas subconsultas van pre-agregadas por
+// producto_id antes de unirse 1:1).
+async function ventasDetalladoProducto(empresaId, filtros) {
+  const periodo = resolverRango(filtros);
+  const sucursalId = filtros.sucursal_id || null;
+  const { where, params } = condVentas({ empresaId, ...periodo, sucursalId });
+  const limit = clampInt(filtros.limit, 500, 1, 2000);
+
+  const [rows] = await pool.query(
+    `SELECT vp.producto_id, p.sku_interno, p.ean, vp.descripcion, vp.cantidad, vp.importe,
+            prov.proveedores
+     FROM (
+       SELECT pp.producto_id, MAX(pp.descripcion) AS descripcion,
+              SUM(pp.piezas_equivalentes) AS cantidad, COALESCE(SUM(pp.importe),0) AS importe
+       FROM pos_ventas_partidas pp JOIN pos_ventas v ON v.id = pp.venta_id
+       WHERE ${where}
+       GROUP BY pp.producto_id
+     ) vp
+     JOIN productos p ON p.id = vp.producto_id
+     LEFT JOIN (
+       SELECT pc.producto_id,
+              GROUP_CONCAT(DISTINCT pr.nombre_empresa ORDER BY pr.nombre_empresa SEPARATOR ', ') AS proveedores
+       FROM proveedores_catalogo pc JOIN proveedores pr ON pr.id = pc.proveedor_id
+       WHERE pc.match_estado = 'confirmado' AND pc.activo = 1
+       GROUP BY pc.producto_id
+     ) prov ON prov.producto_id = vp.producto_id
+     ORDER BY vp.cantidad DESC LIMIT ${limit}`,
+    params
+  );
+  return {
+    ...(await meta(empresaId, periodo, 'Venta detallada por producto', { reporte: 'ventas_producto' })),
+    rows: rows.map((r) => ({
+      producto_id: r.producto_id,
+      sku_interno: r.sku_interno,
+      ean: r.ean || '',
+      descripcion: r.descripcion,
+      proveedor: r.proveedores || 'Sin proveedor asignado',
+      cantidad: Number(r.cantidad),
+      importe: r2(r.importe),
+    })),
+    nota: NOTA_OPERATIVO + ' El proveedor mostrado es el vinculado en el catálogo de proveedores ' +
+      '(Proveedores → Catálogo, match confirmado); si un producto tiene más de un proveedor confirmado ' +
+      'se listan todos separados por coma. Úsalo como base para armar pedidos de compra.',
+  };
+}
+
 async function formasPago(empresaId, filtros) {
   const periodo = resolverRango(filtros);
   const { where, params } = condVentas({ empresaId, ...periodo, sucursalId: filtros.sucursal_id || null });
@@ -404,6 +455,6 @@ async function preciosModificados(empresaId, filtros) {
 }
 
 module.exports = {
-  resumenVentas, ventasPorSucursal, topProductos, formasPago, existencias, recetasCofepris,
+  resumenVentas, ventasPorSucursal, topProductos, ventasDetalladoProducto, formasPago, existencias, recetasCofepris,
   ganancias, gananciasPorProducto, preciosModificados,
 };

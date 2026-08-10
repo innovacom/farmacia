@@ -111,6 +111,7 @@ router.get('/turnos/:id/desglose',     requirePermiso('pos-turnos'), c.desgloseT
 router.get('/reportes/resumen',             requirePermiso('pos-reportes'), c.reporteResumen);
 router.get('/reportes/ventas-sucursal',     requirePermiso('pos-reportes'), c.reporteVentasSucursal);
 router.get('/reportes/top-productos',       requirePermiso('pos-reportes'), c.reporteTopProductos);
+router.get('/reportes/ventas-producto',     requirePermiso('pos-reportes'), c.reporteVentasProducto);
 router.get('/reportes/formas-pago',         requirePermiso('pos-reportes'), c.reporteFormasPago);
 router.get('/reportes/existencias',         requirePermiso('pos-reportes'), c.reporteExistencias);
 router.get('/reportes/recetas',             requirePermiso('pos-reportes'), c.reporteRecetas);

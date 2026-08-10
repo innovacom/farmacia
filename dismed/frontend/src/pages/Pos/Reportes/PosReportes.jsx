@@ -1,14 +1,16 @@
 import { useState } from 'react';
-import { BarChart3, Printer } from 'lucide-react';
+import { BarChart3, Printer, Download } from 'lucide-react';
 import {
   fmt, fnum, useFiltrosPos, useSucursales, useReportePos,
   FiltrosPos, TabsPos, EstadoReporte, NotaReporte, TarjetaKpi,
 } from './comun';
+import { exportarCsv, hoyISO } from '../../../services/exportarExcel';
 
 const TABS = [
   { key: 'resumen',     label: 'Resumen',          endpoint: '/pos/reportes/resumen' },
   { key: 'sucursal',    label: 'Por sucursal',      endpoint: '/pos/reportes/ventas-sucursal' },
   { key: 'productos',   label: 'Top productos',     endpoint: '/pos/reportes/top-productos' },
+  { key: 'venta_producto', label: 'Venta por producto (compras)', endpoint: '/pos/reportes/ventas-producto' },
   { key: 'pago',        label: 'Formas de pago',    endpoint: '/pos/reportes/formas-pago' },
   { key: 'existencias', label: 'Existencias',       endpoint: '/pos/reportes/existencias' },
   { key: 'recetas',     label: 'Recetas COFEPRIS',  endpoint: '/pos/reportes/recetas' },
@@ -74,6 +76,7 @@ export default function PosReportes() {
             {tab === 'resumen' && <VistaResumen data={data} />}
             {tab === 'sucursal' && <VistaSucursal data={data} />}
             {tab === 'productos' && <VistaProductos data={data} />}
+            {tab === 'venta_producto' && <VistaVentaProducto data={data} />}
             {tab === 'pago' && <VistaFormasPago data={data} />}
             {tab === 'existencias' && <VistaExistencias data={data} />}
             {tab === 'recetas' && <VistaRecetas data={data} />}
@@ -154,6 +157,51 @@ function VistaProductos({ data }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+function VistaVentaProducto({ data }) {
+  function exportar() {
+    exportarCsv(`venta_producto_${hoyISO()}.csv`, data.rows.map((r) => ({
+      SKU: r.sku_interno,
+      EAN: r.ean,
+      Producto: r.descripcion,
+      Proveedor: r.proveedor,
+      'Piezas vendidas': r.cantidad,
+      Importe: r.importe,
+    })));
+  }
+  return (
+    <>
+      <div className="flex justify-end mb-2 no-print">
+        <button onClick={exportar} className="btn-secondary flex items-center gap-2" disabled={!data.rows.length}>
+          <Download size={15} /> Exportar CSV
+        </button>
+      </div>
+      <div className="card p-0 overflow-x-auto">
+        <table className="table-auto w-full">
+          <thead>
+            <tr>
+              <th>SKU</th><th>EAN</th><th>Producto</th><th>Proveedor</th>
+              <th className="text-center">Piezas vendidas</th><th className="text-right">Importe</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.rows.map((r) => (
+              <tr key={r.producto_id}>
+                <td className="font-mono text-xs">{r.sku_interno}</td>
+                <td className="font-mono text-xs">{r.ean}</td>
+                <td>{r.descripcion}</td>
+                <td>{r.proveedor}</td>
+                <td className="text-center">{fnum(r.cantidad)}</td>
+                <td className="text-right">{fmt(r.importe)}</td>
+              </tr>
+            ))}
+            {!data.rows.length && <tr><td colSpan={6} className="text-center text-gray-400 py-8">Sin ventas en el periodo</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 

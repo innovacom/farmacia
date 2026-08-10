@@ -694,6 +694,10 @@ async function reporteTopProductos(req, res, next) {
   try { res.json(await reportes.topProductos(req.empresaId, req.query)); }
   catch (err) { next(err); }
 }
+async function reporteVentasProducto(req, res, next) {
+  try { res.json(await reportes.ventasDetalladoProducto(req.empresaId, req.query)); }
+  catch (err) { next(err); }
+}
 async function reporteFormasPago(req, res, next) {
   try { res.json(await reportes.formasPago(req.empresaId, req.query)); }
   catch (err) { next(err); }
@@ -731,7 +735,7 @@ module.exports = {
   listServiciosCitas, listCitas, detalleCita, crearCita, updateCita, cancelarCita, pagarCita,
   citasPendientesConfirmar, confirmarCita, recordatorioWhatsappCita,
   facturarVenta, crearFacturaGlobal, timbrarFacturaGlobal, liberarFacturaGlobal, listarFacturasGlobales,
-  reporteResumen, reporteVentasSucursal, reporteTopProductos, reporteFormasPago,
+  reporteResumen, reporteVentasSucursal, reporteTopProductos, reporteVentasProducto, reporteFormasPago,
   reporteExistencias, reporteRecetas, reporteGanancias, reporteGananciasProductos,
   reportePreciosModificados,
 };
