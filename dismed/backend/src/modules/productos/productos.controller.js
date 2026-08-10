@@ -1,4 +1,5 @@
 const { pool } = require('../../config/db');
+const path = require('path');
 const XLSX = require('xlsx');
 const { parseCatalogo } = require('../inventario/import.catalogo');
 const { buscarCandidatos, normalizar } = require('../solicitudes/matcher');
@@ -17,11 +18,11 @@ const PROD_FIELDS = [
   'fabricante', 'ean', 'sustancia_activa', 'tamano', 'calibre', 'especificacion',
   'clave_cuadro_basico', 'clasificacion_cofepris',
   'cuenta_ingreso_codigo', 'cuenta_costo_codigo',
-  'activo', 'vendible',
+  'activo', 'vendible', 'publicar_web',
 ];
 
 // Campos que se guardan como 0/1 (checkboxes), no como el valor crudo del body.
-const CAMPOS_BOOLEANOS = new Set(['iva_exento', 'control_lote_caducidad', 'vendible']);
+const CAMPOS_BOOLEANOS = new Set(['iva_exento', 'control_lote_caducidad', 'vendible', 'publicar_web']);
 
 // Alta: si no mandan `vendible` explícito, se deduce de si viene precio_lista.
 function autoVendibleCreate(body) {
@@ -63,6 +64,7 @@ async function list(req, res, next) {
               p.unidad_medida, p.stock_minimo, p.activo,
               p.control_lote_caducidad, p.unidad_base, p.factor_empaque,
               p.precio_lista, p.precio_publico, p.precio_costo, p.margen_ganancia, p.iva_exento, p.vendible,
+              p.imagen_url, p.publicar_web,
               p.familia_id, p.categoria_id, p.subcategoria_id, p.fabricante,
               p.clave_sat, p.clave_unidad_sat, p.ean, p.clasificacion_cofepris,
               p.cuenta_ingreso_codigo, p.cuenta_costo_codigo,
@@ -650,6 +652,30 @@ async function removePresentacion(req, res, next) {
   }
 }
 
+/**
+ * POST /api/productos/:id/imagen — multipart 'archivo'. Foto para el catálogo
+ * público (tienda). El nombre del archivo lo genera multer (nunca el
+ * original); mismo patrón que empresas.controller.js#subirLogo.
+ */
+async function subirImagen(req, res, next) {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'archivo requerido (png, jpg o webp)' });
+    const [[producto]] = await pool.query('SELECT id, imagen_url FROM productos WHERE id = ?', [req.params.id]);
+    if (!producto) {
+      fs.unlink(req.file.path, () => {});
+      return res.status(404).json({ error: 'Producto no encontrado' });
+    }
+    const rel = req.file.filename;
+    await pool.query('UPDATE productos SET imagen_url = ? WHERE id = ?', [rel, producto.id]);
+
+    // Limpieza best-effort de la imagen anterior
+    if (producto.imagen_url && producto.imagen_url !== rel) {
+      fs.unlink(path.join(req.file.destination, producto.imagen_url), () => {});
+    }
+    res.status(201).json({ url: `/uploads/productos/${rel}` });
+  } catch (err) { next(err); }
+}
+
 async function remove(req, res, next) {
   try {
     await pool.query('UPDATE productos SET activo = 0 WHERE id = ?', [req.params.id]);
@@ -691,6 +717,6 @@ function plantillaCatalogo(req, res, next) {
 }
 
 module.exports = {
-  list, match, matchIa, getById, create, update, updateVenta, importPreview, importConfirm, plantillaCatalogo, remove, removeMultiple,
+  list, match, matchIa, getById, create, update, updateVenta, subirImagen, importPreview, importConfirm, plantillaCatalogo, remove, removeMultiple,
   listPresentaciones, createPresentacion, updatePresentacion, removePresentacion, exportarExcel,
 };

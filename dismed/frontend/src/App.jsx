@@ -61,6 +61,8 @@ import WhatsAppBandeja from './pages/WhatsApp/Bandeja';
 import WhatsAppContactos from './pages/WhatsApp/Contactos';
 import WhatsAppEnvioMasivo from './pages/WhatsApp/EnvioMasivo';
 import WhatsAppPreguntasFrecuentes from './pages/WhatsApp/PreguntasFrecuentes';
+import Catalogo from './pages/Tienda/Catalogo';
+import DetalleProducto from './pages/Tienda/DetalleProducto';
 
 function RequireAuth({ children }) {
   const token = useAuthStore((s) => s.token);
@@ -71,6 +73,9 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      {/* Catálogo público, sin login — ver plan en memoria project_tienda_web_farmacia */}
+      <Route path="/tienda" element={<Catalogo />} />
+      <Route path="/tienda/:id" element={<DetalleProducto />} />
       <Route
         path="/"
         element={

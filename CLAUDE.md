@@ -100,6 +100,7 @@ Key Controllers:
 
 /login → / (authenticated, Layout wrapper) → /dashboard, /solicitudes, /cotizaciones, /clientes, /proveedores, /productos
 Detailed routes: /solicitudes/nueva, /solicitudes/:id, /solicitudes/:id/comparador, /solicitudes/:id/proveedores/:cpId, /cotizaciones/nueva/:solicitudId, /cotizaciones/:id
+Public (no login): /tienda, /tienda/:id — catálogo de la farmacia (módulo backend `tienda`, sin auth middleware; solo expone productos con `publicar_web=1`).
 
 ## Required Environment Variables
 
@@ -112,6 +113,7 @@ Backend (.env in dismed/backend/):
 - PORT (3001)
 - EMPRESA_NOMBRE, EMPRESA_RFC, EMPRESA_TELEFONO, EMPRESA_EMAIL, EMPRESA_DIRECCION (PDF letterhead)
 - META_APP_SECRET, WHATSAPP_WABA_ID, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_ACCESS_TOKEN, WHATSAPP_WEBHOOK_VERIFY_TOKEN, WHATSAPP_TEMPLATE_RECORDATORIO(_LANG) — todas opcionales; sin ellas el recordatorio de citas (módulo `whatsapp`) cae a un enlace manual `wa.me`. Usa un número dedicado que nunca tuvo WhatsApp (sin Coexistence). Ver `src/modules/whatsapp/README.md`.
+- TIENDA_WHATSAPP_NUMERO — opcional; número (10 dígitos MX o E.164) mostrado como botón "Pedir por WhatsApp" en el catálogo público `/tienda` (módulo `tienda`, sin login). Sin ella, el botón no se muestra. Distinto de WHATSAPP_PHONE_NUMBER_ID (ese es el ID interno de Meta Cloud API, no un número marcable).
 
 Frontend: vite.config.js already proxies /api and /outputs to http://localhost:3001. Ensure backend is running.
 

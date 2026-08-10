@@ -26,6 +26,9 @@ app.use('/outputs', express.static(path.resolve(outputDir)));
 const uploadDir = process.env.UPLOAD_DIR || './uploads';
 app.use('/uploads/branding', express.static(path.resolve(uploadDir, 'branding')));
 
+// Fotos de producto para el catálogo público (subidas vía /api/productos/:id/imagen)
+app.use('/uploads/productos', express.static(path.resolve(uploadDir, 'productos')));
+
 // Rutas
 app.use('/api/auth',                   require('./modules/auth/auth.routes'));
 app.use('/api/clientes',               require('./modules/clientes/clientes.routes'));
@@ -51,6 +54,7 @@ app.use('/api/empresas',               require('./modules/empresas/empresas.rout
 app.use('/api/expediente',             require('./modules/expediente/expediente.routes'));
 app.use('/api/whatsapp',               require('./modules/whatsapp/whatsapp.routes'));
 app.use('/api/supervisor',             require('./modules/supervisor/supervisor.routes'));
+app.use('/api/tienda',                 require('./modules/tienda/tienda.routes'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', ts: new Date() }));
 

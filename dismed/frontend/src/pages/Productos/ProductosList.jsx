@@ -18,6 +18,7 @@ const FORM_VACIO = {
   clave_sat: '', clave_unidad_sat: '', fabricante: '', ean: '',
   clasificacion_cofepris: 'libre',
   cuenta_ingreso_codigo: '', cuenta_costo_codigo: '',
+  publicar_web: 0, imagen_url: '',
 };
 
 export default function ProductosList() {
@@ -92,6 +93,22 @@ export default function ProductosList() {
     onError: (e) => toast.error(e.response?.data?.error || 'Error'),
   });
 
+  const imagenMut = useMutation({
+    mutationFn: (file) => {
+      const fd = new FormData();
+      fd.append('archivo', file);
+      return api.post(`/productos/${editando.id}/imagen`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    },
+    onSuccess: (res) => {
+      toast.success('Imagen actualizada');
+      set('imagen_url', res.data.url.split('/').pop());
+      qc.invalidateQueries(['productos']);
+    },
+    onError: (e) => toast.error(e.response?.data?.error || 'Error al subir la imagen'),
+  });
+
   const bajaMut = useMutation({
     mutationFn: (ids) =>
       ids.length === 1
@@ -135,6 +152,7 @@ export default function ProductosList() {
       fabricante: p.fabricante || '', ean: p.ean || '',
       clasificacion_cofepris: p.clasificacion_cofepris || 'libre',
       cuenta_ingreso_codigo: p.cuenta_ingreso_codigo || '', cuenta_costo_codigo: p.cuenta_costo_codigo || '',
+      publicar_web: p.publicar_web ?? 0, imagen_url: p.imagen_url || '',
     });
     setShowModal(true);
   }
@@ -171,6 +189,7 @@ export default function ProductosList() {
       cuenta_ingreso_codigo: form.cuenta_ingreso_codigo || null,
       cuenta_costo_codigo: form.cuenta_costo_codigo || null,
     };
+    delete payload.imagen_url; // solo se sube por /productos/:id/imagen, nunca por este PUT/POST
     if (editando) delete payload.sku_interno;
     guardarMut.mutate(payload);
   }
@@ -342,6 +361,11 @@ export default function ProductosList() {
                       {!p.vendible && (
                         <span className="block mt-1 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700" title="Sin precio de venta: no se puede vender en POS ni cotizaciones">
                           No vendible
+                        </span>
+                      )}
+                      {!!p.publicar_web && (
+                        <span className="block mt-1 text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-700" title="Visible en el catálogo público /tienda">
+                          Web
                         </span>
                       )}
                     </td>
@@ -525,6 +549,31 @@ export default function ProductosList() {
               <p className="text-xs text-gray-400 mt-1">
                 Antibióticos y fracciones I–III exigen receta al vender en el POS y se registran en la bitácora COFEPRIS.
               </p>
+            </div>
+
+            {/* Catálogo público (tienda web) — ver plan en memoria project_tienda_web_farmacia */}
+            <div className="border-t border-gray-100 pt-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Catálogo web</p>
+              <label className="flex items-center gap-2 text-sm mb-3">
+                <input type="checkbox" className="h-4 w-4 accent-brand-500"
+                  checked={!!form.publicar_web} onChange={(e) => set('publicar_web', e.target.checked ? 1 : 0)} />
+                Publicar en el catálogo público (/tienda)
+              </label>
+              {editando ? (
+                <div className="flex items-center gap-3">
+                  {form.imagen_url && (
+                    <img src={`/uploads/productos/${form.imagen_url}`} alt="" className="w-16 h-16 object-cover rounded-lg border border-gray-200" />
+                  )}
+                  <div>
+                    <input type="file" accept="image/png,image/jpeg,image/webp"
+                      onChange={(e) => e.target.files[0] && imagenMut.mutate(e.target.files[0])}
+                      className="text-sm" disabled={imagenMut.isPending} />
+                    <p className="text-xs text-gray-400 mt-0.5">PNG, JPG o WEBP, máx. 3 MB.</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400">Guarda el producto primero para poder subirle una foto.</p>
+              )}
             </div>
 
             {/* Presentaciones de venta: mismo producto, misma existencia (en piezas),
