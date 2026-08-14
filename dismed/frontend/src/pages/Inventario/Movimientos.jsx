@@ -66,6 +66,7 @@ function EntradaModal({ onClose, onDone }) {
     if (!prod) return toast.error('Selecciona un producto');
     if (!f.almacen_id || !f.ubicacion_id) return toast.error('Almacén y ubicación requeridos');
     if (!(parseFloat(f.cantidad) > 0)) return toast.error('Cantidad > 0');
+    if (!Number.isInteger(Number(f.cantidad))) return toast.error('La cantidad debe ser un número entero');
     if (prod.control_lote_caducidad && !f.numero_lote.trim()) return toast.error('Este producto requiere lote');
     // El kardex siempre se mueve en piezas: si se capturó "3 vitroleros" a $450
     // c/u, entran 3*factor piezas con costo unitario = 450/factor por pieza.
@@ -158,7 +159,7 @@ function EntradaModal({ onClose, onDone }) {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="label">Cantidad{presentacion ? ` (${presentacion.nombre}) ` : ''} *</label>
-            <input type="number" min="0" step="0.01" className="input" value={f.cantidad} onChange={(e) => setF({ ...f, cantidad: e.target.value })} />
+            <input type="number" min="0" step="1" className="input" value={f.cantidad} onChange={(e) => setF({ ...f, cantidad: e.target.value })} />
           </div>
           <div>
             <label className="label">Costo{presentacion ? ` por ${presentacion.nombre}` : ' unitario'}</label>
@@ -200,6 +201,7 @@ function OperacionModal({ tipo, lote, onClose, onDone }) {
   });
 
   function submit() {
+    if (cantidad !== '' && !Number.isInteger(Number(cantidad))) return toast.error('La cantidad debe ser un número entero');
     if (tipo === 'ajuste') {
       if (cantidad === '' || parseFloat(cantidad) < 0) return toast.error('Cantidad nueva inválida');
       return mut.mutate({ lote_id: lote.lote_id, cantidad_nueva: parseFloat(cantidad), motivo });
@@ -232,7 +234,7 @@ function OperacionModal({ tipo, lote, onClose, onDone }) {
         )}
         <div>
           <label className="label">{tipo === 'ajuste' ? 'Cantidad real (conteo)' : 'Cantidad'} *</label>
-          <input type="number" min="0" step="0.01" className="input" value={cantidad} onChange={(e) => setCantidad(e.target.value)} />
+          <input type="number" min="0" step="1" className="input" value={cantidad} onChange={(e) => setCantidad(e.target.value)} />
         </div>
         <div>
           <label className="label">Motivo</label>

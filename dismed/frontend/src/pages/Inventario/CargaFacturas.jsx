@@ -71,6 +71,8 @@ export default function CargaFacturas() {
     if (sinUbicacion.length) return toast.error(`Falta ubicación en ${sinUbicacion.length} renglón(es)`);
     const sinLote = renglones.filter((r) => r.control_lote_caducidad && !r.numero_lote?.toString().trim());
     if (sinLote.length) return toast.error(`Falta número de lote en ${sinLote.length} producto(s) con control de caducidad`);
+    const cantidadInvalida = renglones.filter((r) => !Number.isInteger(Number(r.cantidad)) || Number(r.cantidad) <= 0);
+    if (cantidadInvalida.length) return toast.error(`La cantidad debe ser un número entero mayor a 0 en ${cantidadInvalida.length} renglón(es)`);
 
     setConfirmando(true);
     try {
@@ -201,7 +203,7 @@ export default function CargaFacturas() {
                       </td>
                       <td className="text-right">
                         <input
-                          type="number" min="0" step="0.01" className="input w-20 text-right"
+                          type="number" min="0" step="1" className="input w-20 text-right"
                           value={r.cantidad}
                           onChange={(e) => actualizarRenglon(r.linea, 'cantidad', e.target.value)}
                         />
@@ -252,48 +254,42 @@ export default function CargaFacturas() {
                           onChange={(e) => actualizarRenglon(r.linea, 'costo_unitario', e.target.value)}
                         />
                       </td>
-                      {r.vendible ? (
-                        <td colSpan={3} className="align-top pt-2.5">
-                          <span className="badge-green">Ya vendible</span>
-                        </td>
-                      ) : (
-                        <>
-                          <td className="text-right">
-                            <input
-                              type="number" min="0" step="0.01" className="input w-24 text-right"
-                              value={r.precio_lista}
-                              placeholder="Capturar"
-                              onChange={(e) => actualizarRenglon(r.linea, 'precio_lista', e.target.value)}
-                            />
-                          </td>
-                          <td className="text-right">
-                            <input
-                              type="number" min="0" step="0.01" className="input w-24 text-right"
-                              value={r.precio_publico}
-                              placeholder="Opcional"
-                              onChange={(e) => actualizarRenglon(r.linea, 'precio_publico', e.target.value)}
-                            />
-                          </td>
-                          <td>
-                            {r.producto_nuevo ? (
-                              <select
-                                className="input w-40"
-                                value={r.clasificacion_cofepris || 'libre'}
-                                onChange={(e) => actualizarRenglon(r.linea, 'clasificacion_cofepris', e.target.value)}
-                              >
-                                <option value="libre">Venta libre</option>
-                                <option value="venta_farmacia">Venta en farmacia s/receta</option>
-                                <option value="antibiotico">Antibiótico — receta retenida</option>
-                                <option value="fraccion_iii">Fracción III</option>
-                                <option value="fraccion_ii">Fracción II</option>
-                                <option value="fraccion_i">Fracción I</option>
-                              </select>
-                            ) : (
-                              <span className="text-gray-400">—</span>
-                            )}
-                          </td>
-                        </>
-                      )}
+                      <td className="text-right">
+                        <input
+                          type="number" min="0" step="0.01" className="input w-24 text-right"
+                          value={r.precio_lista}
+                          placeholder="Capturar"
+                          title={r.vendible ? 'Ya vendible — precio sugerido, edítalo si cambió' : undefined}
+                          onChange={(e) => actualizarRenglon(r.linea, 'precio_lista', e.target.value)}
+                        />
+                        {r.vendible && <span className="badge-green block mt-0.5 text-center">vendible</span>}
+                      </td>
+                      <td className="text-right">
+                        <input
+                          type="number" min="0" step="0.01" className="input w-24 text-right"
+                          value={r.precio_publico}
+                          placeholder="Opcional"
+                          onChange={(e) => actualizarRenglon(r.linea, 'precio_publico', e.target.value)}
+                        />
+                      </td>
+                      <td>
+                        {r.producto_nuevo ? (
+                          <select
+                            className="input w-40"
+                            value={r.clasificacion_cofepris || 'libre'}
+                            onChange={(e) => actualizarRenglon(r.linea, 'clasificacion_cofepris', e.target.value)}
+                          >
+                            <option value="libre">Venta libre</option>
+                            <option value="venta_farmacia">Venta en farmacia s/receta</option>
+                            <option value="antibiotico">Antibiótico — receta retenida</option>
+                            <option value="fraccion_iii">Fracción III</option>
+                            <option value="fraccion_ii">Fracción II</option>
+                            <option value="fraccion_i">Fracción I</option>
+                          </select>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

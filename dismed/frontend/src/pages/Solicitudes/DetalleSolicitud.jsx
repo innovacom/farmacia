@@ -85,8 +85,8 @@ export default function DetalleSolicitud() {
   });
 
   function guardarEdicion() {
-    const cant = parseFloat(String(editRow.cantidad).trim().replace(',', '.'));
-    if (!Number.isFinite(cant) || cant <= 0) return toast.error('Cantidad inválida: debe ser mayor a 0');
+    const cant = parseInt(String(editRow.cantidad).trim(), 10);
+    if (!Number.isFinite(cant) || cant <= 0) return toast.error('Cantidad inválida: debe ser un número entero mayor a 0');
     if (!editRow.descripcion_original?.trim()) return toast.error('La descripción no puede quedar vacía');
     editarMut.mutate({
       pid: editRow.id,
@@ -314,9 +314,9 @@ export default function DetalleSolicitud() {
                 </td>
                 <td className="text-right">
                   {enEdicion ? (
-                    <input type="text" inputMode="decimal" className="input text-xs text-right w-24"
+                    <input type="text" inputMode="numeric" className="input text-xs text-right w-24"
                       value={editRow.cantidad}
-                      onChange={(e) => setEditRow((r) => ({ ...r, cantidad: e.target.value }))} />
+                      onChange={(e) => setEditRow((r) => ({ ...r, cantidad: e.target.value.replace(/[^0-9]/g, '') }))} />
                   ) : Number(p.cantidad).toLocaleString('es-MX')}
                 </td>
                 <td>

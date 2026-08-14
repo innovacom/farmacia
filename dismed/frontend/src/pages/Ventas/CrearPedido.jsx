@@ -33,6 +33,10 @@ export default function CrearPedido() {
 
   function crear() {
     const incluidas = (cot.partidas || []).filter((p) => sel[p.id]?.incluir && Number(sel[p.id]?.cantidad) > 0);
+    const noEntero = incluidas.filter((p) => !Number.isInteger(Number(sel[p.id].cantidad)));
+    if (noEntero.length) {
+      return toast.error(`La cantidad debe ser un número entero en: ${noEntero.map((p) => `#${p.linea}`).join(', ')}`);
+    }
     const excedidas = incluidas.filter((p) => Number(sel[p.id].cantidad) > Number(p.cantidad));
     if (excedidas.length) {
       return toast.error(`La cantidad asignada excede lo cotizado en: ${excedidas.map((p) => `#${p.linea}`).join(', ')}`);
@@ -90,7 +94,7 @@ export default function CrearPedido() {
                   </td>
                   <td className="text-center">{Number(p.cantidad).toLocaleString('es-MX')} {p.unidad_medida}</td>
                   <td className="text-center">
-                    <input type="number" min="0" max={Number(p.cantidad)} step="0.01" className="input w-24 text-center text-sm"
+                    <input type="number" min="0" max={Number(p.cantidad)} step="1" className="input w-24 text-center text-sm"
                       value={s.cantidad} disabled={!s.incluir}
                       onChange={(e) => setSel((x) => ({ ...x, [p.id]: { ...s, cantidad: e.target.value } }))} />
                   </td>

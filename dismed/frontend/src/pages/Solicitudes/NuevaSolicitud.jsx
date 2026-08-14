@@ -167,7 +167,7 @@ export default function NuevaSolicitud() {
     const partidasLimpias = parsedPartidas.map((p) => ({
       ...p,
       linea:    parseInt(String(p.linea).trim(), 10),
-      cantidad: parseFloat(String(p.cantidad).trim().replace(',', '.')),
+      cantidad: parseInt(String(p.cantidad).trim(), 10),
     }));
 
     const invalidas = partidasLimpias.filter(
@@ -175,7 +175,7 @@ export default function NuevaSolicitud() {
              !Number.isFinite(p.cantidad) || p.cantidad <= 0
     );
     if (invalidas.length > 0) {
-      toast.error(`Revisa número de partida y cantidad (deben ser mayores a 0) en ${invalidas.length} renglón(es)`);
+      toast.error(`Revisa número de partida y cantidad (deben ser enteros mayores a 0) en ${invalidas.length} renglón(es)`);
       return;
     }
 
@@ -458,8 +458,8 @@ export default function NuevaSolicitud() {
                         )}
                       </td>
                       <td>
-                        <input type="text" inputMode="decimal" className="input text-xs text-right" value={p.cantidad ?? ''}
-                          onChange={(e) => updatePartida(idx, 'cantidad', e.target.value)} />
+                        <input type="text" inputMode="numeric" className="input text-xs text-right" value={p.cantidad ?? ''}
+                          onChange={(e) => updatePartida(idx, 'cantidad', e.target.value.replace(/[^0-9]/g, ''))} />
                       </td>
                       <td>
                         <input className="input text-xs" value={p.unidad_medida || ''}

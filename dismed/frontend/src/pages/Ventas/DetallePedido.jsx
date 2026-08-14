@@ -34,6 +34,8 @@ function RecepcionModal({ ocId, onClose, onDone }) {
 
   function submit() {
     if (!almacen || !ubicacion) return toast.error('Selecciona almacén y ubicación');
+    const noEntero = Object.values(lineas).some((l) => l?.cantidad !== undefined && l.cantidad !== '' && !Number.isInteger(Number(l.cantidad)));
+    if (noEntero) return toast.error('La cantidad recibida debe ser un número entero');
     const partidas = (oc?.partidas || [])
       .filter((p) => Number(lineas[p.id]?.cantidad) > 0)
       .map((p) => ({ oc_partida_id: p.id, cantidad: Number(lineas[p.id].cantidad),
@@ -72,7 +74,7 @@ function RecepcionModal({ ocId, onClose, onDone }) {
                   <tr key={p.id} className="border-t border-gray-100">
                     <td className="px-2 py-1"><span className="font-mono text-brand-500">{p.sku_interno}</span> <span className="text-gray-500">{p.descripcion?.substring(0, 40)}</span></td>
                     <td className="px-2 py-1 text-right">{pend}</td>
-                    <td className="px-2 py-1"><input type="number" min="0" max={pend} step="0.01" className="input w-20 text-xs" value={l.cantidad || ''} onChange={(e) => setLineas((x) => ({ ...x, [p.id]: { ...l, cantidad: e.target.value } }))} /></td>
+                    <td className="px-2 py-1"><input type="number" min="0" max={pend} step="1" className="input w-20 text-xs" value={l.cantidad || ''} onChange={(e) => setLineas((x) => ({ ...x, [p.id]: { ...l, cantidad: e.target.value } }))} /></td>
                     <td className="px-2 py-1"><input className="input w-24 text-xs font-mono" value={l.numero_lote || ''} onChange={(e) => setLineas((x) => ({ ...x, [p.id]: { ...l, numero_lote: e.target.value } }))} placeholder="opcional" /></td>
                     <td className="px-2 py-1"><input type="date" className="input w-32 text-xs" value={l.fecha_caducidad || ''} onChange={(e) => setLineas((x) => ({ ...x, [p.id]: { ...l, fecha_caducidad: e.target.value } }))} /></td>
                   </tr>
@@ -114,6 +116,8 @@ function EntregaModal({ pedido, onClose, onDone }) {
 
   function submit() {
     setFaltantes([]);
+    const noEntero = Object.values(lineas).some((v) => v !== undefined && v !== '' && !Number.isInteger(Number(v)));
+    if (noEntero) return toast.error('La cantidad a entregar debe ser un número entero');
     const partidas = (pedido.partidas || [])
       .filter((p) => Number(lineas[p.id]) > 0)
       .map((p) => ({ pedido_partida_id: p.id, cantidad: Number(lineas[p.id]) }));
@@ -172,7 +176,7 @@ function EntregaModal({ pedido, onClose, onDone }) {
                     <td className="px-2 py-1 text-right">{Number(p.cantidad_recibida)}</td>
                     <td className="px-2 py-1 text-right">{Number(p.cantidad_entregada)}</td>
                     <td className="px-2 py-1 text-right">{Number(p.stock)}</td>
-                    <td className="px-2 py-1"><input type="number" min="0" max={max} step="0.01" className="input w-20 text-xs" value={lineas[p.id] || ''} disabled={max <= 0} onChange={(e) => setLineas((x) => ({ ...x, [p.id]: e.target.value }))} /></td>
+                    <td className="px-2 py-1"><input type="number" min="0" max={max} step="1" className="input w-20 text-xs" value={lineas[p.id] || ''} disabled={max <= 0} onChange={(e) => setLineas((x) => ({ ...x, [p.id]: e.target.value }))} /></td>
                   </tr>
                 );
               })}

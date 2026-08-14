@@ -33,7 +33,7 @@ export default function ModalExistencia({ producto, sucursalId, onClose, onRegis
     onError: (e) => toast.error(e.response?.data?.error || 'Error al registrar la existencia'),
   });
 
-  const cantidadValida = Number(cantidad) > 0;
+  const cantidadValida = Number(cantidad) > 0 && Number.isInteger(Number(cantidad));
   const loteValido = !producto.control_lote_caducidad || numeroLote.trim();
   const valido = cantidadValida && loteValido;
 
@@ -53,7 +53,7 @@ export default function ModalExistencia({ producto, sucursalId, onClose, onRegis
             Cantidad{producto.presentacion_id ? ' (unidades de esta presentación)' : ' (piezas)'} *
           </label>
           <input
-            className="input" type="number" min="0.01" step="any" autoFocus
+            className="input" type="number" min="1" step="1" autoFocus
             value={cantidad} onChange={(e) => setCantidad(e.target.value)}
           />
         </div>

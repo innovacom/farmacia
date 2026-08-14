@@ -15,7 +15,7 @@ const fs = require('fs');
 const { parseCfdi } = require('../cfdi/cfdi.parser');
 const { normalizar } = require('../solicitudes/matcher');
 const svc = require('./movimientos.service');
-const { normalizarPrecioPublico, validarPrecios, tienePrecioLista } = require('../productos/productos.pricing');
+const { normalizarPrecioPublico, validarPrecios, tienePrecioLista, PRECIO_PUBLICO_SIN_TOPE } = require('../productos/productos.pricing');
 const { resolverId } = require('../productos/taxonomia.util');
 const { clasificarProductosNuevos } = require('../productos/clasificador.ia');
 
@@ -37,7 +37,7 @@ async function ubicacionSugerida(conn, producto_id, almacen_id) {
   return row ? row.codigo : null;
 }
 
-const PROD_COLS = 'id, sku_interno, control_lote_caducidad, vendible, clasificacion_cofepris';
+const PROD_COLS = 'id, sku_interno, control_lote_caducidad, vendible, clasificacion_cofepris, precio_lista, precio_publico';
 
 // Resuelve TODOS los códigos de la factura en dos consultas (no 1-2 por
 // renglón): prioridad sku_interno sobre ean, igual que la versión por-código.
@@ -224,8 +224,11 @@ async function preview(req, res, next) {
         clasificacion_cofepris: productoNuevo ? (prod.clasificacion_cofepris || 'libre') : null,
         cantidad: c.cantidad,
         costo_unitario: c.valor_unitario,
-        precio_lista: '',
-        precio_publico: '',
+        // Si el producto ya es vendible se sugiere su precio actual (editable, por si el
+        // proveedor subió el costo y conviene ajustarlo aquí mismo); si es nuevo, vacío.
+        precio_lista: prod.vendible && prod.precio_lista != null ? String(prod.precio_lista) : '',
+        precio_publico: prod.vendible && prod.precio_publico != null && Number(prod.precio_publico) !== PRECIO_PUBLICO_SIN_TOPE
+          ? String(prod.precio_publico) : '',
         ubicacion: ubicacion || '',
         numero_lote: '',
         fecha_caducidad: '',
