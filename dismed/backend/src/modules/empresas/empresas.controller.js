@@ -100,6 +100,9 @@ async function getConfig(req, res, next) {
         label: meta.label,
         valores: meta.valores || null,
         default: meta.default,
+        grupo: meta.grupo || 'pos', // 'pos' por default: claves viejas no regresionan de sección
+        ayuda: meta.ayuda || null,
+        multilinea: !!meta.multilinea,
       };
     }
     res.json(config);
@@ -118,6 +121,9 @@ async function setConfig(req, res, next) {
       }
       if (meta.maxLen && valor.length > meta.maxLen) {
         return res.status(400).json({ error: `${meta.label}: máximo ${meta.maxLen} caracteres` });
+      }
+      if (meta.patron && !meta.patron.test(valor)) {
+        return res.status(400).json({ error: `${meta.label}: formato inválido${meta.ayuda ? ` (ej. ${meta.ayuda})` : ''}` });
       }
       updates[clave] = valor;
     }

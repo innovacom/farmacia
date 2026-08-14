@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { SlidersHorizontal, Check, Loader2, ShieldCheck, Save, Clock, MessageCircle } from 'lucide-react';
+import { SlidersHorizontal, Check, Loader2, ShieldCheck, Save, Clock, MessageCircle, Truck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { usePrefsStore, ROWS_PER_PAGE_OPTIONS } from '../../store/prefsStore';
 import { usePermisos } from '../../hooks/usePermisos';
@@ -57,6 +57,9 @@ export default function Configuracion() {
 
       {/* WhatsApp API (recordatorio de citas, solo admin) */}
       {isAdmin && <WhatsAppEstado />}
+
+      {/* Pedido automático a Nadro (solo admin) */}
+      {isAdmin && <PedidoNadro />}
 
       {/* Permisos por usuario (solo admin) */}
       {isAdmin && <PermisosUsuarios />}
@@ -179,6 +182,66 @@ function WhatsAppEstado() {
         <span className="badge-green">Configurado — el envío automático está activo</span>
       ) : (
         <span className="badge-yellow">Sin configurar — Citas usa por ahora el enlace manual de WhatsApp</span>
+      )}
+    </div>
+  );
+}
+
+// Prende/apaga el cron de las 21:00 que arma y coloca el pedido de reposición
+// a Nadro con lo vendido en el día. Cambia de inmediato (la BD, no el .env)
+// — no requiere redeploy ni reiniciar el backend.
+function PedidoNadro() {
+  const qc = useQueryClient();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['nadro-config'],
+    queryFn: () => api.get('/nadro/config').then((r) => r.data),
+  });
+
+  const guardar = useMutation({
+    mutationFn: (activo) => api.put('/nadro/config', { activo }),
+    onSuccess: (r) => {
+      toast.success(r.data.activo ? 'Pedido automático a Nadro activado' : 'Pedido automático a Nadro apagado');
+      qc.setQueryData(['nadro-config'], r.data);
+    },
+    onError: (e) => toast.error(e.response?.data?.error || 'No se pudo guardar'),
+  });
+
+  const activo = !!data?.activo;
+
+  return (
+    <div className="card mt-6">
+      <div className="flex items-center gap-2 mb-1">
+        <Truck size={18} className="text-brand-500" />
+        <h2 className="font-semibold text-gray-900">Pedido automático a Nadro</h2>
+      </div>
+      <p className="text-sm text-gray-500 mb-4">
+        Cada noche a las 21:00 arma un pedido con lo vendido en el día (productos con proveedor
+        Nadro confirmado en el catálogo) y lo coloca directamente en i22.nadro.mx — es dinero real
+        contra la línea de crédito. Apágalo si ya se hizo el pedido manualmente o si quieres
+        pausarlo por cualquier motivo.
+      </p>
+
+      {isLoading ? (
+        <p className="text-sm text-gray-400 py-2">Cargando…</p>
+      ) : (
+        <label className="flex items-center gap-3 cursor-pointer w-fit">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={activo}
+            disabled={guardar.isPending}
+            onClick={() => guardar.mutate(!activo)}
+            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors
+              ${activo ? 'bg-brand-500' : 'bg-gray-300'} ${guardar.isPending ? 'opacity-60' : ''}`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform
+              ${activo ? 'translate-x-6' : 'translate-x-1'}`} />
+          </button>
+          <span className={`text-sm font-medium ${activo ? 'text-brand-600' : 'text-gray-500'}`}>
+            {activo ? 'Activo — corre esta noche a las 21:00' : 'Apagado — no se pedirá nada automáticamente'}
+          </span>
+        </label>
       )}
     </div>
   );

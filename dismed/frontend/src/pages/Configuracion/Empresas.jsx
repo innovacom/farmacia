@@ -248,9 +248,9 @@ function EditorEmpresa({ empresa, onClose, onSaved }) {
           </div>
         </section>
 
-        {/* 3. Parámetros POS */}
+        {/* 3. Parámetros (POS + tienda en línea) */}
         {empresa && (
-          <ParametrosPos empresaId={empresa.id} valores={paramValores} onChange={setParamValores} />
+          <ParametrosEmpresa empresaId={empresa.id} valores={paramValores} onChange={setParamValores} />
         )}
 
         <div className="flex items-center justify-between border-t border-gray-100 pt-4">
@@ -369,7 +369,17 @@ function DropLogo({ empresa, tipo, label, onDone }) {
   );
 }
 
-function ParametrosPos({ empresaId, valores, onChange }) {
+// Grupos de empresas_config (branding.service.js#CONFIG_META): cada clave
+// declara su `grupo` y aquí sólo se decide en qué <section> del editor cae.
+const GRUPOS = [
+  { id: 'pos', titulo: 'Parámetros del punto de venta' },
+  { id: 'tienda', titulo: 'Tienda en línea (/tienda)',
+    nota: 'Se muestran en el encabezado y el pie del catálogo público. La dirección, el teléfono, el horario y el mapa de cada sucursal se editan en Punto de venta → Sucursales.' },
+  { id: 'legal', titulo: 'Legal y envíos (/tienda)',
+    nota: 'El aviso de privacidad ya trae el texto real de la empresa; los términos y condiciones son una plantilla genérica — revísala y personalízala antes de publicar. Los datos de COFEPRIS (responsable sanitario, licencia) se capturan por sucursal en Punto de venta → Sucursales.' },
+];
+
+function ParametrosEmpresa({ empresaId, valores, onChange }) {
   const { data: config } = useQuery({
     queryKey: ['empresa-config', empresaId],
     queryFn: () => api.get(`/empresas/${empresaId}/config`).then((r) => r.data),
@@ -385,29 +395,43 @@ function ParametrosPos({ empresaId, valores, onChange }) {
   const set = (k, v) => onChange({ ...valores, [k]: v });
 
   return (
-    <section className="border-t border-gray-100 pt-4">
-      <h3 className="text-sm font-semibold text-gray-900 mb-2">Parámetros del punto de venta</h3>
-      <div className="grid md:grid-cols-2 gap-3">
-        {Object.entries(config).map(([clave, meta]) => (
-          <div key={clave}>
-            <label className="label">{meta.label}</label>
-            {meta.valores ? (
-              <select className="input" value={valores[clave] ?? meta.valor}
-                onChange={(e) => set(clave, e.target.value)}>
-                {meta.valores.map((v) => (
-                  <option key={v} value={v}>
-                    {formatoOpcion(clave, v)}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input className="input" value={valores[clave] ?? meta.valor}
-                onChange={(e) => set(clave, e.target.value)} />
-            )}
-          </div>
-        ))}
-      </div>
-    </section>
+    <>
+      {GRUPOS.map((g) => {
+        const claves = Object.entries(config).filter(([, meta]) => (meta.grupo || 'pos') === g.id);
+        if (!claves.length) return null;
+        return (
+          <section key={g.id} className="border-t border-gray-100 pt-4">
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">{g.titulo}</h3>
+            {g.nota && <p className="text-xs text-gray-400 mb-3 max-w-xl">{g.nota}</p>}
+            <div className="grid md:grid-cols-2 gap-3">
+              {claves.map(([clave, meta]) => (
+                <div key={clave} className={meta.multilinea ? 'md:col-span-2' : undefined}>
+                  <label className="label">{meta.label}</label>
+                  {meta.valores ? (
+                    <select className="input" value={valores[clave] ?? meta.valor}
+                      onChange={(e) => set(clave, e.target.value)}>
+                      {meta.valores.map((v) => (
+                        <option key={v} value={v}>
+                          {formatoOpcion(clave, v)}
+                        </option>
+                      ))}
+                    </select>
+                  ) : meta.multilinea ? (
+                    <textarea className="input" rows={6} value={valores[clave] ?? meta.valor}
+                      placeholder={meta.ayuda || undefined}
+                      onChange={(e) => set(clave, e.target.value)} />
+                  ) : (
+                    <input className="input" value={valores[clave] ?? meta.valor}
+                      placeholder={meta.ayuda || undefined}
+                      onChange={(e) => set(clave, e.target.value)} />
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        );
+      })}
+    </>
   );
 }
 

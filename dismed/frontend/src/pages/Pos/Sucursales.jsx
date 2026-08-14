@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Warehouse, Plus, Pencil, Monitor, Receipt, Zap, X, Search, Clock } from 'lucide-react';
+import { Warehouse, Plus, Pencil, Monitor, Receipt, Zap, X, Search, Clock, Globe, MapPin, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 import Modal from '../../components/ui/Modal';
@@ -141,6 +141,12 @@ function ModalSucursal({ sucursal, onClose, onSaved }) {
     direccion: sucursal?.direccion || '',
     telefono: sucursal?.telefono || '',
     activo: sucursal ? !!sucursal.activo : true,
+    latitud: sucursal?.latitud ?? '',
+    longitud: sucursal?.longitud ?? '',
+    publicar_web: sucursal ? !!sucursal.publicar_web : false,
+    responsable_sanitario: sucursal?.responsable_sanitario || '',
+    cedula_responsable_sanitario: sucursal?.cedula_responsable_sanitario || '',
+    licencia_sanitaria: sucursal?.licencia_sanitaria || '',
   });
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const [favoritos, setFavoritos] = useState([]); // [{id, sku_interno, descripcion}]
@@ -160,12 +166,12 @@ function ModalSucursal({ sucursal, onClose, onSaved }) {
   const guardar = useMutation({
     mutationFn: () => (sucursal
       ? api.put(`/pos/sucursales/${sucursal.id}`, {
-          ...form, activo: form.activo ? 1 : 0,
+          ...form, activo: form.activo ? 1 : 0, publicar_web: form.publicar_web ? 1 : 0,
           productos_favoritos: favoritos.map((p) => ({
             id: p.producto_id, color: p.color || null, presentacion_id: p.presentacion_id || undefined,
           })),
         })
-      : api.post('/pos/sucursales', form)),
+      : api.post('/pos/sucursales', { ...form, publicar_web: form.publicar_web ? 1 : 0 })),
     onSuccess: () => { toast.success('Sucursal guardada'); onSaved(); },
     onError: (e) => toast.error(e.response?.data?.error || 'Error al guardar'),
   });
@@ -220,6 +226,57 @@ function ModalSucursal({ sucursal, onClose, onSaved }) {
             </div>
           )}
         </div>
+
+        <div className="border-t border-gray-100 pt-3">
+          <label className="label flex items-center gap-1.5">
+            <Globe size={13} className="text-brand-500" /> Tienda en línea
+          </label>
+          <label className="flex items-center gap-2 text-sm text-gray-700 mb-2">
+            <input type="checkbox" checked={form.publicar_web}
+              onChange={(e) => set('publicar_web', e.target.checked)} />
+            Mostrar esta sucursal en el catálogo público
+          </label>
+          <p className="text-xs text-gray-400 mb-2">
+            Publica dirección, teléfono, horario y mapa en el pie de /tienda.
+            Las sucursales que en realidad son almacenes internos deben quedar sin marcar.
+          </p>
+          {form.publicar_web && (
+            <UbicacionSucursal
+              latitud={form.latitud} longitud={form.longitud}
+              onChange={(lat, lng) => { set('latitud', lat); set('longitud', lng); }}
+            />
+          )}
+        </div>
+
+        {form.publicar_web && (
+          <div className="border-t border-gray-100 pt-3">
+            <label className="label flex items-center gap-1.5">
+              <ShieldCheck size={13} className="text-brand-500" /> Datos sanitarios (COFEPRIS)
+            </label>
+            <p className="text-xs text-gray-400 mb-2">
+              Se muestran en la tarjeta de esta sucursal en /tienda. Déjalos en blanco si aún no los tienes a la mano.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <label className="label">Responsable sanitario</label>
+                <input className="input" value={form.responsable_sanitario}
+                  onChange={(e) => set('responsable_sanitario', e.target.value)}
+                  placeholder="Nombre del QFB responsable" />
+              </div>
+              <div>
+                <label className="label">Cédula profesional</label>
+                <input className="input" value={form.cedula_responsable_sanitario}
+                  onChange={(e) => set('cedula_responsable_sanitario', e.target.value)} />
+              </div>
+              <div>
+                <label className="label">Aviso de Funcionamiento</label>
+                <input className="input" value={form.licencia_sanitaria}
+                  onChange={(e) => set('licencia_sanitaria', e.target.value)}
+                  placeholder="No. de licencia COFEPRIS" />
+              </div>
+            </div>
+          </div>
+        )}
 
         {sucursal && (
           <div className="border-t border-gray-100 pt-3">
@@ -331,6 +388,81 @@ function BuscadorFavoritos({ sucursalId, excluir, onElegir }) {
   );
 }
 
+// Obtener coordenadas sin salir de Google Maps: clic derecho sobre el local →
+// el primer renglón del menú son las coordenadas y al hacer clic se copian
+// como "19.432608, -99.133209". Se aceptan también URLs largas pegadas de la
+// barra de direcciones. Los enlaces cortos (maps.app.goo.gl) NO traen
+// coordenadas — habría que seguir el redirect desde el servidor, así que se
+// rechazan con un mensaje que explica qué hacer.
+function parsearUbicacion(texto) {
+  const t = (texto || '').trim();
+  if (!t) return null;
+  // !3d/!4d = el pin real del lugar; @lat,lng = sólo el centro de la vista.
+  // Por eso se intenta primero !3d/!4d.
+  const m = t.match(/!3d(-?\d{1,3}\.\d+)!4d(-?\d{1,3}\.\d+)/)
+         || t.match(/@(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/)
+         || t.match(/^(-?\d{1,3}(?:\.\d+)?)\s*[,\s]\s*(-?\d{1,3}(?:\.\d+)?)$/);
+  if (!m) return null;
+  const lat = Number(m[1]); const lng = Number(m[2]);
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  return { lat, lng };
+}
+
+// Vista previa + caja de pegado de la ubicación de la sucursal (alimenta el
+// mapa embebido del pie de /tienda, ver tienda.controller.js#mapaEmbed).
+function UbicacionSucursal({ latitud, longitud, onChange }) {
+  const [texto, setTexto] = useState('');
+  const [error, setError] = useState('');
+  const tieneCoords = latitud !== '' && longitud !== '' && latitud != null && longitud != null;
+
+  const usar = () => {
+    if (/maps\.app\.goo\.gl/i.test(texto)) {
+      setError('Los enlaces cortos de maps.app.goo.gl no incluyen las coordenadas. Ábrelo en el navegador y copia la URL larga, o haz clic derecho sobre el local en Google Maps y elige las coordenadas.');
+      return;
+    }
+    const r = parsearUbicacion(texto);
+    if (!r) { setError('No se reconocieron coordenadas válidas en ese texto.'); return; }
+    setError('');
+    setTexto('');
+    onChange(r.lat, r.lng);
+  };
+
+  return (
+    <div className="space-y-2">
+      {!tieneCoords ? (
+        <div className="flex gap-2">
+          <input
+            className="input text-sm flex-1"
+            placeholder="Pega aquí: 19.432608, -99.133209 (clic derecho en Google Maps → coordenadas)"
+            value={texto}
+            onChange={(e) => { setTexto(e.target.value); setError(''); }}
+          />
+          <button type="button" className="btn-secondary btn-sm shrink-0" onClick={usar} disabled={!texto.trim()}>
+            Usar ubicación
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 text-xs text-gray-600">
+          <MapPin size={13} className="text-brand-500 shrink-0" />
+          <span className="font-mono">{Number(latitud).toFixed(6)}, {Number(longitud).toFixed(6)}</span>
+          <button type="button" className="text-red-500 hover:underline" onClick={() => onChange('', '')}>
+            Quitar
+          </button>
+        </div>
+      )}
+      {error && <p className="text-xs text-red-500">{error}</p>}
+      {tieneCoords && (
+        <iframe
+          className="w-full aspect-video rounded-lg border border-gray-200"
+          src={`https://maps.google.com/maps?q=${latitud},${longitud}&z=16&output=embed`}
+          loading="lazy"
+          title="Vista previa de la ubicación"
+        />
+      )}
+    </div>
+  );
+}
+
 const DIAS_SEMANA = [
   { v: 1, label: 'Lunes' }, { v: 2, label: 'Martes' }, { v: 3, label: 'Miércoles' },
   { v: 4, label: 'Jueves' }, { v: 5, label: 'Viernes' }, { v: 6, label: 'Sábado' }, { v: 7, label: 'Domingo' },
@@ -374,7 +506,8 @@ function HorarioSucursal({ sucursalId }) {
         <Clock size={13} className="text-brand-500" /> Horario de atención
       </label>
       <p className="text-xs text-gray-400 mb-2">
-        Lo usa el chatbot de WhatsApp para contestar "¿están abiertos?".
+        Lo usa el chatbot de WhatsApp para contestar "¿están abiertos?" y, si la sucursal está
+        publicada, también se muestra en el pie del catálogo público /tienda.
       </p>
       {!dias || isLoading ? (
         <p className="text-xs text-gray-400">Cargando…</p>

@@ -5,7 +5,7 @@ import {
   Calculator, TrendingUp, Scale, BookOpenCheck, ListTree, Landmark, BookText,
   FileSpreadsheet, BarChart3, Store, Clock, Pill, Building2, FileUp, Tags,
   HeartPulse, Stethoscope, PiggyBank, CalendarClock, MessageCircle, Megaphone,
-  FileQuestion, Percent, Heart, ShoppingBag, Gauge,
+  FileQuestion, Percent, Heart, ShoppingBag, Gauge, Mail, CreditCard,
 } from 'lucide-react';
 
 // Catálogo canónico del menú. Debe mantenerse en sincronía con el backend
@@ -71,6 +71,7 @@ export const MENU = {
       label: 'POS Farmacia', icon: Store, items: [
         { key: 'pos-venta',    to: '/pos',            label: 'Venta mostrador',      icon: Store },
         { key: 'pos-pedidos-whatsapp', to: '/pos/pedidos-whatsapp', label: 'Pedidos WhatsApp', icon: ShoppingBag },
+        { key: 'pos-pedidos-tienda',   to: '/pos/pedidos-tienda',   label: 'Pedidos tienda en línea', icon: CreditCard },
         { key: 'pos-turnos',   to: '/pos/turnos',     label: 'Caja y turnos',        icon: Clock },
         { key: 'pos-citas',    to: '/pos/citas',      label: 'Citas médicas',        icon: CalendarClock },
         { key: 'pos-clientes-fidelidad', to: '/pos/clientes-fidelidad', label: 'Clientes de fidelidad', icon: Heart },
@@ -100,6 +101,7 @@ export const MENU = {
         { key: 'preferencias', to: '/configuracion', label: 'Preferencias', icon: SlidersHorizontal, always: true },
         { key: 'usuarios',     to: '/usuarios',      label: 'Usuarios',     icon: UserCog, adminOnly: true },
         { key: 'empresas',     to: '/configuracion/empresas', label: 'Empresas', icon: Building2, adminOnly: true },
+        { key: 'suscriptores', to: '/marketing/suscriptores', label: 'Suscriptores (boletín)', icon: Mail, adminOnly: true },
       ],
     },
   ],

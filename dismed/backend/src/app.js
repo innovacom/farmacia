@@ -55,6 +55,8 @@ app.use('/api/expediente',             require('./modules/expediente/expediente.
 app.use('/api/whatsapp',               require('./modules/whatsapp/whatsapp.routes'));
 app.use('/api/supervisor',             require('./modules/supervisor/supervisor.routes'));
 app.use('/api/tienda',                 require('./modules/tienda/tienda.routes'));
+app.use('/api/marketing',              require('./modules/marketing/marketing.routes'));
+app.use('/api/nadro',                  require('./modules/nadro/nadro.routes'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', ts: new Date() }));
 
@@ -73,4 +75,7 @@ testConnection().then(() => {
   // Alertas del Panel de Supervisor (pedidos/WhatsApp/caja vía WhatsApp).
   try { require('./modules/supervisor/supervisor.cron').initSupervisorCron(); }
   catch (e) { console.error('[supervisor] no se pudo iniciar el cron:', e.message); }
+  // Pedido automático diario a Nadro con lo vendido en el día.
+  try { require('./modules/nadro/nadro.cron').initNadroCron(); }
+  catch (e) { console.error('[nadro] no se pudo iniciar el cron:', e.message); }
 });

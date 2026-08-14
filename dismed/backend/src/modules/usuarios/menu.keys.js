@@ -15,7 +15,7 @@ const PERMISSIONABLE_KEYS = [
   'pos-venta', 'pos-turnos', 'pos-citas', 'pos-bitacora', 'pos-admin',
   'pos-reportes', 'pos-reportes-ganancias', 'pos-clientes-fidelidad',
   'expediente-medico',
-  'whatsapp-bandeja', 'pos-pedidos-whatsapp',
+  'whatsapp-bandeja', 'pos-pedidos-whatsapp', 'pos-pedidos-tienda',
 ];
 
 module.exports = { PERMISSIONABLE_KEYS };

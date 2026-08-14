@@ -39,12 +39,14 @@ import CfdiPorComprobante from './pages/Contabilidad/CfdiPorComprobante';
 import CfdiResumenGeneral from './pages/Contabilidad/CfdiResumenGeneral';
 import Configuracion from './pages/Configuracion/Configuracion';
 import Empresas from './pages/Configuracion/Empresas';
+import Suscriptores from './pages/Marketing/Suscriptores';
 import PosSucursales from './pages/Pos/Sucursales';
 import Promociones from './pages/Pos/Promociones';
 import ClientesFidelidad from './pages/Pos/ClientesFidelidad';
 import PosTurnos from './pages/Pos/Turnos';
 import PosCitas from './pages/Pos/Citas';
 import PosPedidosWhatsApp from './pages/Pos/PedidosWhatsApp';
+import PosPedidosTienda from './pages/Pos/PedidosTienda';
 import VentaMostrador from './pages/Pos/VentaMostrador';
 import HistorialVentas from './pages/Pos/HistorialVentas';
 import Bitacora from './pages/Pos/Bitacora';
@@ -63,6 +65,9 @@ import WhatsAppEnvioMasivo from './pages/WhatsApp/EnvioMasivo';
 import WhatsAppPreguntasFrecuentes from './pages/WhatsApp/PreguntasFrecuentes';
 import Catalogo from './pages/Tienda/Catalogo';
 import DetalleProducto from './pages/Tienda/DetalleProducto';
+import PaginaLegal from './pages/Tienda/PaginaLegal';
+import Carrito from './pages/Tienda/Carrito';
+import PedidoConfirmacion from './pages/Tienda/PedidoConfirmacion';
 
 function RequireAuth({ children }) {
   const token = useAuthStore((s) => s.token);
@@ -75,6 +80,10 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       {/* Catálogo público, sin login — ver plan en memoria project_tienda_web_farmacia */}
       <Route path="/tienda" element={<Catalogo />} />
+      <Route path="/tienda/privacidad" element={<PaginaLegal tipo="privacidad" />} />
+      <Route path="/tienda/terminos" element={<PaginaLegal tipo="terminos" />} />
+      <Route path="/tienda/carrito" element={<Carrito />} />
+      <Route path="/tienda/pedido/exito" element={<PedidoConfirmacion />} />
       <Route path="/tienda/:id" element={<DetalleProducto />} />
       <Route
         path="/"
@@ -125,6 +134,7 @@ export default function App() {
         <Route path="contabilidad/cfdi-resumen-general"  element={<CfdiResumenGeneral />} />
         <Route path="configuracion"                       element={<Configuracion />} />
         <Route path="configuracion/empresas"              element={<Empresas />} />
+        <Route path="marketing/suscriptores"               element={<Suscriptores />} />
         <Route path="pos"                                 element={<VentaMostrador />} />
         <Route path="pos/ventas"                          element={<HistorialVentas />} />
         <Route path="pos/bitacora"                        element={<Bitacora />} />
@@ -135,6 +145,7 @@ export default function App() {
         <Route path="pos/turnos"                          element={<PosTurnos />} />
         <Route path="pos/citas"                           element={<PosCitas />} />
         <Route path="pos/pedidos-whatsapp"                element={<PosPedidosWhatsApp />} />
+        <Route path="pos/pedidos-tienda"                  element={<PosPedidosTienda />} />
         <Route path="pos/reportes"                        element={<PosReportes />} />
         <Route path="pos/ganancias"                       element={<PosGanancias />} />
         <Route path="herramientas/importar"               element={<ImportarDatos />} />

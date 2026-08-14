@@ -24,6 +24,7 @@ const chatbot = require('./whatsapp.chatbot.service');
 const carrito = require('./whatsapp.carrito.service');
 const waConfig = require('./whatsapp.config.service');
 const { aE164 } = require('./whatsapp.util');
+const { resolverEmpresaUnica } = require('../../config/empresa');
 
 const RECETAS_DIR = path.resolve(process.env.UPLOAD_DIR || './uploads', 'whatsapp-recetas');
 if (!fs.existsSync(RECETAS_DIR)) fs.mkdirSync(RECETAS_DIR, { recursive: true });
@@ -58,17 +59,7 @@ const PAYLOAD_ACCION = {
 // solo .env) — en la práctica todas las empresas de esta instancia comparten
 // el mismo número. Cuando un mensaje entrante no viene ligado a nada nuestro
 // (primera vez que escribe, sin context.id), no hay forma de saber de qué
-// empresa es más que inferirlo. "La primera empresa dada de alta" resultó
-// mala señal (farmacia tiene 2 filas en `empresas`, la operativa —con
-// usuarios y citas— es la id=2, no la id=1): mejor señal es a qué empresa
-// pertenecen los usuarios activos de verdad, que es quien opera el número.
-async function resolverEmpresaUnica() {
-  const [[row]] = await pool.query(
-    `SELECT empresa_id FROM usuarios WHERE activo = 1
-     GROUP BY empresa_id ORDER BY COUNT(*) DESC LIMIT 1`
-  );
-  return row?.empresa_id || null;
-}
+// empresa es más que inferirlo con resolverEmpresaUnica() (ver config/empresa.js).
 
 // Texto legible para guardar en whatsapp_mensajes.contenido — no se descarga
 // media en esta versión (fase 2), solo se deja constancia del tipo.

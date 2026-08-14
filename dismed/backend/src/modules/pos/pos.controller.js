@@ -42,6 +42,19 @@ async function reemplazarFilasHijas(conn, {
 
 // ── Sucursales ────────────────────────────────────────────────────────
 
+// El editor manda "" cuando el admin borra la coordenada; sin este
+// normalizador MySQL en modo no estricto guardaría 0.0000000 y el mapa del
+// pie de /tienda apretaría el pin en el Golfo de Guinea en vez de no
+// mostrar mapa.
+function normalizarCoordenada(valor, maximo, etiqueta) {
+  if (valor === '' || valor === null || valor === undefined) return null;
+  const n = Number(valor);
+  if (!Number.isFinite(n) || Math.abs(n) > maximo) {
+    throw Object.assign(new Error(`${etiqueta} fuera de rango`), { status: 400 });
+  }
+  return n;
+}
+
 async function listSucursales(req, res, next) {
   try {
     const [rows] = await pool.query(
@@ -57,18 +70,28 @@ async function listSucursales(req, res, next) {
 
 async function createSucursal(req, res, next) {
   try {
-    const { almacen_id, codigo, nombre, direccion, telefono, responsable_usuario_id } = req.body;
+    const { almacen_id, codigo, nombre, direccion, telefono, responsable_usuario_id,
+            latitud, longitud, publicar_web,
+            responsable_sanitario, cedula_responsable_sanitario, licencia_sanitaria } = req.body;
     if (!almacen_id || !codigo?.trim() || !nombre?.trim()) {
       return res.status(400).json({ error: 'almacen_id, codigo y nombre requeridos' });
     }
     const [r] = await pool.query(
-      `INSERT INTO sucursales (empresa_id, almacen_id, codigo, nombre, direccion, telefono, responsable_usuario_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO sucursales (empresa_id, almacen_id, codigo, nombre, direccion, telefono,
+                               latitud, longitud, publicar_web,
+                               responsable_sanitario, cedula_responsable_sanitario, licencia_sanitaria,
+                               responsable_usuario_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [req.empresaId, almacen_id, codigo.trim(), nombre.trim(),
-       direccion || null, telefono || null, responsable_usuario_id || null]
+       direccion || null, telefono || null,
+       normalizarCoordenada(latitud, 90, 'Latitud'), normalizarCoordenada(longitud, 180, 'Longitud'),
+       publicar_web ? 1 : 0,
+       responsable_sanitario || null, cedula_responsable_sanitario || null, licencia_sanitaria || null,
+       responsable_usuario_id || null]
     );
     res.status(201).json({ id: r.insertId });
   } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
     if (err.code === 'ER_DUP_ENTRY') {
       return res.status(409).json({ error: 'Ese almacén ya tiene sucursal, o el código ya existe' });
     }
@@ -80,11 +103,16 @@ async function updateSucursal(req, res, next) {
   try {
     await getScoped(pool, 'sucursales', req.params.id, req.empresaId);
     const sets = []; const vals = [];
-    ['codigo', 'nombre', 'direccion', 'telefono', 'responsable_usuario_id', 'activo'].forEach((f) => {
-      if (req.body[f] !== undefined) {
-        sets.push(`${f} = ?`);
-        vals.push(f === 'activo' ? (req.body[f] ? 1 : 0) : req.body[f]);
-      }
+    const BOOLEANOS = ['activo', 'publicar_web'];
+    const COORDS = { latitud: 90, longitud: 180 };
+    ['codigo', 'nombre', 'direccion', 'telefono', 'responsable_usuario_id',
+     'activo', 'latitud', 'longitud', 'publicar_web',
+     'responsable_sanitario', 'cedula_responsable_sanitario', 'licencia_sanitaria'].forEach((f) => {
+      if (req.body[f] === undefined) return;
+      sets.push(`${f} = ?`);
+      if (BOOLEANOS.includes(f)) return vals.push(req.body[f] ? 1 : 0);
+      if (f in COORDS) return vals.push(normalizarCoordenada(req.body[f], COORDS[f], f));
+      vals.push(req.body[f]);
     });
     if (req.body.productos_favoritos !== undefined) {
       const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -104,6 +132,7 @@ async function updateSucursal(req, res, next) {
     await pool.query(`UPDATE sucursales SET ${sets.join(', ')} WHERE id = ? AND empresa_id = ?`, vals);
     res.json({ ok: true });
   } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
     if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Ese código ya existe' });
     next(err);
   }

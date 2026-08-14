@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /tienda
+Disallow: /
+
+Sitemap: https://sistema.innovacom.mx/api/tienda/sitemap.xml
