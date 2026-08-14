@@ -114,6 +114,7 @@ Backend (.env in dismed/backend/):
 - EMPRESA_NOMBRE, EMPRESA_RFC, EMPRESA_TELEFONO, EMPRESA_EMAIL, EMPRESA_DIRECCION (PDF letterhead)
 - META_APP_SECRET, WHATSAPP_WABA_ID, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_ACCESS_TOKEN, WHATSAPP_WEBHOOK_VERIFY_TOKEN, WHATSAPP_TEMPLATE_RECORDATORIO(_LANG) — todas opcionales; sin ellas el recordatorio de citas (módulo `whatsapp`) cae a un enlace manual `wa.me`. Usa un número dedicado que nunca tuvo WhatsApp (sin Coexistence). Ver `src/modules/whatsapp/README.md`.
 - TIENDA_WHATSAPP_NUMERO — opcional; número (10 dígitos MX o E.164) mostrado como botón "Pedir por WhatsApp" en el catálogo público `/tienda` (módulo `tienda`, sin login). Sin ella, el botón no se muestra. Distinto de WHATSAPP_PHONE_NUMBER_ID (ese es el ID interno de Meta Cloud API, no un número marcable).
+- NADRO_USUARIO, NADRO_PASSWORD — credenciales del portal de clientes i22.nadro.mx, usadas por el cron de pedido automático diario (módulo `nadro`, ver src/modules/nadro/). NADRO_AUTOPEDIDO_ENABLED=true activa el cron (default deshabilitado, igual que SAT_CRON_ENABLED/SUPERVISOR_ALERTAS_ENABLED). Opcionales: NADRO_AUTOPEDIDO_HORA (default 21, hora CDMX), NADRO_PROVEEDOR_NOMBRE (default "Nadro", debe hacer match con proveedores.nombre_empresa), NADRO_MONTO_MAXIMO_DIARIO (default 10000, tope de seguridad — si el carrito supera este monto no se finaliza la compra sola).
 
 Frontend: vite.config.js already proxies /api and /outputs to http://localhost:3001. Ensure backend is running.
 
