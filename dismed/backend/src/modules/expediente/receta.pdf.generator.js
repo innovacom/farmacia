@@ -1,6 +1,7 @@
 const puppeteer = require('puppeteer');
 const path = require('path');
 const fs = require('fs');
+const { esc } = require('../../utils/html');
 
 // Receta electrónica en media carta, 2 copias en una hoja carta (paciente +
 // farmacia) — la copia de farmacia se retiene al surtir antibióticos o
@@ -24,6 +25,11 @@ async function generarPdfReceta(receta) {
   const browser = await puppeteer.launch(launchOptions);
   try {
     const page = await browser.newPage();
+    // El HTML solo usa imágenes data: embebidas — bloquear cualquier otro
+    // request evita SSRF si un campo de texto lograra inyectar markup pese
+    // al escape (ver utils/html.js).
+    await page.setRequestInterception(true);
+    page.on('request', (r) => (r.url().startsWith('data:') ? r.continue() : r.abort()));
     await page.setContent(html, { waitUntil: 'networkidle0' });
     await page.pdf({
       path: filePath,
@@ -70,11 +76,11 @@ function buildHtml(r) {
   const partidasHtml = (r.partidas || []).map((p, i) => `
     <div class="rx-item">
       <span class="rx-num">${i + 1}.</span>
-      <strong>${p.medicamento_nombre}</strong>${p.presentacion ? ` — ${p.presentacion}` : ''}
+      <strong>${esc(p.medicamento_nombre)}</strong>${p.presentacion ? ` — ${esc(p.presentacion)}` : ''}
       <span class="rx-cant">Cant: ${Number(p.cantidad)}</span>
       <div class="rx-detalle">
-        ${[p.dosis, p.via_administracion, p.frecuencia, p.duracion].filter(Boolean).join(' · ')}
-        ${p.indicaciones ? `<br/>${p.indicaciones}` : ''}
+        ${esc([p.dosis, p.via_administracion, p.frecuencia, p.duracion].filter(Boolean).join(' · '))}
+        ${p.indicaciones ? `<br/>${esc(p.indicaciones)}` : ''}
       </div>
     </div>`).join('');
 
@@ -82,44 +88,44 @@ function buildHtml(r) {
     return `
     <div class="copia">
       <div class="encabezado">
-        <div class="folio">FOLIO:${r.folio}</div>
+        <div class="folio">FOLIO:${esc(r.folio)}</div>
         <div class="titulo">
           ${caduceoSrc ? `<img src="${caduceoSrc}" class="caduceo"/>` : ''}
-          ${r.medico_institucion ? `<div class="institucion">${r.medico_institucion}</div>` : ''}
-          ${r.medico_especialidad ? `<div class="especialidad">${r.medico_especialidad}</div>` : ''}
-          <div class="medico-nombre">Dr. ${r.medico_nombre}</div>
+          ${r.medico_institucion ? `<div class="institucion">${esc(r.medico_institucion)}</div>` : ''}
+          ${r.medico_especialidad ? `<div class="especialidad">${esc(r.medico_especialidad)}</div>` : ''}
+          <div class="medico-nombre">Dr. ${esc(r.medico_nombre)}</div>
         </div>
         <div class="vitales">
-          ${signos.peso ? `<div>PESO: ${signos.peso}</div>` : ''}
-          ${signos.talla ? `<div>TALLA: ${signos.talla}</div>` : ''}
-          ${signos.temp ? `<div>TEMP: ${signos.temp}</div>` : ''}
-          ${signos.ta ? `<div>T.A.: ${signos.ta}</div>` : ''}
-          ${signos.fc ? `<div>FC: ${signos.fc}</div>` : ''}
-          ${signos.fr ? `<div>FR: ${signos.fr}</div>` : ''}
+          ${signos.peso ? `<div>PESO: ${esc(signos.peso)}</div>` : ''}
+          ${signos.talla ? `<div>TALLA: ${esc(signos.talla)}</div>` : ''}
+          ${signos.temp ? `<div>TEMP: ${esc(signos.temp)}</div>` : ''}
+          ${signos.ta ? `<div>T.A.: ${esc(signos.ta)}</div>` : ''}
+          ${signos.fc ? `<div>FC: ${esc(signos.fc)}</div>` : ''}
+          ${signos.fr ? `<div>FR: ${esc(signos.fr)}</div>` : ''}
         </div>
       </div>
 
       <div class="paciente-linea">
-        <span>PACIENTE: <strong>${pacienteNombre}</strong></span>
-        <span>EDAD: <strong>${edadStr}</strong></span>
-        <span>FECHA: <strong>${fechaStr}</strong></span>
+        <span>PACIENTE: <strong>${esc(pacienteNombre)}</strong></span>
+        <span>EDAD: <strong>${esc(edadStr)}</strong></span>
+        <span>FECHA: <strong>${esc(fechaStr)}</strong></span>
       </div>
 
       <div class="rx-titulo">Rx</div>
       <div class="rx-body">
         ${partidasHtml}
-        ${r.indicaciones_generales ? `<div class="indicaciones-generales"><strong>Indicaciones generales:</strong> ${r.indicaciones_generales}</div>` : ''}
+        ${r.indicaciones_generales ? `<div class="indicaciones-generales"><strong>Indicaciones generales:</strong> ${esc(r.indicaciones_generales)}</div>` : ''}
       </div>
 
       <div class="pie">
         <div class="pie-izq">
-          ${r.sucursal_direccion ? `<div>${r.sucursal_direccion}</div>` : ''}
-          ${r.medico_telefono ? `<div>CEL. ${r.medico_telefono}</div>` : ''}
+          ${r.sucursal_direccion ? `<div>${esc(r.sucursal_direccion)}</div>` : ''}
+          ${r.medico_telefono ? `<div>CEL. ${esc(r.medico_telefono)}</div>` : ''}
         </div>
         <div class="pie-der">
-          <div>Céd. Prof. ${r.medico_cedula || ''}</div>
-          ${r.medico_registro_ssa ? `<div>S.S.A. ${r.medico_registro_ssa}</div>` : ''}
-          <div class="vigencia">Vigencia: ${r.vigencia_dias || 30} días</div>
+          <div>Céd. Prof. ${esc(r.medico_cedula)}</div>
+          ${r.medico_registro_ssa ? `<div>S.S.A. ${esc(r.medico_registro_ssa)}</div>` : ''}
+          <div class="vigencia">Vigencia: ${Number(r.vigencia_dias) || 30} días</div>
         </div>
       </div>
 

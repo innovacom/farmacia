@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const path = require('path');
 const { validateEnv } = require('./config/env');
 const { testConnection } = require('./config/db');
@@ -9,6 +10,17 @@ const servirOutputsFirmados = require('./middleware/signedOutputs');
 validateEnv();
 
 const app = express();
+
+// Detrás de Apache (reverse proxy) en producción: sin esto, req.ip siempre
+// sería el de Apache (localhost) y el rate limiting de abajo aplicaría
+// globalmente en vez de por cliente real. Solo confía en el primer hop.
+app.set('trust proxy', 1);
+
+// CSP desactivado a propósito: esta API no sirve HTML propio (solo JSON +
+// PDFs/imágenes estáticos), así que una CSP pensada para documentos no
+// aporta aquí y sí puede romper la vista de PDF en el navegador. El resto
+// de helmet (nosniff, frameguard, HSTS, etc.) sí aplica.
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:5173',

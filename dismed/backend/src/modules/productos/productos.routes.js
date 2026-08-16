@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const auth = require('../../middleware/auth');
 const upload = require('../../middleware/upload');
+const validarIdNumerico = require('../../middleware/validarIdNumerico');
 const c = require('./productos.controller');
 
 const adminOnly = (req, res, next) =>
@@ -48,8 +49,10 @@ router.get('/exportar', c.exportarExcel);
 // Pantalla admin-only de precios y estatus vendible en masa.
 router.patch('/:id/venta', adminOnly, c.updateVenta);
 
-// Foto para el catálogo público (tienda), admin-only.
-router.post('/:id/imagen', adminOnly, uploadImagen.single('archivo'), c.subirImagen);
+// Foto para el catálogo público (tienda), admin-only. validarIdNumerico va
+// antes que multer porque el storage usa req.params.id en el nombre del
+// archivo — con id no numérico, eso pasaría al filesystem sin validar.
+router.post('/:id/imagen', adminOnly, validarIdNumerico, uploadImagen.single('archivo'), c.subirImagen);
 
 // Presentaciones de venta (pieza/paquete sobre la misma existencia — ver migrate_v39)
 router.get('/:id/presentaciones',  c.listPresentaciones);

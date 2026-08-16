@@ -1,6 +1,7 @@
 const puppeteer = require('puppeteer');
 const path = require('path');
 const fs = require('fs');
+const { esc } = require('../../utils/html');
 
 const TEAL = '#00ACC1';
 const fmt = (n) => Number(n || 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
@@ -35,6 +36,11 @@ async function renderPdf(html, folio) {
   const browser = await puppeteer.launch(launchOptions);
   try {
     const page = await browser.newPage();
+    // El HTML solo usa imágenes data: embebidas — bloquear cualquier otro
+    // request evita SSRF si un campo de texto lograra inyectar markup pese
+    // al escape (ver utils/html.js).
+    await page.setRequestInterception(true);
+    page.on('request', (r) => (r.url().startsWith('data:') ? r.continue() : r.abort()));
     await page.setContent(html, { waitUntil: 'networkidle0' });
     await page.pdf({ path: filePath, format: 'Letter', printBackground: true,
       margin: { top: '6mm', bottom: '14mm', left: '10mm', right: '10mm' } });
@@ -48,15 +54,15 @@ function encabezado(e, logo, titulo, folio) {
       <div style="display:flex;gap:10px;align-items:center">
         ${logo ? `<img src="${logo}" style="height:54px">` : ''}
         <div>
-          <div style="font-size:18px;font-weight:bold;color:${TEAL}">${e.nombre}</div>
-          <div style="font-size:9px;color:#555">${e.rfc ? 'RFC: ' + e.rfc : ''}</div>
-          <div style="font-size:9px;color:#555">${e.direccion || ''}</div>
-          <div style="font-size:9px;color:#555">${e.telefono || ''} ${e.email ? ' · ' + e.email : ''}</div>
+          <div style="font-size:18px;font-weight:bold;color:${TEAL}">${esc(e.nombre)}</div>
+          <div style="font-size:9px;color:#555">${e.rfc ? 'RFC: ' + esc(e.rfc) : ''}</div>
+          <div style="font-size:9px;color:#555">${esc(e.direccion)}</div>
+          <div style="font-size:9px;color:#555">${esc(e.telefono)} ${e.email ? ' · ' + esc(e.email) : ''}</div>
         </div>
       </div>
       <div style="text-align:right">
         <div style="font-size:15px;font-weight:bold;color:#333">${titulo}</div>
-        <div style="font-size:20px;font-weight:bold;color:${TEAL}">${folio}</div>
+        <div style="font-size:20px;font-weight:bold;color:${TEAL}">${esc(folio)}</div>
         <div style="font-size:9px;color:#555">${new Date().toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
       </div>
     </div>`;
@@ -78,18 +84,18 @@ function buildOcHtml(oc) {
     const importe = Number(p.precio_compra) * Number(p.cantidad);
     total += importe;
     return `<tr>
-      <td style="${td};font-family:monospace">${p.sku_interno || ''}</td>
-      ${conSkuProv ? `<td style="${td};font-family:monospace">${p.sku_proveedor || ''}</td>` : ''}
-      <td style="${td}">${p.descripcion || ''}</td>
+      <td style="${td};font-family:monospace">${esc(p.sku_interno)}</td>
+      ${conSkuProv ? `<td style="${td};font-family:monospace">${esc(p.sku_proveedor)}</td>` : ''}
+      <td style="${td}">${esc(p.descripcion)}</td>
       <td style="${td};text-align:right">${Number(p.cantidad).toLocaleString('es-MX')}</td>
-      <td style="${td}">${p.unidad_medida || ''}</td>
+      <td style="${td}">${esc(p.unidad_medida)}</td>
       <td style="${td};text-align:right">${fmt(p.precio_compra)}</td>
       <td style="${td};text-align:right">${fmt(importe)}</td></tr>`;
   }).join('');
   return `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;color:#222;margin:0}</style></head><body>
     ${encabezado(e, logo, 'ORDEN DE COMPRA', oc.folio)}
     <div style="background:#f6f9fa;border-radius:6px;padding:8px 10px;margin-bottom:10px;font-size:10px">
-      <strong>Proveedor:</strong> ${oc.proveedor_nombre || ''} &nbsp;&nbsp; ${oc.pedido_folio ? `<strong>Pedido:</strong> ${oc.pedido_folio}` : ''}
+      <strong>Proveedor:</strong> ${esc(oc.proveedor_nombre)} &nbsp;&nbsp; ${oc.pedido_folio ? `<strong>Pedido:</strong> ${esc(oc.pedido_folio)}` : ''}
     </div>
     <table style="${tablaBase()}">
       <thead><tr><th style="${th}">SKU</th>${conSkuProv ? `<th style="${th}">SKU Prov.</th>` : ''}<th style="${th}">Descripción</th><th style="${th};text-align:right">Cant.</th><th style="${th}">U/M</th><th style="${th};text-align:right">P. Compra</th><th style="${th};text-align:right">Importe</th></tr></thead>
@@ -98,7 +104,7 @@ function buildOcHtml(oc) {
     <div style="display:flex;justify-content:flex-end;margin-top:10px">
       <table style="font-size:12px"><tr><td style="padding:4px 12px;font-weight:bold">TOTAL</td><td style="padding:4px 12px;text-align:right;font-weight:bold;color:${TEAL}">${fmt(total)}</td></tr></table>
     </div>
-    ${oc.notas ? `<p style="font-size:9px;color:#555;margin-top:10px">${oc.notas}</p>` : ''}
+    ${oc.notas ? `<p style="font-size:9px;color:#555;margin-top:10px">${esc(oc.notas)}</p>` : ''}
   </body></html>`;
 }
 
@@ -112,10 +118,10 @@ function buildEntregaHtml(ent) {
     const ivaL = p.iva_exento ? 0 : imp * 0.16;
     subtotal += imp; iva += ivaL;
     return `<tr>
-      <td style="${td};font-family:monospace">${p.sku_interno || ''}</td>
-      <td style="${td}">${p.descripcion || ''}</td>
+      <td style="${td};font-family:monospace">${esc(p.sku_interno)}</td>
+      <td style="${td}">${esc(p.descripcion)}</td>
       <td style="${td};text-align:right">${Number(p.cantidad).toLocaleString('es-MX')}</td>
-      <td style="${td}">${p.unidad_medida || ''}</td>
+      <td style="${td}">${esc(p.unidad_medida)}</td>
       <td style="${td};text-align:right">${fmt(p.precio_unitario)}</td>
       <td style="${td};text-align:right">${fmt(imp)}</td></tr>`;
   }).join('');
@@ -123,7 +129,7 @@ function buildEntregaHtml(ent) {
   return `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;color:#222;margin:0}</style></head><body>
     ${encabezado(e, logo, titulo, ent.folio)}
     <div style="background:#f6f9fa;border-radius:6px;padding:8px 10px;margin-bottom:10px;font-size:10px">
-      <strong>Cliente:</strong> ${ent.cliente_nombre || ''} &nbsp;&nbsp; ${ent.pedido_folio ? `<strong>Pedido:</strong> ${ent.pedido_folio}` : ''}
+      <strong>Cliente:</strong> ${esc(ent.cliente_nombre)} &nbsp;&nbsp; ${ent.pedido_folio ? `<strong>Pedido:</strong> ${esc(ent.pedido_folio)}` : ''}
     </div>
     <table style="${tablaBase()}">
       <thead><tr><th style="${th}">SKU</th><th style="${th}">Descripción</th><th style="${th};text-align:right">Cant.</th><th style="${th}">U/M</th><th style="${th};text-align:right">P. Unitario</th><th style="${th};text-align:right">Importe</th></tr></thead>
@@ -154,7 +160,7 @@ function buildCfdiBlock(cfdi) {
         Este documento es una representación impresa de un CFDI 4.0
       </div>
       <div style="font-size:8px;color:#444;margin-bottom:6px">
-        <strong>Emisor:</strong> ${cfdi.emisor_nombre || ''} ${cfdi.emisor_rfc ? '· RFC ' + cfdi.emisor_rfc : ''}
+        <strong>Emisor:</strong> ${esc(cfdi.emisor_nombre)} ${cfdi.emisor_rfc ? '· RFC ' + esc(cfdi.emisor_rfc) : ''}
       </div>
       <div style="display:flex;gap:12px;align-items:flex-start">
         <div style="flex:0 0 90px;text-align:center">
@@ -162,18 +168,18 @@ function buildCfdiBlock(cfdi) {
         </div>
         <div style="flex:1">
           <div style="display:flex;gap:16px;flex-wrap:wrap">
-            <div><div style="${lbl}">Folio Fiscal (UUID)</div><div style="${val}">${cfdi.uuid || ''}</div></div>
-            <div><div style="${lbl}">No. Serie Cert. Emisor</div><div style="${val}">${cfdi.cert_emisor || ''}</div></div>
-            <div><div style="${lbl}">No. Serie Cert. SAT</div><div style="${val}">${cfdi.cert_sat || ''}</div></div>
-            <div><div style="${lbl}">Fecha y hora de certificación</div><div style="${val}">${fechaTimbrado}</div></div>
-            <div><div style="${lbl}">RFC del PAC</div><div style="${val}">${cfdi.rfc_prov_certif || ''}</div></div>
+            <div><div style="${lbl}">Folio Fiscal (UUID)</div><div style="${val}">${esc(cfdi.uuid)}</div></div>
+            <div><div style="${lbl}">No. Serie Cert. Emisor</div><div style="${val}">${esc(cfdi.cert_emisor)}</div></div>
+            <div><div style="${lbl}">No. Serie Cert. SAT</div><div style="${val}">${esc(cfdi.cert_sat)}</div></div>
+            <div><div style="${lbl}">Fecha y hora de certificación</div><div style="${val}">${esc(fechaTimbrado)}</div></div>
+            <div><div style="${lbl}">RFC del PAC</div><div style="${val}">${esc(cfdi.rfc_prov_certif)}</div></div>
           </div>
           <div style="${lbl}">Sello Digital del CFDI</div>
-          <div style="${sello}">${cfdi.sello_cfdi || ''}</div>
+          <div style="${sello}">${esc(cfdi.sello_cfdi)}</div>
           <div style="${lbl}">Sello del SAT</div>
-          <div style="${sello}">${cfdi.sello_sat || ''}</div>
+          <div style="${sello}">${esc(cfdi.sello_sat)}</div>
           <div style="${lbl}">Cadena Original del Complemento de Certificación del SAT</div>
-          <div style="${sello}">${cfdi.cadena_original_tfd || ''}</div>
+          <div style="${sello}">${esc(cfdi.cadena_original_tfd)}</div>
         </div>
       </div>
     </div>`;

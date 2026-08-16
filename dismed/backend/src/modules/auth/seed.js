@@ -14,6 +14,7 @@ async function seed() {
       puesto        VARCHAR(100)  NULL,
       email         VARCHAR(150)  NOT NULL,
       password_hash VARCHAR(255)  NOT NULL,
+      debe_cambiar_password TINYINT(1) NOT NULL DEFAULT 0,
       rol           ENUM('admin','operador') NOT NULL DEFAULT 'operador',
       jefe_id       INT UNSIGNED  NULL,
       activo        TINYINT(1)    NOT NULL DEFAULT 1,
@@ -27,8 +28,8 @@ async function seed() {
 
   const hash = await bcrypt.hash('Admin1234!', 10);
   await pool.query(
-    `INSERT IGNORE INTO usuarios (nombre, puesto, email, password_hash, rol)
-     VALUES ('Administrador', 'Administrador del Sistema', 'admin@dismed.mx', ?, 'admin')`,
+    `INSERT IGNORE INTO usuarios (nombre, puesto, email, password_hash, rol, debe_cambiar_password)
+     VALUES ('Administrador', 'Administrador del Sistema', 'admin@dismed.mx', ?, 'admin', 1)`,
     [hash]
   );
 

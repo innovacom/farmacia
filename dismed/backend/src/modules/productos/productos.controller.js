@@ -44,7 +44,7 @@ function construirFiltroProductos(query) {
   const estatus = query.estatus || 'activos'; // activos | inactivos | todos
   const where = ['(p.sku_interno LIKE ? OR p.descripcion LIKE ?)'];
   const vals = [search, search];
-  if (estatus !== 'todos') where.push(`p.activo = ${estatus === 'inactivos' ? 0 : 1}`);
+  if (estatus !== 'todos') { where.push('p.activo = ?'); vals.push(estatus === 'inactivos' ? 0 : 1); }
   if (query.familia_id)    { where.push('p.familia_id = ?');    vals.push(query.familia_id); }
   if (query.categoria_id)  { where.push('p.categoria_id = ?');  vals.push(query.categoria_id); }
   return { where, vals };

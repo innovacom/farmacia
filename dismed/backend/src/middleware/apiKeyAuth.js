@@ -3,13 +3,21 @@
  * no por un usuario con sesión. Separado de middleware/auth.js (JWT) a propósito:
  * un webhook de ingesta no tiene req.user.
  */
+const crypto = require('crypto');
+
+function iguales(a, b) {
+  const bufA = Buffer.from(String(a));
+  const bufB = Buffer.from(String(b));
+  return bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB);
+}
+
 function apiKeyAuth(req, res, next) {
   const expected = process.env.INGESTION_API_KEY;
   if (!expected) {
     return res.status(500).json({ error: 'INGESTION_API_KEY no está configurada en el servidor' });
   }
   const provided = req.headers['x-api-key'];
-  if (!provided || provided !== expected) {
+  if (!provided || !iguales(provided, expected)) {
     return res.status(401).json({ error: 'API key inválida o faltante' });
   }
   next();

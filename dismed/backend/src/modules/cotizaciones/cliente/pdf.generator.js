@@ -1,6 +1,7 @@
 const puppeteer = require('puppeteer');
 const path = require('path');
 const fs = require('fs');
+const { esc } = require('../../../utils/html');
 
 const TEAL = '#00ACC1';
 
@@ -23,6 +24,11 @@ async function generarPdfCotizacion(cotizacion) {
   const browser = await puppeteer.launch(launchOptions);
   try {
     const page = await browser.newPage();
+    // El HTML solo usa imágenes data: embebidas — bloquear cualquier otro
+    // request evita SSRF si un campo de texto lograra inyectar markup pese
+    // al escape (ver utils/html.js).
+    await page.setRequestInterception(true);
+    page.on('request', (r) => (r.url().startsWith('data:') ? r.continue() : r.abort()));
     await page.setContent(html, { waitUntil: 'networkidle0' });
     await page.pdf({
       path: filePath,
@@ -95,21 +101,21 @@ function buildHtml(cot) {
     totalIva      += ivaLinea;
 
     const descExtra = [
-      p.codigo_cliente ? `<span class="sku">Ref: ${p.codigo_cliente}</span>` : '',
-      p.sku_interno    ? `<span class="sku"> | SKU: ${p.sku_interno}</span>` : '',
+      p.codigo_cliente ? `<span class="sku">Ref: ${esc(p.codigo_cliente)}</span>` : '',
+      p.sku_interno    ? `<span class="sku"> | SKU: ${esc(p.sku_interno)}</span>` : '',
     ].filter(Boolean).join('');
 
     return `
       <tr style="background:${i % 2 === 0 ? '#fff' : '#f0fbfd'}">
         <td class="c num">${i + 1}</td>
         <td class="c">${Number(p.cantidad).toLocaleString('es-MX')}</td>
-        <td class="c unit">${p.unidad_medida || 'pieza'}</td>
-        <td class="desc">${p.descripcion || ''}${descExtra ? `<br>${descExtra}` : ''}</td>
+        <td class="c unit">${esc(p.unidad_medida || 'pieza')}</td>
+        <td class="desc">${esc(p.descripcion)}${descExtra ? `<br>${descExtra}` : ''}</td>
         <td class="r">${fmt(p.precio_unitario_venta)}</td>
         <td class="r">${subtotal ? fmt(subtotal) : '$0.00'}</td>
         <td class="r">${ivaLinea ? fmt(ivaLinea) : '$0.00'}</td>
         <td class="r bold">${total ? fmt(total) : '$0.00'}</td>
-        <td class="obs">${p.observaciones || ''}</td>
+        <td class="obs">${esc(p.observaciones)}</td>
       </tr>`;
   }).join('');
   const totalFinal = totalSubtotal + totalIva;
@@ -137,15 +143,15 @@ function buildHtml(cot) {
                 </tr>
                 <tr>
                   <td style="color:#b2ebf2;padding:2px 5px 1px 0;white-space:nowrap">Cliente</td>
-                  <td style="color:#fff;font-weight:bold;font-style:italic">${cot.cliente_razon_social || ''}</td>
+                  <td style="color:#fff;font-weight:bold;font-style:italic">${esc(cot.cliente_razon_social)}</td>
                 </tr>
                 <tr>
                   <td style="color:#b2ebf2;padding:1px 5px 1px 0;white-space:nowrap">Atención</td>
-                  <td style="color:#fff;font-weight:bold;font-style:italic">${cot.atencion || cot.contacto_nombre || ''}</td>
+                  <td style="color:#fff;font-weight:bold;font-style:italic">${esc(cot.atencion || cot.contacto_nombre)}</td>
                 </tr>
                 <tr>
                   <td style="color:#b2ebf2;padding:1px 5px 1px 0;white-space:nowrap">Concepto</td>
-                  <td style="color:#fff">${cot.concepto || ''}</td>
+                  <td style="color:#fff">${esc(cot.concepto)}</td>
                 </tr>
               </table>
             </td>
@@ -155,7 +161,7 @@ function buildHtml(cot) {
               <div style="font-size:34px;font-weight:bold;color:#fff;line-height:1;letter-spacing:-1px">${folioDisplay}</div>
               <div style="margin-top:8px;font-size:10px">
                 <span style="color:#b2ebf2">No. Solicitud Cliente &nbsp;</span>
-                <span style="color:#fff;font-weight:bold">${cot.coc || cot.referencia_cliente || ''}</span>
+                <span style="color:#fff;font-weight:bold">${esc(cot.coc || cot.referencia_cliente)}</span>
               </div>
             </td>
           </tr>
@@ -201,7 +207,7 @@ function buildHtml(cot) {
 
       <!-- Nota vigencia -->
       <p style="font-size:8.5px;color:#333;margin-top:10px;font-weight:bold;line-height:1.5">
-        ${notaVigencia}
+        ${esc(notaVigencia)}
       </p>
 
       <!-- Firmas -->
@@ -213,22 +219,22 @@ function buildHtml(cot) {
           </td>
           <td style="width:26%;padding:4px;vertical-align:top">
             <div style="color:#666;text-decoration:underline">elabora</div>
-            <div style="margin-top:3px;font-weight:bold">${cot.elaboro_nombre || ''}</div>
+            <div style="margin-top:3px;font-weight:bold">${esc(cot.elaboro_nombre)}</div>
           </td>
           <td style="width:26%;padding:4px;vertical-align:top">
             <div style="color:#666;text-decoration:underline">autoriza</div>
-            <div style="margin-top:3px;font-weight:bold">${cot.autoriza_nombre || empresa.nombre}</div>
+            <div style="margin-top:3px;font-weight:bold">${esc(cot.autoriza_nombre || empresa.nombre)}</div>
           </td>
           <td style="width:26%;padding:4px;vertical-align:top;text-align:right">
             <div style="color:#666;font-style:italic">representante legal</div>
-            <div style="margin-top:3px;font-weight:bold">${cot.representante_legal || ''}</div>
+            <div style="margin-top:3px;font-weight:bold">${esc(cot.representante_legal)}</div>
           </td>
         </tr>
       </table>
       <div style="font-size:8.5px;color:#444;margin-top:10px">
         Para cualquier duda con esta cotizacion contacte a
-        <strong>${cot.contacto_dudas_email || empresa.email}</strong>
-        ó al <strong>${cot.contacto_dudas_tel || empresa.telefono}</strong>
+        <strong>${esc(cot.contacto_dudas_email || empresa.email)}</strong>
+        ó al <strong>${esc(cot.contacto_dudas_tel || empresa.telefono)}</strong>
       </div>
     </div>`;
 

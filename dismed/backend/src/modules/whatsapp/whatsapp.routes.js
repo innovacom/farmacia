@@ -2,6 +2,7 @@ const router = require('express').Router();
 const auth = require('../../middleware/auth');
 const tenant = require('../../middleware/tenant');
 const { requirePermiso } = require('../../middleware/permisos');
+const { publicoLecturaLimiter } = require('../../middleware/rateLimit');
 const c = require('./whatsapp.controller');
 const contactos = require('./whatsapp.contactos.controller');
 const mensajeria = require('./whatsapp.mensajeria.controller');
@@ -12,7 +13,9 @@ const pedidos = require('./whatsapp.pedidos.controller');
 
 // Webhook: lo llama Meta directamente, sin JWT — la seguridad es la firma
 // X-Hub-Signature-256 (ver whatsapp.controller.firmaValida), no el login.
-router.get('/webhook', c.webhookVerify);
+// El handshake GET sí lleva rate limit (es público); el POST no, para no
+// arriesgar perder reintentos legítimos de Meta.
+router.get('/webhook', publicoLecturaLimiter, c.webhookVerify);
 router.post('/webhook', c.webhookReceive);
 
 // Estado de configuración: lo consulta el frontend para decidir si mostrar

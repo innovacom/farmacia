@@ -9,6 +9,7 @@ const router = require('express').Router();
 const auth = require('../../middleware/auth');
 const tenant = require('../../middleware/tenant');
 const { requirePermiso } = require('../../middleware/permisos');
+const { publicoLecturaLimiter, publicoEscrituraLimiter } = require('../../middleware/rateLimit');
 const c = require('./tienda.controller');
 const checkout = require('./tienda.checkout.controller');
 const pedidos = require('./tienda.pedidos.controller');
@@ -18,17 +19,18 @@ const adminOnly = (req, res, next) =>
   (req.user?.rol === 'admin' ? next() : res.status(403).json({ error: 'Solo administradores' }));
 
 // ── público ──────────────────────────────────────────────────────────────
-router.get('/info',          c.info);
-router.get('/legal',         c.legalTexto);
-router.get('/sitemap.xml',   c.sitemap);
-router.post('/suscriptores', c.suscribir);
-router.get('/categorias',    c.categorias);
-router.get('/productos',     c.productosList);
-router.get('/productos/:id', c.productoDetalle);
+// Sin rate limit: /stripe/webhook (lo llama Stripe, ya validado por firma).
+router.get('/info',          publicoLecturaLimiter, c.info);
+router.get('/legal',         publicoLecturaLimiter, c.legalTexto);
+router.get('/sitemap.xml',   publicoLecturaLimiter, c.sitemap);
+router.post('/suscriptores', publicoEscrituraLimiter, c.suscribir);
+router.get('/categorias',    publicoLecturaLimiter, c.categorias);
+router.get('/productos',     publicoLecturaLimiter, c.productosList);
+router.get('/productos/:id', publicoLecturaLimiter, c.productoDetalle);
 
-router.post('/checkout/iniciar',    checkout.iniciar);
+router.post('/checkout/iniciar',    publicoEscrituraLimiter, checkout.iniciar);
 router.post('/stripe/webhook',      checkout.webhook);
-router.get ('/pedido-confirmacion', checkout.confirmacion);
+router.get ('/pedido-confirmacion', publicoLecturaLimiter, checkout.confirmacion);
 
 // ── staff — pedidos pagados en la tienda ────────────────────────────────
 router.get ('/admin/pedidos',              auth, tenant, requirePermiso('pos-pedidos-tienda'), pedidos.listar);

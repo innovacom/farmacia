@@ -6,12 +6,18 @@ async function estado(req, res) {
   res.json({ configurado: config.estaConfigurado() });
 }
 
+function tokenIgual(a, b) {
+  const bufA = Buffer.from(String(a || ''));
+  const bufB = Buffer.from(String(b || ''));
+  return bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB);
+}
+
 // Handshake de verificación (Meta lo llama una vez al guardar la URL del
 // webhook en la app de developers.facebook.com).
 function webhookVerify(req, res) {
   const { 'hub.mode': modo, 'hub.verify_token': token, 'hub.challenge': challenge } = req.query;
   const { webhookVerifyToken } = config.get();
-  if (modo === 'subscribe' && webhookVerifyToken && token === webhookVerifyToken) {
+  if (modo === 'subscribe' && webhookVerifyToken && tokenIgual(token, webhookVerifyToken)) {
     return res.status(200).send(challenge);
   }
   res.sendStatus(403);

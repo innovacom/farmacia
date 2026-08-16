@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const auth = require('../../middleware/auth');
 const tenant = require('../../middleware/tenant');
+const validarIdNumerico = require('../../middleware/validarIdNumerico');
 const c = require('./empresas.controller');
 
 // Guard inline admin-only, mismo patrón que usuarios.routes.js
@@ -44,6 +45,8 @@ router.post('/', adminOnly, c.create);
 router.put('/:id', adminOnly, c.update);
 router.get('/:id/config', adminOnly, c.getConfig);
 router.put('/:id/config', adminOnly, c.setConfig);
-router.post('/:id/logo', adminOnly, uploadLogo.single('archivo'), c.subirLogo);
+// validarIdNumerico va antes que multer: el storage usa req.params.id para
+// construir el nombre de la carpeta destino en disco.
+router.post('/:id/logo', adminOnly, validarIdNumerico, uploadLogo.single('archivo'), c.subirLogo);
 
 module.exports = router;

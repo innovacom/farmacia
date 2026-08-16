@@ -22,7 +22,12 @@ const fileFilter = (req, file, cb) => {
     'text/xml',
     'application/xml',
   ];
-  if (allowed.includes(file.mimetype) || /\.xml$/i.test(file.originalname)) {
+  // application/octet-stream: fallback real que mandan varios sistemas
+  // operativos/navegadores para .xml sin registrar — solo se acepta
+  // combinado con la extensión, nunca solo. Antes CUALQUIER mimetype con
+  // nombre *.xml pasaba (bastaba renombrar un .exe a factura.xml).
+  const xmlOctetStream = file.mimetype === 'application/octet-stream' && /\.xml$/i.test(file.originalname);
+  if (allowed.includes(file.mimetype) || xmlOctetStream) {
     cb(null, true);
   } else {
     cb(new Error('Solo se permiten archivos Excel (.xlsx, .xls, .csv), PDF y XML'), false);

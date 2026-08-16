@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import Layout from './components/layout/Layout';
 import Login from './pages/Login';
+import CambiarPasswordObligatorio from './pages/CambiarPasswordObligatorio';
 import Dashboard from './pages/Dashboard';
 import PanelSupervisor from './pages/Supervisor/PanelSupervisor';
 import SolicitudesList from './pages/Solicitudes/SolicitudesList';
@@ -71,13 +72,38 @@ import PedidoConfirmacion from './pages/Tienda/PedidoConfirmacion';
 
 function RequireAuth({ children }) {
   const token = useAuthStore((s) => s.token);
-  return token ? children : <Navigate to="/login" replace />;
+  const user = useAuthStore((s) => s.user);
+  if (!token) return <Navigate to="/login" replace />;
+  if (user?.debe_cambiar_password) return <Navigate to="/primer-acceso" replace />;
+  return children;
+}
+
+// Solo exige token (nunca redirige por debe_cambiar_password — es la
+// pantalla que resuelve justo esa condición, entraría en bucle con
+// RequireAuth). Si ya no hace falta cambiar el password, regresa al inicio.
+function PrimerAccesoGate({ children }) {
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
+  if (!token) return <Navigate to="/login" replace />;
+  if (!user?.debe_cambiar_password) return <Navigate to="/dashboard" replace />;
+  return children;
 }
 
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      {/* Cambio forzado de password (primer login con la contraseña inicial
+          documentada) — solo requiere token, a propósito NO pasa por
+          RequireAuth (entraría en bucle contra sí misma). */}
+      <Route
+        path="/primer-acceso"
+        element={
+          <PrimerAccesoGate>
+            <CambiarPasswordObligatorio />
+          </PrimerAccesoGate>
+        }
+      />
       {/* Catálogo público, sin login — ver plan en memoria project_tienda_web_farmacia */}
       <Route path="/tienda" element={<Catalogo />} />
       <Route path="/tienda/privacidad" element={<PaginaLegal tipo="privacidad" />} />
