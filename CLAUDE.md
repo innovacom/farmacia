@@ -108,7 +108,6 @@ Backend (.env in dismed/backend/):
 - DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME (MySQL 8.0)
 - JWT_SECRET (min 32 chars), JWT_EXPIRES_IN (8h)
 - GEMINI_API_KEY (required for PDF parsing, SKU matching, and web price search), GEMINI_MODEL (default gemini-2.5-flash)
-- SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS (email relay)
 - UPLOAD_DIR (./uploads), OUTPUT_DIR (./outputs), BASE_URL (http://localhost:3001)
 - PORT (3001)
 - EMPRESA_NOMBRE, EMPRESA_RFC, EMPRESA_TELEFONO, EMPRESA_EMAIL, EMPRESA_DIRECCION (PDF letterhead)
