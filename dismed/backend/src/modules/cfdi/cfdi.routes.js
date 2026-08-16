@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const auth = require('../../middleware/auth');
+const { requirePermiso } = require('../../middleware/permisos');
 const c = require('./cfdi.controller');
 
 const adminOnly = (req, res, next) =>
@@ -22,10 +23,10 @@ router.post('/estatus/reconciliar', adminOnly, c.reconciliarEstatus);
 
 // ── Consulta (cualquier usuario autenticado con permiso de menú 'cfdi').
 // Drill-down de un comprobante (header + conceptos).
-router.get('/comprobante/:id', c.detalleComprobante);
+router.get('/comprobante/:id', requirePermiso('cfdi'), c.detalleComprobante);
 
 // Consulta encabezado/detalle por tipo (emitidos|recibidos).
-router.get('/:tipo/conceptos', c.listConceptos);
-router.get('/:tipo', c.listComprobantes);
+router.get('/:tipo/conceptos', requirePermiso('cfdi'), c.listConceptos);
+router.get('/:tipo', requirePermiso('cfdi'), c.listComprobantes);
 
 module.exports = router;

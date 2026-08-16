@@ -1,9 +1,13 @@
 const router = require('express').Router();
 const auth = require('../../middleware/auth');
+const { requireAnyPermiso } = require('../../middleware/permisos');
 const upload = require('../../middleware/upload');
 const c = require('./solicitudes.controller');
 
-router.use(auth);
+// El Comparador y Registrar Precios (permiso 'solicitudes', anidados bajo
+// /solicitudes/:id/... en el frontend) y Nueva Cotización (permiso
+// 'cotizaciones') leen datos de solicitud; el Dashboard también lista.
+router.use(auth, requireAnyPermiso(['solicitudes', 'cotizaciones', 'dashboard']));
 
 router.get('/',                    c.list);
 router.get('/:id',                 c.getById);

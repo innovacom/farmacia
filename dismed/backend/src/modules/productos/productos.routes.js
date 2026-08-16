@@ -3,6 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const auth = require('../../middleware/auth');
+const { requirePermiso, requireAnyPermiso } = require('../../middleware/permisos');
 const upload = require('../../middleware/upload');
 const validarIdNumerico = require('../../middleware/validarIdNumerico');
 const c = require('./productos.controller');
@@ -34,17 +35,25 @@ const uploadImagen = multer({
 });
 
 router.use(auth);
-router.get('/',       c.list);
-router.get('/match',  c.match);   // antes de /:id para que no lo capture
-router.post('/match-ia', c.matchIa);   // IA de desempate (lista cerrada)
+
+// Búsqueda/selección de producto (ProductoPicker) y listado/detalle básico:
+// los consume el catálogo de Productos, pero también Solicitudes (armar
+// partidas), Movimientos de inventario (buscar producto para un movimiento)
+// y Catálogo por proveedor — cualquiera de esos permisos basta para leer.
+const permisoLecturaCompartida = requireAnyPermiso(['productos', 'movimientos', 'solicitudes', 'catalogo-proveedor']);
+router.get('/',                   permisoLecturaCompartida, c.list);
+router.get('/match',               permisoLecturaCompartida, c.match);   // antes de /:id para que no lo capture
+router.post('/match-ia',           permisoLecturaCompartida, c.matchIa);   // IA de desempate (lista cerrada)
+router.get('/:id/presentaciones',  permisoLecturaCompartida, c.listPresentaciones);
+router.get('/:id',                 permisoLecturaCompartida, c.getById);
 
 // Importación del catálogo maestro (xlsx)
-router.get('/import-catalogo/plantilla',  c.plantillaCatalogo);
-router.post('/import-catalogo',         upload.single('archivo'), c.importPreview);
-router.post('/import-catalogo/confirmar', c.importConfirm);
+router.get('/import-catalogo/plantilla',  requirePermiso('productos'), c.plantillaCatalogo);
+router.post('/import-catalogo',           requirePermiso('productos'), upload.single('archivo'), c.importPreview);
+router.post('/import-catalogo/confirmar', requirePermiso('productos'), c.importConfirm);
 
-router.post('/baja-masiva', c.removeMultiple);
-router.get('/exportar', c.exportarExcel);
+router.post('/baja-masiva', requirePermiso('productos'), c.removeMultiple);
+router.get('/exportar',     requirePermiso('productos'), c.exportarExcel);
 
 // Pantalla admin-only de precios y estatus vendible en masa.
 router.patch('/:id/venta', adminOnly, c.updateVenta);
@@ -55,14 +64,12 @@ router.patch('/:id/venta', adminOnly, c.updateVenta);
 router.post('/:id/imagen', adminOnly, validarIdNumerico, uploadImagen.single('archivo'), c.subirImagen);
 
 // Presentaciones de venta (pieza/paquete sobre la misma existencia — ver migrate_v39)
-router.get('/:id/presentaciones',  c.listPresentaciones);
-router.post('/:id/presentaciones', c.createPresentacion);
-router.put('/presentaciones/:presentacionId',    c.updatePresentacion);
-router.delete('/presentaciones/:presentacionId', c.removePresentacion);
+router.post('/:id/presentaciones', requirePermiso('productos'), c.createPresentacion);
+router.put('/presentaciones/:presentacionId',    requirePermiso('productos'), c.updatePresentacion);
+router.delete('/presentaciones/:presentacionId', requirePermiso('productos'), c.removePresentacion);
 
-router.get('/:id',    c.getById);
-router.post('/',      c.create);
-router.put('/:id',    c.update);
-router.delete('/:id', c.remove);
+router.post('/',      requirePermiso('productos'), c.create);
+router.put('/:id',    requirePermiso('productos'), c.update);
+router.delete('/:id', requirePermiso('productos'), c.remove);
 
 module.exports = router;

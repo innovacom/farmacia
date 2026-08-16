@@ -1,8 +1,9 @@
 const router = require('express').Router();
 const auth = require('../../middleware/auth');
+const { requirePermiso } = require('../../middleware/permisos');
 const c = require('./bancos.controller');
 
-router.use(auth);
+router.use(auth, requirePermiso('contabilidad-bancos'));
 
 router.get('/', c.list);
 router.get('/:id', c.getById);

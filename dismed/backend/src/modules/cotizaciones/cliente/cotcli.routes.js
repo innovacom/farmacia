@@ -1,8 +1,12 @@
 const router = require('express').Router();
 const auth = require('../../../middleware/auth');
+const { requireAnyPermiso } = require('../../../middleware/permisos');
 const c = require('./cotcli.controller');
 
-router.use(auth);
+// El Comparador (permiso 'solicitudes') puede crear una cotización directo
+// desde ahí; Crear Pedido (permiso 'pedidos') lee la cotización de origen;
+// el Dashboard lista cotizaciones recientes.
+router.use(auth, requireAnyPermiso(['cotizaciones', 'solicitudes', 'pedidos', 'dashboard']));
 
 router.get('/',                        c.list);
 router.get('/:id',                     c.getById);

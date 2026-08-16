@@ -1,8 +1,11 @@
 const router = require('express').Router();
 const auth = require('../../middleware/auth');
+const { requireAnyPermiso } = require('../../middleware/permisos');
 const c = require('./clientes.controller');
 
-router.use(auth);
+// 'solicitudes' también puede leer/crear clientes: Nueva Solicitud permite
+// dar de alta un cliente y su contacto inline sin salir del flujo.
+router.use(auth, requireAnyPermiso(['clientes', 'solicitudes']));
 
 router.get('/',              c.list);
 router.get('/:id',           c.getById);

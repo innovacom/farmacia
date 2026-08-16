@@ -1,8 +1,9 @@
 const router = require('express').Router();
 const auth = require('../../middleware/auth');
+const { requirePermiso } = require('../../middleware/permisos');
 const c = require('./ventas.controller');
 
-router.use(auth);
+router.use(auth, requirePermiso('pedidos'));
 
 // Pedidos (asignación del cliente)
 router.get('/pedidos',            c.listPedidos);

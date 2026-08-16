@@ -1,8 +1,13 @@
 const router = require('express').Router();
 const auth   = require('../../../middleware/auth');
+const { requireAnyPermiso } = require('../../../middleware/permisos');
 const c      = require('./cotprov.controller');
 
-router.use(auth);
+// Todo este flujo (iniciar cotización a proveedores, registrar precios) se
+// usa desde DetalleSolicitud/Comparador/RegistrarPrecios, anidados bajo
+// /solicitudes/:id/... y por tanto gateados por el permiso 'solicitudes'
+// en el frontend, no 'cotizaciones'.
+router.use(auth, requireAnyPermiso(['solicitudes', 'cotizaciones']));
 
 router.post('/',                                      c.iniciar);
 router.put('/:id/precios',                            c.registrarPrecios);
