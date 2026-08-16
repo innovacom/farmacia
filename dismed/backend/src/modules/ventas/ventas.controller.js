@@ -4,6 +4,7 @@ const { ejecutarRecepcion } = require('./recepcion.service');
 const { generarOcPdf, generarEntregaPdf } = require('./ventas.pdf');
 const { validarFactura, generarCfdiTxt } = require('./cfdi.txt.generator');
 const { timbrarEntrega, cancelarCfdi: cancelarCfdiSvc } = require('./cfdi.facturama');
+const { urlFirmada } = require('../../services/outputUrl.service');
 
 async function genFolio(conn, serie) {
   await conn.query('CALL sp_generar_folio(?, @f)', [serie]);
@@ -201,11 +202,11 @@ async function ocPdf(req, res, next) {
   try {
     const [[oc]] = await pool.query('SELECT pdf_path FROM ordenes_compra WHERE id = ?', [req.params.id]);
     if (!oc) return res.status(404).json({ error: 'OC no encontrada' });
-    if (oc.pdf_path) return res.json({ url: oc.pdf_path });
+    if (oc.pdf_path) return res.json({ url: urlFirmada(oc.pdf_path) });
     const full = await cargarOC(req.params.id);
     const { relativePath } = await generarOcPdf(full);
     await pool.query('UPDATE ordenes_compra SET pdf_path = ? WHERE id = ?', [relativePath, req.params.id]);
-    res.json({ url: relativePath });
+    res.json({ url: urlFirmada(relativePath) });
   } catch (err) { next(err); }
 }
 
@@ -302,13 +303,13 @@ async function crearEntrega(req, res, next) {
       const full = await cargarEntrega(entId);
       const { relativePath } = await generarEntregaPdf(full);
       await pool.query('UPDATE entregas SET pdf_path = ? WHERE id = ?', [relativePath, entId]);
-      url = relativePath;
+      url = urlFirmada(relativePath);
     } catch (e) { /* regenerable */ }
 
     // TXT CFDI (factura): la validación ya pasó, así que esto no debería fallar.
     let cfdi_txt = null;
     if (tipoFinal === 'factura') {
-      try { cfdi_txt = (await generarCfdiTxt(entId)).relativePath; } catch (e) { /* regenerable vía endpoint */ }
+      try { cfdi_txt = urlFirmada((await generarCfdiTxt(entId)).relativePath); } catch (e) { /* regenerable vía endpoint */ }
     }
     res.status(201).json({ id: entId, folio, tipo: tipoFinal, url, cfdi_txt });
   } catch (err) { await conn.rollback(); if (err.status) return res.status(err.status).json({ error: err.message }); next(err); } finally { conn.release(); }
@@ -318,7 +319,7 @@ async function crearEntrega(req, res, next) {
 async function cfdiTxt(req, res, next) {
   try {
     const { relativePath } = await generarCfdiTxt(req.params.id);
-    res.json({ url: relativePath });
+    res.json({ url: urlFirmada(relativePath) });
   } catch (err) {
     if (err.status === 422) return res.status(422).json({ error: err.message, faltantes: err.faltantes || [] });
     if (err.status) return res.status(err.status).json({ error: err.message });
@@ -340,11 +341,11 @@ async function entregaPdf(req, res, next) {
   try {
     const [[ent]] = await pool.query('SELECT pdf_path FROM entregas WHERE id = ?', [req.params.id]);
     if (!ent) return res.status(404).json({ error: 'Entrega no encontrada' });
-    if (ent.pdf_path) return res.json({ url: ent.pdf_path });
+    if (ent.pdf_path) return res.json({ url: urlFirmada(ent.pdf_path) });
     const full = await cargarEntrega(req.params.id);
     const { relativePath } = await generarEntregaPdf(full);
     await pool.query('UPDATE entregas SET pdf_path = ? WHERE id = ?', [relativePath, req.params.id]);
-    res.json({ url: relativePath });
+    res.json({ url: urlFirmada(relativePath) });
   } catch (err) { next(err); }
 }
 
@@ -352,6 +353,8 @@ async function entregaPdf(req, res, next) {
 async function timbrarCfdi(req, res, next) {
   try {
     const r = await timbrarEntrega(req.params.id);
+    if (r.xml_url) r.xml_url = urlFirmada(r.xml_url);
+    if (r.pdf_url) r.pdf_url = urlFirmada(r.pdf_url);
     res.json(r);
   } catch (err) {
     if (err.status === 422) return res.status(422).json({ error: err.message, faltantes: err.faltantes || [] });
@@ -378,6 +381,8 @@ async function cfdiInfo(req, res, next) {
       [req.params.id]
     );
     if (!c) return res.status(404).json({ error: 'La entrega no tiene CFDI' });
+    if (c.xml_path) c.xml_path = urlFirmada(c.xml_path);
+    if (c.pdf_path) c.pdf_path = urlFirmada(c.pdf_path);
     res.json(c);
   } catch (err) { next(err); }
 }

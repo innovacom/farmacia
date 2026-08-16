@@ -2,6 +2,7 @@ const { pool } = require('../../config/db');
 const { getScoped } = require('../pos/pos.tenant.helpers');
 const ventas = require('../pos/pos.ventas.service');
 const { generarPdfReceta } = require('./receta.pdf.generator');
+const { urlFirmada } = require('../../services/outputUrl.service');
 
 // ── Turnos de consultorio (médico + sucursal, sin arqueo) ───────────────────
 
@@ -381,7 +382,7 @@ async function generarRecetaPdf(req, res, next) {
 
     const { relativePath, filename } = await generarPdfReceta({ ...receta, ...datos, partidas });
 
-    res.json({ url: `${process.env.BASE_URL}${relativePath}`, filename });
+    res.json({ url: urlFirmada(relativePath, { absoluta: true }), filename });
   } catch (err) { next(err); }
 }
 

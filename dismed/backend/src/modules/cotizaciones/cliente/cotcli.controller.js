@@ -1,5 +1,6 @@
 const { pool } = require('../../../config/db');
 const { generarPdfCotizacion } = require('./pdf.generator');
+const { urlFirmada } = require('../../../services/outputUrl.service');
 
 async function list(req, res, next) {
   try {
@@ -219,7 +220,7 @@ async function generarPdf(req, res, next) {
     await pool.query('UPDATE cotizaciones_cliente SET pdf_path = ? WHERE id = ?',
       [relativePath, req.params.id]);
 
-    res.json({ url: `${process.env.BASE_URL}${relativePath}`, filename });
+    res.json({ url: urlFirmada(relativePath, { absoluta: true }), filename });
   } catch (err) { next(err); }
 }
 

@@ -22,6 +22,7 @@
 const { pool } = require('../../config/db');
 const { timbrarComprobante, insertarComprobante } = require('../ventas/cfdi.facturama');
 const { empresaCfdi } = require('../ventas/cfdi.txt.generator');
+const { urlFirmada } = require('../../services/outputUrl.service');
 const { getScoped } = require('./pos.tenant.helpers');
 
 const n2 = (n) => Number(n || 0).toFixed(2);
@@ -366,7 +367,11 @@ async function listarGlobales(empresaId) {
      ORDER BY g.id DESC LIMIT 100`,
     [empresaId]
   );
-  return rows;
+  return rows.map((r) => ({
+    ...r,
+    xml_path: r.xml_path ? urlFirmada(r.xml_path) : r.xml_path,
+    pdf_path: r.pdf_path ? urlFirmada(r.pdf_path) : r.pdf_path,
+  }));
 }
 
 module.exports = { facturarVenta, crearFacturaGlobal, timbrarFacturaGlobal, liberarTickets, listarGlobales };

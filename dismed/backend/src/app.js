@@ -4,6 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const { validateEnv } = require('./config/env');
 const { testConnection } = require('./config/db');
+const servirOutputsFirmados = require('./middleware/signedOutputs');
 
 validateEnv();
 
@@ -18,9 +19,10 @@ app.use(cors({
 app.use(express.json({ limit: '10mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.use(express.urlencoded({ extended: true }));
 
-// Servir archivos generados (PDFs de cotización)
+// Servir archivos generados (PDFs de cotización, recetas médicas, CFDI).
+// Requiere firma HMAC de corta vigencia — ver middleware/signedOutputs.js.
 const outputDir = process.env.OUTPUT_DIR || './outputs';
-app.use('/outputs', express.static(path.resolve(outputDir)));
+app.use('/outputs', servirOutputsFirmados(outputDir));
 
 // Logos de branding por empresa (subidos vía /api/empresas/:id/logo)
 const uploadDir = process.env.UPLOAD_DIR || './uploads';
