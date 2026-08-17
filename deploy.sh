@@ -273,6 +273,19 @@ cat > /etc/apache2/sites-available/dismed.conf <<APACHE
         FallbackResource /index.html
     </Directory>
 
+    # Headers de seguridad para el frontend estático — Express/Helmet ya los
+    # aplica en /api, pero esas respuestas no pasan por Apache; el HTML/JS
+    # que sí ejecuta el navegador se sirve aquí directo, sin pasar por Node.
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "no-referrer"
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+    # Ocultar versión/SO en el header Server (requiere ServerTokens Prod +
+    # ServerSignature Off también en /etc/apache2/conf-enabled/security.conf,
+    # global — no se puede fijar solo por VirtualHost).
+
     # Proxy API al backend Node.js
     ProxyRequests Off
     ProxyPreserveHost On

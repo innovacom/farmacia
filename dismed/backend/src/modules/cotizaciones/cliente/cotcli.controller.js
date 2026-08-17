@@ -73,6 +73,10 @@ async function create(req, res, next) {
     if (!solicitud_id || !Array.isArray(partidas) || !partidas.length) {
       return res.status(400).json({ error: 'solicitud_id y partidas[] requeridos' });
     }
+    const partidaInvalida = partidas.find((p) => !(parseFloat(p.cantidad) > 0));
+    if (partidaInvalida) {
+      return res.status(400).json({ error: `Cantidad inválida en la partida "${partidaInvalida.descripcion || partidaInvalida.linea || ''}": debe ser mayor a 0` });
+    }
 
     const [[sol]] = await conn.query(
       'SELECT cliente_id, atencion, concepto FROM solicitudes WHERE id = ?', [solicitud_id]
