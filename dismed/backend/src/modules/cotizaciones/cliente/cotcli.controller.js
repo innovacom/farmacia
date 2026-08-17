@@ -83,11 +83,29 @@ async function create(req, res, next) {
     const conceptoFinal = concepto || sol.concepto || null;
     const atencionFinal = atencion || sol.atencion || null;
 
+    // Precio de compra real por partida: el "mejor precio" ya calculado por
+    // calcularMejorPrecio (fuente de verdad, viene de cotizaciones_proveedor_precios).
+    // Antes se confiaba en partidas[i].precio_compra tal cual venía en el body,
+    // que el cliente HTTP podía mandar con cualquier valor sin que el servidor
+    // lo cruzara contra lo realmente cotizado por el proveedor.
+    const [preciosReales] = await conn.query(
+      `SELECT cpp.partida_id, cpp.precio_unitario
+       FROM cotizaciones_proveedor_precios cpp
+       JOIN cotizaciones_proveedor cp ON cp.id = cpp.cotizacion_proveedor_id
+       WHERE cp.solicitud_id = ? AND cpp.es_mejor_precio = 1 AND cpp.disponible = 1`,
+      [solicitud_id]
+    );
+    const precioRealPorPartida = new Map(
+      preciosReales.map((r) => [r.partida_id, parseFloat(r.precio_unitario) || 0])
+    );
+
     // Calcular partidas — IVA ya no va en subtotal/iva del header (se calcula por línea)
     let subtotal = 0;
     const partidasCalc = partidas.map((p, i) => {
-      const margen      = parseFloat(p.margen_pct)    || 0;
-      const precioCompra = parseFloat(p.precio_compra) || 0;
+      const margen      = parseFloat(p.margen_pct) || 0;
+      // Sin mejor precio registrado (partida sin cotizar a proveedor), el
+      // costo real es 0 — mismo comportamiento que ya tenía el frontend.
+      const precioCompra = precioRealPorPartida.get(p.partida_solicitud_id) ?? 0;
       const precioVenta  = precioCompra * (1 + margen / 100);
       const importe      = precioVenta * parseFloat(p.cantidad);
       subtotal += importe;
