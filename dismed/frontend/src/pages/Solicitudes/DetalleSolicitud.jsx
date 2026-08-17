@@ -477,6 +477,9 @@ export default function DetalleSolicitud() {
             <p className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
               <Globe size={13} className="text-brand-500" /> Internet (IA)
             </p>
+            <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1">
+              Precios sugeridos por IA a partir de la descripción de la partida — verifica en la página del proveedor (enlace "ver página") antes de usarlos en una cotización.
+            </p>
             {webSearch.running && (
               <div>
                 <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
