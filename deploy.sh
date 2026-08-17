@@ -276,7 +276,11 @@ cat > /etc/apache2/sites-available/dismed.conf <<APACHE
     # Headers de seguridad para el frontend estático — Express/Helmet ya los
     # aplica en /api, pero esas respuestas no pasan por Apache; el HTML/JS
     # que sí ejecuta el navegador se sirve aquí directo, sin pasar por Node.
-    Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'"
+    # style-src/font-src permiten Google Fonts (Manrope/Inter del catálogo
+    # /tienda) y frame-src permite el embed de Google Maps en Sucursales
+    # (POS) y el footer de la tienda — ver frontend/index.html y
+    # pages/Pos/Sucursales.jsx.
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-src https://maps.google.com; frame-ancestors 'none'"
     Header always set X-Content-Type-Options "nosniff"
     Header always set X-Frame-Options "SAMEORIGIN"
     Header always set Referrer-Policy "no-referrer"
