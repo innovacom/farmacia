@@ -89,7 +89,7 @@ function EntradaModal({ onClose, onDone }) {
             <label className="label">Producto *</label>
             <div className="relative">
               <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input className="input pl-9" placeholder="Busca SKU o descripción…" value={busc} onChange={(e) => setBusc(e.target.value)} />
+              <input className="input pl-9" placeholder="Busca SKU, EAN o descripción…" value={busc} onChange={(e) => setBusc(e.target.value)} />
             </div>
             {prods.length > 0 && (
               <div className="border border-gray-200 rounded-lg mt-1 max-h-44 overflow-y-auto">

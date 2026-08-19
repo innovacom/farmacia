@@ -256,7 +256,7 @@ export default function ProductosList() {
       <div className="flex gap-3 mb-4 flex-wrap">
         <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input className="input pl-9 w-72" placeholder="Buscar por SKU o descripción…"
+          <input className="input pl-9 w-72" placeholder="Buscar por SKU, EAN o descripción…"
             value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
         </div>
         <select className="input w-56" value={filtroFamilia} onChange={(e) => setFiltroFamilia(e.target.value)}>
