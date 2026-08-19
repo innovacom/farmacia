@@ -221,6 +221,21 @@ async function create(req, res, next) {
       }
     }
 
+    // EAN: no puede repetirse entre productos activos (un producto dado de baja
+    // puede conservar su código de barras histórico sin bloquear el reemplazo).
+    if (req.body.ean !== undefined) {
+      req.body.ean = (req.body.ean || '').toString().trim() || null;
+    }
+    if (req.body.ean) {
+      const [[dupEan]] = await conn.query(
+        'SELECT sku_interno, descripcion FROM productos WHERE ean = ? AND activo = 1', [req.body.ean]
+      );
+      if (dupEan) {
+        await conn.rollback();
+        return res.status(409).json({ error: `El código de barras ${req.body.ean} ya está asignado a ${dupEan.sku_interno} (${dupEan.descripcion})` });
+      }
+    }
+
     const cols = ['sku_interno']; const ph = ['?']; const vals = [sku];
     PROD_FIELDS.forEach((f) => {
       if (req.body[f] !== undefined) {
@@ -261,6 +276,27 @@ async function update(req, res, next) {
       if (errorPrecios) return res.status(400).json({ error: errorPrecios });
     }
     autoVendibleUpdate(req.body);
+
+    if (req.body.ean !== undefined) {
+      req.body.ean = (req.body.ean || '').toString().trim() || null;
+    }
+    // Reactivar (PUT solo con activo:1) también puede resucitar un choque de EAN,
+    // así que se revisa contra el EAN/activo resultante, no solo cuando ean viene en el body.
+    if (req.body.ean !== undefined || req.body.activo !== undefined) {
+      const [[actual]] = await pool.query('SELECT ean, activo FROM productos WHERE id = ?', [req.params.id]);
+      if (!actual) return res.status(404).json({ error: 'Producto no encontrado' });
+      const eanFinal = req.body.ean !== undefined ? req.body.ean : actual.ean;
+      const activoFinal = req.body.activo !== undefined ? (req.body.activo ? 1 : 0) : actual.activo;
+      if (eanFinal && activoFinal) {
+        const [[dupEan]] = await pool.query(
+          'SELECT sku_interno, descripcion FROM productos WHERE ean = ? AND activo = 1 AND id != ?',
+          [eanFinal, req.params.id]
+        );
+        if (dupEan) {
+          return res.status(409).json({ error: `El código de barras ${eanFinal} ya está asignado a ${dupEan.sku_interno} (${dupEan.descripcion})` });
+        }
+      }
+    }
 
     const sets = []; const vals = [];
     PROD_FIELDS.forEach((f) => {
@@ -331,6 +367,7 @@ function validarFilasImportacion(productos, columnasPresentes, modoParcial) {
   productos.forEach((p) => {
     const errores = [];
     if (!p.sku_interno) errores.push('SKU (Id) vacío');
+    if (p._ean_error) errores.push(p._ean_error);
 
     if (modoParcial && p._ya_en_bd) {
       for (const { campo, label } of CAMPOS_OBLIGATORIOS_ALTA) {
@@ -375,6 +412,28 @@ async function importPreview(req, res, next) {
       result.productos.forEach((p) => { p._ya_en_bd = set.has(p.sku_interno); });
       yaEnBd = existentes.length;
     }
+
+    // Marcar duplicados de EAN: contra la BD (otro SKU ya activo) y dentro del propio archivo.
+    const eans = result.productos.map((p) => (p.ean || '').toString().trim()).filter(Boolean);
+    if (eans.length) {
+      const [existentesEan] = await pool.query(
+        'SELECT sku_interno, ean FROM productos WHERE ean IN (?) AND activo = 1', [eans]
+      );
+      const skuPorEanBd = new Map(existentesEan.map((e) => [e.ean, e.sku_interno]));
+      const conteoArchivo = new Map();
+      eans.forEach((e) => conteoArchivo.set(e, (conteoArchivo.get(e) || 0) + 1));
+      result.productos.forEach((p) => {
+        const ean = (p.ean || '').toString().trim();
+        if (!ean) return;
+        const skuBd = skuPorEanBd.get(ean);
+        if (skuBd && skuBd !== p.sku_interno) {
+          p._ean_error = `EAN ${ean} ya está asignado a ${skuBd}`;
+        } else if (conteoArchivo.get(ean) > 1) {
+          p._ean_error = `EAN ${ean} repetido en el archivo`;
+        }
+      });
+    }
+
     const { ok, con_errores } = validarFilasImportacion(result.productos, result.columnasPresentes, modoParcial);
     result.resumen.ok = ok;
     result.resumen.con_errores = con_errores;
@@ -389,6 +448,15 @@ async function importPreview(req, res, next) {
 // usado también para dar de ALTA productos nuevos aunque el modo sea "parcial":
 // un producto nuevo no puede quedar a medias).
 async function insertarOReemplazarCompleto(conn, cache, p, sku) {
+  const ean = (p.ean || '').toString().trim() || null;
+  if (ean) {
+    const [[dupEan]] = await conn.query(
+      'SELECT sku_interno FROM productos WHERE ean = ? AND activo = 1 AND sku_interno != ?', [ean, sku]
+    );
+    if (dupEan) return { error: `EAN ${ean} ya está asignado a ${dupEan.sku_interno}` };
+  }
+  p.ean = ean;
+
   const familiaId = await resolverId(conn, cache, 'familias',
     ['nombre'], [p.familia], ['nombre'], [p.familia]);
   const categoriaId = await resolverId(conn, cache, 'categorias_prod',
@@ -404,8 +472,8 @@ async function insertarOReemplazarCompleto(conn, cache, p, sku) {
         unidad_medida, unidad_medida_id, unidad_base, factor_empaque,
         control_lote_caducidad, precio_lista, precio_publico, precio_costo, iva_exento, ieps,
         clave_sat, clave_unidad_sat, clave_cuadro_basico, fabricante, ean,
-        sustancia_activa, tamano, calibre, especificacion)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        sustancia_activa, tamano, calibre, especificacion, publicar_web)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)
      ON DUPLICATE KEY UPDATE
        descripcion = VALUES(descripcion), descripcion_norm = VALUES(descripcion_norm),
        familia_id = VALUES(familia_id),
@@ -427,10 +495,10 @@ async function insertarOReemplazarCompleto(conn, cache, p, sku) {
      p.control_lote_caducidad ? 1 : 0,
      p.precio_lista, p.precio_publico ?? null, p.precio_costo ?? null, p.iva_exento ? 1 : 0, p.ieps ?? null,
      p.clave_sat || null, p.clave_unidad_sat || null, p.clave_cuadro_basico || null,
-     p.fabricante || null, p.ean || null,
+     p.fabricante || null, ean,
      p.sustancia_activa || null, p.tamano || null, p.calibre || null, p.especificacion || null]
   );
-  return r.affectedRows === 1 ? 'insertado' : 'actualizado'; // affectedRows: 1 = insert, 2 = update (ON DUPLICATE KEY)
+  return { error: null, resultado: r.affectedRows === 1 ? 'insertado' : 'actualizado' }; // affectedRows: 1 = insert, 2 = update (ON DUPLICATE KEY)
 }
 
 // Actualiza SOLO los campos cuya columna vino en el archivo (modo parcial),
@@ -489,7 +557,16 @@ async function actualizarParcial(conn, cache, p, sku, cp, actual) {
   if (trae('calibre'))           { sets.push('calibre = ?');           vals.push(p.calibre); }
   if (trae('especificacion'))    { sets.push('especificacion = ?');    vals.push(p.especificacion); }
   if (trae('fabricante'))        { sets.push('fabricante = ?');        vals.push(p.fabricante); }
-  if (trae('ean'))               { sets.push('ean = ?');               vals.push(p.ean); }
+  if (trae('ean')) {
+    const ean = p.ean.toString().trim() || null;
+    if (ean) {
+      const [[dupEan]] = await conn.query(
+        'SELECT sku_interno FROM productos WHERE ean = ? AND activo = 1 AND sku_interno != ?', [ean, sku]
+      );
+      if (dupEan) return { error: `EAN ${ean} ya está asignado a ${dupEan.sku_interno}` };
+    }
+    sets.push('ean = ?'); vals.push(ean);
+  }
 
   if (!sets.length) return { error: null, sinCambios: true };
 
@@ -550,7 +627,12 @@ async function importConfirm(req, res, next) {
           if (errores.length < 20) errores.push({ sku, motivo: errorPrecios });
           continue;
         }
-        const resultado = await insertarOReemplazarCompleto(conn, cache, p, sku);
+        const { error: errorEan, resultado } = await insertarOReemplazarCompleto(conn, cache, p, sku);
+        if (errorEan) {
+          omitidos++;
+          if (errores.length < 20) errores.push({ sku, motivo: errorEan });
+          continue;
+        }
         if (resultado === 'insertado') insertados++; else actualizados++;
         continue;
       }
