@@ -68,6 +68,9 @@ export default function TicketPrint({ venta, branding }) {
       <div>Ticket: <b>{venta.folio}</b></div>
       <div>{new Date(venta.created_at).toLocaleString('es-MX')}</div>
       <div>Caja: {venta.caja} · Cajero: {venta.cajero}</div>
+      {venta.cliente_fidelidad_id && (
+        <div>Cliente #{venta.cliente_fidelidad_id} — {venta.cliente_fidelidad_nombre}</div>
+      )}
       <div style={{ borderTop: '1px dashed #000', margin: '2mm 0' }} />
 
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>

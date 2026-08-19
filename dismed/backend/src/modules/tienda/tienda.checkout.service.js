@@ -22,6 +22,7 @@ const inv = require('../inventario/movimientos.service');
 const promociones = require('../pos/pos.promociones.service');
 const branding = require('../../services/branding.service');
 const stripeConfig = require('./tienda.stripe.config');
+const { ultimos10 } = require('../whatsapp/whatsapp.util');
 
 const CLASIF_LIBRES = ['libre', 'venta_farmacia'];
 const IVA_TASA_GRAVADO = 0.16;
@@ -42,7 +43,7 @@ function centavos(monto) {
  * inventario ni crea pedido — eso solo pasa en confirmarPago(), desde el
  * webhook.
  */
-async function iniciar(empresaId, payload, { ip } = {}) {
+async function iniciar(empresaId, payload, { ip, clienteFidelidadId } = {}) {
   const stripe = stripeConfig.cliente();
   if (!stripe) throw Object.assign(new Error('El pago en línea no está disponible por el momento'), { status: 503 });
 
@@ -50,6 +51,18 @@ async function iniciar(empresaId, payload, { ip } = {}) {
     items, sucursal_id, forma_entrega, direccion_entrega,
     nombre_recibe, telefono, correo,
   } = payload || {};
+
+  // El id de cliente ya viene de un JWT firmado por el servidor (ver
+  // authClienteOpcional), pero se revalida contra la tabla igual — barato y
+  // evita confiar ciegamente en un token en un endpoint que mueve dinero.
+  let clienteId = null;
+  if (clienteFidelidadId) {
+    const [[c]] = await pool.query(
+      'SELECT id FROM pos_clientes_fidelidad WHERE id = ? AND empresa_id = ? AND activo = 1',
+      [clienteFidelidadId, empresaId]
+    );
+    clienteId = c ? c.id : null;
+  }
 
   if (!Array.isArray(items) || !items.length) throw badRequest('El carrito está vacío');
   if (!['pickup', 'domicilio'].includes(forma_entrega)) throw badRequest('Forma de entrega inválida');
@@ -140,10 +153,10 @@ async function iniciar(empresaId, payload, { ip } = {}) {
 
   const [ins] = await pool.query(
     `INSERT INTO tienda_checkout_sesiones
-       (empresa_id, sucursal_id, nombre_recibe, telefono, correo, forma_entrega, direccion_entrega,
+       (empresa_id, sucursal_id, cliente_fidelidad_id, nombre_recibe, telefono, correo, forma_entrega, direccion_entrega,
         costo_envio, subtotal, iva, total, items_json, ip)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [empresaId, suc.id, nombre_recibe.trim(), telefono.trim(), correo.trim().toLowerCase(),
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [empresaId, suc.id, clienteId, nombre_recibe.trim(), telefono.trim(), correo.trim().toLowerCase(),
      forma_entrega, direccion_entrega?.trim() || null, costoEnvio, subtotal, iva, total,
      JSON.stringify(itemsProcesados), ip || null]
   );
@@ -214,6 +227,19 @@ async function confirmarPago(session) {
   const items = JSON.parse(chk.items_json);
   const paymentIntentId = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id || null;
 
+  // Si el checkout no traía sesión de cliente (invitado sin login) igual se
+  // liga al historial si su teléfono coincide con un cliente de fidelidad ya
+  // registrado — mismo criterio que el backfill de migrate_v61. Si el
+  // teléfono no coincide con nadie, el pedido queda sin ligar (invitado real).
+  let clienteFidelidadId = chk.cliente_fidelidad_id;
+  if (!clienteFidelidadId) {
+    const [[c]] = await pool.query(
+      'SELECT id FROM pos_clientes_fidelidad WHERE empresa_id = ? AND telefono_normalizado = ? AND activo = 1',
+      [chk.empresa_id, ultimos10(chk.telefono)]
+    );
+    clienteFidelidadId = c ? c.id : null;
+  }
+
   const conn = await pool.getConnection();
   let pedidoId = null; let folio = null; let faltante = null;
   try {
@@ -224,11 +250,11 @@ async function confirmarPago(session) {
     try {
       [ins] = await conn.query(
         `INSERT INTO pedidos_tienda
-           (empresa_id, folio, checkout_id, sucursal_id, nombre_recibe, telefono, correo,
+           (empresa_id, folio, checkout_id, cliente_fidelidad_id, sucursal_id, nombre_recibe, telefono, correo,
             forma_entrega, direccion_entrega, stripe_session_id, stripe_payment_intent_id,
             costo_envio, subtotal, iva, total)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [chk.empresa_id, folio, checkoutId, chk.sucursal_id, chk.nombre_recibe, chk.telefono, chk.correo,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [chk.empresa_id, folio, checkoutId, clienteFidelidadId, chk.sucursal_id, chk.nombre_recibe, chk.telefono, chk.correo,
          chk.forma_entrega, chk.direccion_entrega, session.id, paymentIntentId,
          chk.costo_envio, chk.subtotal, chk.iva, chk.total]
       );
@@ -283,10 +309,10 @@ async function confirmarPago(session) {
 
   // Llegamos aquí solo si faltó existencia: se cobró pero no se puede surtir.
   // Se cancela y reembolsa FUERA de la transacción que se acaba de deshacer.
-  return await crearPedidoCanceladoYReembolsar({ chk, checkoutId, session, paymentIntentId, faltante });
+  return await crearPedidoCanceladoYReembolsar({ chk, checkoutId, session, paymentIntentId, faltante, clienteFidelidadId });
 }
 
-async function crearPedidoCanceladoYReembolsar({ chk, checkoutId, session, paymentIntentId, faltante }) {
+async function crearPedidoCanceladoYReembolsar({ chk, checkoutId, session, paymentIntentId, faltante, clienteFidelidadId }) {
   const conn = await pool.getConnection();
   let pedidoId; let folio;
   try {
@@ -295,11 +321,11 @@ async function crearPedidoCanceladoYReembolsar({ chk, checkoutId, session, payme
     const motivo = `Sin existencia de "${faltante?.descripcion || 'un producto'}" al confirmarse el pago — se reembolsó automáticamente`;
     const [ins] = await conn.query(
       `INSERT INTO pedidos_tienda
-         (empresa_id, folio, checkout_id, sucursal_id, nombre_recibe, telefono, correo,
+         (empresa_id, folio, checkout_id, cliente_fidelidad_id, sucursal_id, nombre_recibe, telefono, correo,
           forma_entrega, direccion_entrega, estatus, stripe_session_id, stripe_payment_intent_id,
           costo_envio, subtotal, iva, total, motivo_cancelacion, cancelado_en)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'cancelado', ?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [chk.empresa_id, folio, checkoutId, chk.sucursal_id, chk.nombre_recibe, chk.telefono, chk.correo,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'cancelado', ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [chk.empresa_id, folio, checkoutId, clienteFidelidadId || null, chk.sucursal_id, chk.nombre_recibe, chk.telefono, chk.correo,
        chk.forma_entrega, chk.direccion_entrega, session.id, paymentIntentId,
        chk.costo_envio, chk.subtotal, chk.iva, chk.total, motivo]
     );

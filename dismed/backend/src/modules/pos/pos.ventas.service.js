@@ -273,11 +273,13 @@ async function cargarVenta(conn, empresaId, ventaId) {
     [ventaId]
   );
   const [[extra]] = await conn.query(
-    `SELECT s.nombre AS sucursal, s.direccion AS sucursal_direccion, c.nombre AS caja, u.nombre AS cajero
+    `SELECT s.nombre AS sucursal, s.direccion AS sucursal_direccion, c.nombre AS caja, u.nombre AS cajero,
+            cf.nombre AS cliente_fidelidad_nombre
      FROM pos_ventas v
      JOIN sucursales s ON s.id = v.sucursal_id
      JOIN pos_cajas c ON c.id = v.caja_id
      JOIN usuarios u ON u.id = v.usuario_id
+     LEFT JOIN pos_clientes_fidelidad cf ON cf.id = v.cliente_fidelidad_id
      WHERE v.id = ?`,
     [ventaId]
   );

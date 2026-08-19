@@ -175,8 +175,8 @@ async function preview(req, res, next) {
           `INSERT INTO productos
              (sku_interno, descripcion, descripcion_norm, unidad_medida, clave_sat, clave_unidad_sat,
               ean, precio_costo, control_lote_caducidad, vendible, iva_exento,
-              familia_id, categoria_id, subcategoria_id, clasificacion_cofepris)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, ?, ?, ?)`,
+              familia_id, categoria_id, subcategoria_id, clasificacion_cofepris, publicar_web)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, ?, ?, ?, 1)`,
           [sku, descripcion, normalizar(descripcion).substring(0, 800), unidad,
             c.clave_prod_serv || null, c.clave_unidad || null,
             codigo || null, c.valor_unitario ?? null, ivaExento,

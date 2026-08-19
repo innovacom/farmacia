@@ -69,6 +69,8 @@ import DetalleProducto from './pages/Tienda/DetalleProducto';
 import PaginaLegal from './pages/Tienda/PaginaLegal';
 import Carrito from './pages/Tienda/Carrito';
 import PedidoConfirmacion from './pages/Tienda/PedidoConfirmacion';
+import CuentaAcceso from './pages/Tienda/CuentaAcceso';
+import MiCuenta from './pages/Tienda/MiCuenta';
 
 function RequireAuth({ children }) {
   const token = useAuthStore((s) => s.token);
@@ -110,6 +112,8 @@ export default function App() {
       <Route path="/tienda/terminos" element={<PaginaLegal tipo="terminos" />} />
       <Route path="/tienda/carrito" element={<Carrito />} />
       <Route path="/tienda/pedido/exito" element={<PedidoConfirmacion />} />
+      <Route path="/tienda/cuenta" element={<CuentaAcceso />} />
+      <Route path="/tienda/mi-cuenta" element={<MiCuenta />} />
       <Route path="/tienda/:id" element={<DetalleProducto />} />
       <Route
         path="/"

@@ -4,10 +4,11 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Package, MessageCircle, ShoppingCart } from 'lucide-react';
 import toast from 'react-hot-toast';
-import api from '../../services/api';
+import api from '../../services/apiTienda';
 import { linkWhatsApp } from '../../utils/whatsapp';
 import TiendaFooter from './TiendaFooter';
 import CarritoBadge from './CarritoBadge';
+import CuentaBadge from './CuentaBadge';
 import useTituloPagina from '../../hooks/useTituloPagina';
 import { useTiendaCarrito } from '../../store/tiendaCarritoStore';
 
@@ -59,7 +60,10 @@ export default function DetalleProducto() {
           <h1 className="font-tienda-display text-lg font-extrabold text-tienda-ink tracking-tight flex-1 min-w-0 truncate">
             {info?.nombre || 'Farmacia'}
           </h1>
-          <CarritoBadge pagoHabilitado={info?.pago_habilitado} />
+          <div className="flex items-center gap-2 shrink-0">
+            <CuentaBadge />
+            <CarritoBadge pagoHabilitado={info?.pago_habilitado} />
+          </div>
         </div>
       </header>
 

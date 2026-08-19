@@ -619,6 +619,7 @@ function SelectorClienteFidelidad({ cliente, bloqueado, onElegir, onQuitar }) {
         <span className="flex items-center gap-1.5 pl-2 pr-1 py-1 rounded-full border border-pink-200 bg-pink-50 text-pink-700 text-sm">
           <Heart size={13} />
           {cliente.nombre}
+          <span className="text-pink-400 font-mono">#{cliente.id}</span>
           {cliente.tarjeta_adulto_mayor && <span className="badge-green">Adulto mayor</span>}
           {cliente.programa_lealtad && <span className="badge-green">Lealtad</span>}
           {!bloqueado && (
@@ -678,7 +679,7 @@ function BuscadorClienteFidelidad({ onElegir, onCerrar }) {
     <div className="relative max-w-sm">
       <div className="relative">
         <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input className="input pl-8 text-sm" autoFocus placeholder="Buscar por nombre o teléfono…"
+        <input className="input pl-8 text-sm" autoFocus placeholder="Nombre, teléfono o N° de cliente…"
           value={q} onChange={(e) => setQ(e.target.value)} onBlur={() => setTimeout(onCerrar, 150)} />
       </div>
       {!!resultados.length && (
@@ -687,7 +688,7 @@ function BuscadorClienteFidelidad({ onElegir, onCerrar }) {
             <button key={c.id} type="button"
               className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left hover:bg-gray-50 border-b border-gray-50 text-sm"
               onMouseDown={(e) => { e.preventDefault(); onElegir(c); }}>
-              <span className="truncate">{c.nombre}</span>
+              <span className="truncate">{c.nombre} <span className="text-gray-400 font-mono">#{c.id}</span></span>
               <span className="text-xs text-gray-400 font-mono shrink-0">{c.telefono}</span>
             </button>
           ))}

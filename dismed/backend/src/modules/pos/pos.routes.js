@@ -43,6 +43,8 @@ router.get('/clientes-fidelidad/buscar', requirePermiso('pos-clientes-fidelidad'
 router.post('/clientes-fidelidad',       requirePermiso('pos-clientes-fidelidad'), fidelidad.crear);
 router.put('/clientes-fidelidad/:id',    requirePermiso('pos-clientes-fidelidad'), fidelidad.actualizar);
 router.delete('/clientes-fidelidad/:id', requirePermiso('pos-clientes-fidelidad'), fidelidad.eliminar);
+// Historial de compras del cliente en mostrador + WhatsApp + tienda web.
+router.get('/clientes-fidelidad/:id/historial', requirePermiso('pos-clientes-fidelidad'), fidelidad.historial);
 
 // Venta mostrador
 router.get('/productos/buscar',   requirePermiso('pos-venta'),  c.buscarProductos);

@@ -6,7 +6,7 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, FileText } from 'lucide-react';
-import api from '../../services/api';
+import api from '../../services/apiTienda';
 import TiendaFooter from './TiendaFooter';
 import useTituloPagina from '../../hooks/useTituloPagina';
 

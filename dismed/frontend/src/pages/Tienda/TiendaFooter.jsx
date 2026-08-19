@@ -187,6 +187,9 @@ export default function TiendaFooter({ info }) {
           <p className="font-tienda-display font-extrabold text-tienda-ink">{info.nombre}</p>
           {info.lema && <p className="text-sm text-tienda-muted mt-1">{info.lema}</p>}
           <RedesSociales info={info} />
+          <Link to="/tienda/cuenta" className="inline-block text-sm text-tienda-teal hover:underline mt-4">
+            Mi cuenta — ver mis pedidos
+          </Link>
         </div>
 
         {sucursales.length > 0 && (

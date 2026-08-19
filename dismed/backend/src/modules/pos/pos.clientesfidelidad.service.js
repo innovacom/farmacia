@@ -88,6 +88,8 @@ function serializar(row) {
     tarjeta_adulto_mayor: !!row.tarjeta_adulto_mayor,
     programa_lealtad: !!row.programa_lealtad,
     activo: !!row.activo,
+    origen_alta: row.origen_alta,
+    direccion_entrega: row.direccion_entrega,
     created_at: row.created_at,
   };
 }
@@ -107,16 +109,23 @@ async function listar(empresaId, { q } = {}) {
 }
 
 // Typeahead para el selector de venta (VentaMostrador.jsx): solo activos,
-// solo lo necesario para elegir y mostrar el badge de descuento.
+// solo lo necesario para elegir y mostrar el badge de descuento. Si el texto
+// es puramente numérico también compara contra el id (el "número de
+// cliente" que el cajero puede pedir directamente en vez de buscar por
+// nombre/teléfono).
 async function buscar(empresaId, q) {
   const texto = (q || '').trim();
   if (!texto) return [];
+  const esNumerico = /^\d+$/.test(texto);
   const [rows] = await pool.query(
     `SELECT id, nombre, telefono, tarjeta_adulto_mayor, programa_lealtad
      FROM pos_clientes_fidelidad
-     WHERE empresa_id = ? AND activo = 1 AND (nombre LIKE ? OR telefono_normalizado LIKE ?)
+     WHERE empresa_id = ? AND activo = 1
+       AND (nombre LIKE ? OR telefono_normalizado LIKE ?${esNumerico ? ' OR id = ?' : ''})
      ORDER BY nombre LIMIT 10`,
-    [empresaId, `%${texto}%`, `%${texto}%`]
+    esNumerico
+      ? [empresaId, `%${texto}%`, `%${texto}%`, texto]
+      : [empresaId, `%${texto}%`, `%${texto}%`]
   );
   return rows.map((r) => ({
     id: r.id, nombre: r.nombre, telefono: r.telefono,
@@ -124,7 +133,25 @@ async function buscar(empresaId, q) {
   }));
 }
 
-async function crear(empresaId, data, usuarioId) {
+// `usuarioId` es NULL cuando el alta la dispara el propio cliente (Entrega 2
+// tienda web, ver tienda.cuenta.service.js), no un cajero — la columna
+// `creado_por` ya es nullable para ese caso. `origenAlta` idem: 'web' solo
+// lo pasa ese flujo; el resto del sistema (alta desde el mostrador) sigue
+// usando el default 'mostrador' de la columna.
+// Busca un cliente de fidelidad activo por teléfono, sin crear nada. Usado
+// por la verificación de código de la tienda web (tienda.cuenta.service.js)
+// para decidir si el teléfono ya tiene cuenta o hay que dar de alta una.
+async function buscarPorTelefono(empresaId, telefono) {
+  const normalizado = ultimos10(telefono || '');
+  if (normalizado.length !== 10) return null;
+  const [[row]] = await pool.query(
+    'SELECT * FROM pos_clientes_fidelidad WHERE empresa_id = ? AND telefono_normalizado = ? AND activo = 1',
+    [empresaId, normalizado]
+  );
+  return row || null;
+}
+
+async function crear(empresaId, data, usuarioId = null, { origenAlta } = {}) {
   validar(data);
   const normalizado = normalizarTelefonoOFallar(data.telefono);
   const waContactoId = await sincronizarWhatsappSeguro(empresaId, data);
@@ -133,11 +160,12 @@ async function crear(empresaId, data, usuarioId) {
     const [r] = await pool.query(
       `INSERT INTO pos_clientes_fidelidad
          (empresa_id, nombre, telefono, telefono_normalizado, correo, fecha_nacimiento,
-          enfermedad_cronica, tarjeta_adulto_mayor, programa_lealtad, whatsapp_contacto_id, creado_por)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          enfermedad_cronica, tarjeta_adulto_mayor, programa_lealtad, whatsapp_contacto_id, creado_por, origen_alta)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [empresaId, data.nombre.trim(), aE164(normalizado), normalizado, data.correo?.trim() || null,
        data.fecha_nacimiento || null, data.enfermedad_cronica?.trim() || null,
-       data.tarjeta_adulto_mayor ? 1 : 0, data.programa_lealtad ? 1 : 0, waContactoId, usuarioId]
+       data.tarjeta_adulto_mayor ? 1 : 0, data.programa_lealtad ? 1 : 0, waContactoId, usuarioId,
+       origenAlta === 'web' ? 'web' : 'mostrador']
     );
     return { id: r.insertId };
   } catch (err) {
@@ -177,4 +205,56 @@ async function eliminar(empresaId, id) {
   return { ok: true };
 }
 
-module.exports = { listar, buscar, crear, actualizar, eliminar };
+// Historial unificado de compras del cliente en los tres canales de venta.
+// getScoped primero es el candado de tenant: un id de otra empresa da 404,
+// nunca datos. Cada canal se consulta por separado (esquemas distintos, sin
+// vista común) y se combina en memoria — son listas de a lo más unos
+// cientos de filas por cliente, no vale la pena un UNION en SQL. El detalle
+// de cada pedido se resuelve aparte con las funciones que ya existen por
+// canal (pos.ventas.service#detalleVenta, whatsapp.pedidos.service#detalle,
+// tienda.pedidos.service#detalle) — aquí solo va la lista + el resumen.
+async function historial(empresaId, id) {
+  const cliente = await getScoped(pool, 'pos_clientes_fidelidad', id, empresaId);
+
+  const [mostrador] = await pool.query(
+    `SELECT id, folio, total, estatus, created_at
+     FROM pos_ventas WHERE empresa_id = ? AND cliente_fidelidad_id = ?
+     ORDER BY created_at DESC LIMIT 200`,
+    [empresaId, id]
+  );
+
+  let whatsapp = [];
+  if (cliente.whatsapp_contacto_id) {
+    [whatsapp] = await pool.query(
+      `SELECT id, folio, total, estatus, created_at
+       FROM pedidos_whatsapp WHERE empresa_id = ? AND contacto_id = ?
+       ORDER BY created_at DESC LIMIT 200`,
+      [empresaId, cliente.whatsapp_contacto_id]
+    );
+  }
+
+  const [tienda] = await pool.query(
+    `SELECT id, folio, total, estatus, created_at
+     FROM pedidos_tienda WHERE empresa_id = ? AND cliente_fidelidad_id = ?
+     ORDER BY created_at DESC LIMIT 200`,
+    [empresaId, id]
+  );
+
+  const pedidos = [
+    ...mostrador.map((r) => ({ ...r, origen: 'mostrador' })),
+    ...whatsapp.map((r) => ({ ...r, origen: 'whatsapp' })),
+    ...tienda.map((r) => ({ ...r, origen: 'tienda' })),
+  ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  const activos = pedidos.filter((p) => p.estatus !== 'cancelado');
+  return {
+    pedidos,
+    resumen: {
+      total_pedidos: activos.length,
+      importe_total: activos.reduce((sum, p) => sum + Number(p.total), 0),
+      ultima_compra: pedidos[0]?.created_at || null,
+    },
+  };
+}
+
+module.exports = { listar, buscar, buscarPorTelefono, crear, actualizar, eliminar, historial };

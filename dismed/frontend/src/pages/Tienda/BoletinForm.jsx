@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Mail } from 'lucide-react';
 import toast from 'react-hot-toast';
-import api from '../../services/api';
+import api from '../../services/apiTienda';
 
 export default function BoletinForm() {
   const [email, setEmail] = useState('');

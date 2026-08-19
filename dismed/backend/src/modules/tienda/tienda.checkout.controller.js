@@ -16,7 +16,10 @@ async function iniciar(req, res, next) {
   try {
     const empresaId = await resolverEmpresaUnica();
     if (!empresaId) return res.status(503).json({ error: 'No disponible por el momento' });
-    const { url } = await checkoutService.iniciar(empresaId, req.body, { ip: req.ip });
+    const { url } = await checkoutService.iniciar(empresaId, req.body, {
+      ip: req.ip,
+      clienteFidelidadId: req.cliente?.id || null,
+    });
     res.json({ url });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ error: err.message });

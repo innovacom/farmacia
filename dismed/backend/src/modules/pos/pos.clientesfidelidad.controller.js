@@ -30,4 +30,10 @@ async function eliminar(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { listar, buscar, crear, actualizar, eliminar };
+async function historial(req, res, next) {
+  try {
+    res.json(await service.historial(req.empresaId, req.params.id));
+  } catch (err) { next(err); }
+}
+
+module.exports = { listar, buscar, crear, actualizar, eliminar, historial };

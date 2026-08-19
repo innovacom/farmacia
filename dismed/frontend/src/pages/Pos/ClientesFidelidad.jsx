@@ -1,10 +1,16 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Heart, Plus, Pencil, Trash2, Search } from 'lucide-react';
+import { Heart, Plus, Pencil, Trash2, Search, History } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 import Modal from '../../components/ui/Modal';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+
+const money = (n) =>
+  Number(n || 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+
+const ORIGEN_LABEL = { mostrador: 'Mostrador', whatsapp: 'WhatsApp', tienda: 'Tienda en línea' };
+const ORIGEN_BADGE = { mostrador: 'badge-gray', whatsapp: 'badge-green', tienda: 'badge-blue' };
 
 /**
  * Clientes de fidelidad del mostrador (permiso pos-clientes-fidelidad):
@@ -21,6 +27,7 @@ export default function ClientesFidelidad() {
   const qc = useQueryClient();
   const [q, setQ] = useState('');
   const [modal, setModal] = useState(null); // null | {} (nuevo) | cliente (editar)
+  const [historialDe, setHistorialDe] = useState(null); // cliente para ver su historial, o null
   const { confirmar, dialogoConfirm } = useConfirm();
 
   const { data = [], isLoading } = useQuery({
@@ -66,7 +73,7 @@ export default function ClientesFidelidad() {
         <table className="table-auto w-full">
           <thead>
             <tr>
-              <th>Nombre</th><th>Teléfono</th><th>Correo</th>
+              <th>N°</th><th>Nombre</th><th>Teléfono</th><th>Correo</th>
               <th className="text-center">Adulto mayor</th><th className="text-center">Lealtad</th>
               <th className="text-center">Activo</th><th></th>
             </tr>
@@ -74,6 +81,7 @@ export default function ClientesFidelidad() {
           <tbody>
             {data.map((c) => (
               <tr key={c.id} className={!c.activo ? 'opacity-50' : ''}>
+                <td className="font-mono text-sm text-gray-400">#{c.id}</td>
                 <td className="font-medium text-gray-900">{c.nombre}</td>
                 <td className="font-mono text-sm">{c.telefono}</td>
                 <td className="text-gray-500">{c.correo || '—'}</td>
@@ -84,6 +92,9 @@ export default function ClientesFidelidad() {
                 </td>
                 <td>
                   <div className="flex items-center gap-1 justify-end">
+                    <button className="p-1.5 text-gray-400 hover:text-brand-500 rounded-lg" title="Historial de compras" onClick={() => setHistorialDe(c)}>
+                      <History size={15} />
+                    </button>
                     <button className="p-1.5 text-gray-400 hover:text-brand-500 rounded-lg" title="Editar" onClick={() => setModal(c)}>
                       <Pencil size={15} />
                     </button>
@@ -95,7 +106,7 @@ export default function ClientesFidelidad() {
               </tr>
             ))}
             {!isLoading && !data.length && (
-              <tr><td colSpan={7} className="text-center text-gray-400 py-8">Sin clientes de fidelidad registrados.</td></tr>
+              <tr><td colSpan={8} className="text-center text-gray-400 py-8">Sin clientes de fidelidad registrados.</td></tr>
             )}
           </tbody>
         </table>
@@ -109,8 +120,70 @@ export default function ClientesFidelidad() {
         />
       )}
 
+      {historialDe && (
+        <ModalHistorial cliente={historialDe} onClose={() => setHistorialDe(null)} />
+      )}
+
       {dialogoConfirm}
     </div>
+  );
+}
+
+// Historial de compras del cliente en los tres canales de venta (mostrador,
+// WhatsApp, tienda en línea) — ver pos.clientesfidelidad.service#historial.
+function ModalHistorial({ cliente, onClose }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['pos-cliente-historial', cliente.id],
+    queryFn: () => api.get(`/pos/clientes-fidelidad/${cliente.id}/historial`).then((r) => r.data),
+  });
+
+  return (
+    <Modal title={`Historial de ${cliente.nombre} (#${cliente.id})`} onClose={onClose} size="lg">
+      {isLoading ? (
+        <p className="text-sm text-gray-400 py-6 text-center">Cargando…</p>
+      ) : (
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="card py-3 text-center">
+              <p className="text-xs text-gray-400">Pedidos</p>
+              <p className="text-lg font-bold text-gray-900">{data.resumen.total_pedidos}</p>
+            </div>
+            <div className="card py-3 text-center">
+              <p className="text-xs text-gray-400">Total comprado</p>
+              <p className="text-lg font-bold text-gray-900">{money(data.resumen.importe_total)}</p>
+            </div>
+            <div className="card py-3 text-center">
+              <p className="text-xs text-gray-400">Última compra</p>
+              <p className="text-sm font-medium text-gray-900">
+                {data.resumen.ultima_compra ? new Date(data.resumen.ultima_compra).toLocaleDateString('es-MX') : '—'}
+              </p>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto max-h-96 overflow-y-auto">
+            <table className="table-auto w-full">
+              <thead>
+                <tr><th>Folio</th><th>Canal</th><th>Fecha</th><th className="text-right">Total</th><th>Estatus</th></tr>
+              </thead>
+              <tbody>
+                {data.pedidos.map((p) => (
+                  <tr key={`${p.origen}-${p.id}`}>
+                    <td className="font-mono text-sm">{p.folio}</td>
+                    <td><span className={ORIGEN_BADGE[p.origen] || 'badge-gray'}>{ORIGEN_LABEL[p.origen] || p.origen}</span></td>
+                    <td className="text-sm text-gray-500">{new Date(p.created_at).toLocaleDateString('es-MX')}</td>
+                    <td className="text-right font-medium">{money(p.total)}</td>
+                    <td className="text-sm capitalize">{p.estatus.replace('_', ' ')}</td>
+                  </tr>
+                ))}
+                {!data.pedidos.length && (
+                  <tr><td colSpan={5} className="text-center text-gray-400 py-8">Sin pedidos todavía.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </Modal>
   );
 }
 

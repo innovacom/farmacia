@@ -12,10 +12,11 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Search, Package, MessageCircle, Pill, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
-import api from '../../services/api';
+import api from '../../services/apiTienda';
 import { linkWhatsApp } from '../../utils/whatsapp';
 import TiendaFooter from './TiendaFooter';
 import CarritoBadge from './CarritoBadge';
+import CuentaBadge from './CuentaBadge';
 import useTituloPagina from '../../hooks/useTituloPagina';
 import { useTiendaCarrito } from '../../store/tiendaCarritoStore';
 
@@ -134,7 +135,10 @@ export default function Catalogo() {
                 </h1>
               </div>
             </div>
-            <CarritoBadge pagoHabilitado={info?.pago_habilitado} />
+            <div className="flex items-center gap-2 shrink-0">
+              <CuentaBadge />
+              <CarritoBadge pagoHabilitado={info?.pago_habilitado} />
+            </div>
           </div>
           <p className="text-sm text-tienda-muted mt-2">
             {info?.subtitulo || 'Pide en línea, recibe por WhatsApp el mismo día.'}
@@ -154,7 +158,7 @@ export default function Catalogo() {
       </header>
 
       <div className="max-w-6xl mx-auto px-4 py-6 flex items-start gap-4 sm:gap-5">
-        <aside className={`shrink-0 sticky top-24 transition-all duration-200 ${catAbierta ? 'w-40 sm:w-52' : 'w-11'}`}>
+        <aside className={`shrink-0 sticky top-24 transition-all duration-200 ${catAbierta ? 'w-52 sm:w-64' : 'w-11'}`}>
           <div className="bg-white rounded-2xl border border-tienda-ink/5 shadow-[0_1px_2px_rgba(16,24,39,0.05)] overflow-hidden">
             <button
               onClick={() => setCatAbierta((v) => !v)}

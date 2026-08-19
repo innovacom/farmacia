@@ -19,6 +19,15 @@ function authMiddleware(req, res, next) {
     return res.status(401).json({ error: 'Token inválido o expirado' });
   }
 
+  // Un token de cliente de la tienda web (ver middleware/authCliente.js) se
+  // firma con el mismo JWT_SECRET pero NUNCA debe autorizar rutas de staff:
+  // sus ids (pos_clientes_fidelidad) son una secuencia distinta de la de
+  // `usuarios`, así que un cliente con id 7 podría ser tratado como el
+  // usuario staff id 7 si se dejara pasar aquí.
+  if (user.tipo === 'cliente_tienda') {
+    return res.status(401).json({ error: 'Token inválido o expirado' });
+  }
+
   const ruta = req.originalUrl.split('?')[0];
   if (user.debe_cambiar_password && !RUTAS_PERMITIDAS_CON_CAMBIO_PENDIENTE.has(ruta)) {
     return res.status(403).json({ error: 'Debes cambiar tu contraseña antes de continuar', debe_cambiar_password: true });

@@ -210,12 +210,16 @@ async function categorias(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// El buscador compara tanto la descripción como el nombre de familia/categoría/
+// subcategoría (las tres tablas de taxonomía) — así "dolor" encuentra productos
+// clasificados bajo subcategorías como "Dolor muscular" aunque la palabra no
+// aparezca en su descripción. Requiere los LEFT JOIN a f/c/s (ver productosList).
 function construirFiltro(query) {
   const where = ['p.activo = 1', 'p.publicar_web = 1'];
   const vals = [];
   if (query.q) {
-    where.push('(p.descripcion LIKE ? OR p.descripcion_corta LIKE ?)');
-    vals.push(`%${query.q}%`, `%${query.q}%`);
+    where.push('(p.descripcion LIKE ? OR p.descripcion_corta LIKE ? OR f.nombre LIKE ? OR c.nombre LIKE ? OR s.nombre LIKE ?)');
+    vals.push(`%${query.q}%`, `%${query.q}%`, `%${query.q}%`, `%${query.q}%`, `%${query.q}%`);
   }
   if (query.categoria_id) { where.push('p.categoria_id = ?'); vals.push(query.categoria_id); }
   else if (query.familia_id) { where.push('p.familia_id = ?'); vals.push(query.familia_id); }
@@ -228,20 +232,29 @@ async function productosList(req, res, next) {
     const limit = Math.min(parseInt(req.query.limit) || 24, 60);
     const offset = Math.max(parseInt(req.query.offset) || 0, 0);
 
+    // DISTINCT: un producto no debe duplicarse si por alguna razón coincidiera
+    // por más de una columna del JOIN (no pasa hoy, pero es más seguro).
     const [rows] = await pool.query(
-      `SELECT p.id, p.descripcion, p.descripcion_corta, p.imagen_url, p.precio_lista,
+      `SELECT DISTINCT p.id, p.descripcion, p.descripcion_corta, p.imagen_url, p.precio_lista,
               p.clasificacion_cofepris, p.fabricante, p.unidad_medida,
               f.nombre AS familia_nombre,
               COALESCE((SELECT SUM(l.cantidad_actual) FROM inventario_lotes l WHERE l.producto_id = p.id), 0) AS existencia
        FROM productos p
        LEFT JOIN familias f ON f.id = p.familia_id
+       LEFT JOIN categorias_prod c ON c.id = p.categoria_id
+       LEFT JOIN subcategorias_prod s ON s.id = p.subcategoria_id
        WHERE ${where.join(' AND ')}
        ORDER BY p.descripcion
        LIMIT ? OFFSET ?`,
       [...vals, limit, offset]
     );
     const [[{ total }]] = await pool.query(
-      `SELECT COUNT(*) AS total FROM productos p WHERE ${where.join(' AND ')}`, vals
+      `SELECT COUNT(DISTINCT p.id) AS total
+       FROM productos p
+       LEFT JOIN familias f ON f.id = p.familia_id
+       LEFT JOIN categorias_prod c ON c.id = p.categoria_id
+       LEFT JOIN subcategorias_prod s ON s.id = p.subcategoria_id
+       WHERE ${where.join(' AND ')}`, vals
     );
     const empresaId = await resolverEmpresaUnica();
     const conPrecio = await decorarPrecios(rows, empresaId);

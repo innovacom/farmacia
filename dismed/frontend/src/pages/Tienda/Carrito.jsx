@@ -5,14 +5,15 @@
 // (tienda.checkout.service.js#iniciar); si algo cambió (promoción vencida,
 // sin existencia), el servidor responde con el error real, no lo que diga
 // este carrito.
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { ArrowLeft, Minus, Plus, Trash2, ShoppingBag, Store, Truck } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, Trash2, ShoppingBag, Store, Truck, User } from 'lucide-react';
 import toast from 'react-hot-toast';
-import api from '../../services/api';
+import api from '../../services/apiTienda';
 import TiendaFooter from './TiendaFooter';
 import { useTiendaCarrito } from '../../store/tiendaCarritoStore';
+import { useTiendaAuth } from '../../store/tiendaAuthStore';
 
 function money(n) {
   return Number(n || 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
@@ -21,6 +22,7 @@ function money(n) {
 export default function Carrito() {
   const navigate = useNavigate();
   const { items, setCantidad, quitar } = useTiendaCarrito();
+  const { token, cliente, logout } = useTiendaAuth();
   const [sucursalId, setSucursalId] = useState('');
   const [formaEntrega, setFormaEntrega] = useState('pickup');
   const [direccion, setDireccion] = useState('');
@@ -32,6 +34,27 @@ export default function Carrito() {
     queryKey: ['tienda-info'],
     queryFn: () => api.get('/tienda/info').then((r) => r.data),
   });
+
+  // Con sesión iniciada, se autollena una sola vez con el perfil guardado
+  // (incluye la dirección de entrega, que no viaja en el token) — el
+  // pedido queda ligado a la cuenta automáticamente en el servidor por el
+  // mismo token, sin nada más que hacer aquí.
+  const { data: perfil } = useQuery({
+    queryKey: ['tienda-cuenta-perfil'],
+    queryFn: () => api.get('/tienda/cuenta/perfil').then((r) => r.data),
+    enabled: !!token,
+    retry: false,
+  });
+  useEffect(() => {
+    if (!perfil) return;
+    // perfil.telefono viene como 52 + 10 dígitos (mismo formato que guarda
+    // el POS) — para el formulario de checkout se ve mejor a 10 dígitos.
+    const telefonoLocal = String(perfil.telefono || '').replace(/\D/g, '').slice(-10);
+    setNombre((v) => v || perfil.nombre || '');
+    setTelefono((v) => v || telefonoLocal);
+    setCorreo((v) => v || perfil.correo || '');
+    setDireccion((v) => v || perfil.direccion_entrega || '');
+  }, [perfil]);
 
   const sucursales = info?.sucursales || [];
   const subtotalAprox = items.reduce((acc, it) => acc + it.cantidad * Number(it.precio_final || 0), 0);
@@ -67,9 +90,18 @@ export default function Carrito() {
           <Link to="/tienda" className="text-tienda-teal hover:text-tienda-teal/70 transition-colors">
             <ArrowLeft size={20} />
           </Link>
-          <h1 className="font-tienda-display text-lg font-extrabold text-tienda-ink tracking-tight">
+          <h1 className="font-tienda-display text-lg font-extrabold text-tienda-ink tracking-tight flex-1">
             Tu carrito
           </h1>
+          {token ? (
+            <button type="button" onClick={logout} className="text-xs text-tienda-muted hover:text-tienda-teal flex items-center gap-1">
+              <User size={13} /> {cliente?.nombre?.split(' ')[0] || 'Mi cuenta'} · Salir
+            </button>
+          ) : (
+            <Link to="/tienda/cuenta" className="text-xs text-tienda-teal font-medium hover:underline flex items-center gap-1">
+              <User size={13} /> Iniciar sesión
+            </Link>
+          )}
         </div>
       </header>
 

@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, Clock, HelpCircle } from 'lucide-react';
-import api from '../../services/api';
+import api from '../../services/apiTienda';
 import TiendaFooter from './TiendaFooter';
 import { useTiendaCarrito } from '../../store/tiendaCarritoStore';
 
