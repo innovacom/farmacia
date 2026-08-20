@@ -95,24 +95,36 @@ const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
 /**
  * Reparto farmacia/médico de las ventas del turno (familia de producto
- * 'MEDICO', ver pos.citas.service.js#listarServicios): el costo de esas
- * partidas (inventario_movimientos.costo_unitario, misma fuente que
- * pos.reportes.service.js#ganancias) es lo que se le paga al doctor en
- * turno; venta − costo es la comisión que se queda la farmacia. El resto
- * de las ventas (no-médico) es 100% farmacia.
- * Partidas pre-agregadas por (venta_id, producto_id) antes de unir con el
- * costo por folio+producto — si no, una venta que repite el mismo producto
- * en dos partidas duplicaría el costo al unir (mismo bug evitado en
- * pos.reportes.service.js).
+ * 'MEDICO', ver pos.citas.service.js#listarServicios): al doctor en turno
+ * se le paga productos.precio_costo × piezas vendidas — el costo VIGENTE
+ * configurado en el producto, no inventario_movimientos.costo_unitario.
+ * Los productos de familia MEDICO (consulta, certificado, etc.) no tienen
+ * costo de adquisición real: precio_costo se reutiliza como la tarifa del
+ * doctor y el admin la edita directamente en el producto. El lote de
+ * inventario que respalda esas "existencias" se crea una sola vez y nunca
+ * se vuelve a tocar, así que su costo_unitario congelado se desincroniza en
+ * cuanto alguien actualiza la tarifa del doctor (bug real: certificado a
+ * $25 vendido con lote en $0, o consulta subida a $75 con lote aún en $70)
+ * — usar el costo del producto evita ese drift. venta − costo es la
+ * comisión que se queda la farmacia. El resto de las ventas (no-médico) es
+ * 100% farmacia.
+ * Partidas pre-agregadas por (venta_id, producto_id) antes de unir — si no,
+ * una venta que repite el mismo producto en dos partidas duplicaría el
+ * costo al unir (mismo bug evitado en pos.reportes.service.js).
  */
 async function repartoMedicoFarmacia(conn, empresaId, turnoId, desdeFecha, hastaFecha) {
   const [rows] = await conn.query(
     `SELECT
        CASE WHEN f.nombre IN ('MEDICO', 'MÉDICO') THEN 'medico' ELSE 'farmacia' END AS grupo,
        COALESCE(SUM(ppa.importe), 0) AS venta,
-       COALESCE(SUM(costo.costo), 0) AS costo
+       COALESCE(SUM(
+         CASE WHEN f.nombre IN ('MEDICO', 'MÉDICO')
+              THEN ppa.piezas * COALESCE(p.precio_costo, 0)
+              ELSE costo.costo
+         END
+       ), 0) AS costo
      FROM (
-       SELECT venta_id, producto_id, SUM(importe) AS importe
+       SELECT venta_id, producto_id, SUM(importe) AS importe, SUM(piezas_equivalentes) AS piezas
        FROM pos_ventas_partidas
        WHERE venta_id IN (
          SELECT id FROM pos_ventas WHERE turno_id = ? AND empresa_id = ? AND estatus = 'completada'
