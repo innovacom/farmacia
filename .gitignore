@@ -48,6 +48,15 @@ npm-debug.log*
 
 # Claude Code local
 .claude/settings.local.json
+# Lock de tareas programadas (sessionId/pid/timestamp): estado de ESTA máquina en
+# ESTE momento, cambia en cada sesión — nunca debe versionarse (ver [[feedback-graphify-out-y-locks-sin-versionar]]).
+.claude/scheduled_tasks.lock
+
+# graphify: salida regenerable del análisis del código (grafo, reporte, caché de AST,
+# respaldos con fecha). Se reconstruye con `graphify update .`; commitear cada
+# regeneración solo genera diffs de ruido y snapshots acumulados sin fin
+# (ver [[feedback-graphify-out-y-locks-sin-versionar]]).
+graphify-out/
 
 # OS
 .DS_Store
