@@ -321,6 +321,10 @@ export default function VentaMostrador() {
     <div className="max-w-5xl">
       <Encabezado extra={`${caja?.sucursal_nombre || ''} · ${caja?.nombre || ''} · Turno #${turno?.id ?? ''}`} />
 
+      <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-center text-sm text-emerald-800 no-print">
+        Cuenta para transferencias: Banco Banorte · Cuenta 1355467779 · CLABE 072180013554677798
+      </div>
+
       {puedePedidosWA && <AvisoPedidosWhatsApp />}
 
       {puedeBandejaWA && <AvisoMensajesPendientes />}
