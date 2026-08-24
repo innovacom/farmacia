@@ -87,6 +87,7 @@ export function ReporteContable({ titulo, descripcion, endpoint, children }) {
       </form>
 
       {data && <ReporteHeader data={data} />}
+      {data && <AdvertenciaApertura data={data} />}
 
       {isError ? (
         <div className="card text-sm text-red-600">
@@ -120,6 +121,20 @@ function ReporteHeader({ data }) {
           <div className="text-sm text-gray-500">{data.periodo?.etiqueta} · {data.estatus}</div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Advertencia sobre saldos iniciales (Fase A del plan de corrección, 2026-08-24):
+// sin apertura o con apertura provisional (no verificada con el contador), este
+// reporte no debe tomarse como cifra oficial. Se muestra en rojo, ANTES del cuerpo
+// del reporte y no depende de imprimir/ocultar (a diferencia de NotaDerivado).
+function AdvertenciaApertura({ data }) {
+  if (!data.advertencia) return null;
+  return (
+    <div className="mb-4 flex items-start gap-2 rounded-lg bg-red-50 border border-red-300 px-3 py-2.5 text-sm text-red-800">
+      <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+      <span className="font-medium">{data.advertencia}</span>
     </div>
   );
 }

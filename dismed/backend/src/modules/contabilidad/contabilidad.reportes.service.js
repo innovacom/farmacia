@@ -82,12 +82,38 @@ async function saldos(periodo, soloConfirmadas) {
   }).filter((x) => x.saldo_inicial || x.cargos || x.abonos);
 }
 
+// Estado de la póliza de apertura del ejercicio: si existe y si está verificada
+// (auditada con el contador) o es provisional (dato de arranque sin confirmar).
+// Ver polizas.verificada (migrate_v63) — la apertura de enero 2026 se cargó
+// originalmente como dato de PRUEBA, no como la balanza real del contador.
+async function estadoApertura(anio) {
+  const [rows] = await pool.query(
+    `SELECT COUNT(*) AS existe, COALESCE(SUM(verificada = 0), 0) AS no_verificadas,
+            MIN(fecha) AS fecha_corte
+       FROM polizas WHERE periodo_anio = ? AND origen = 'apertura'`, [anio]);
+  const r = rows[0];
+  const existe = Number(r.existe) > 0;
+  return {
+    existe,
+    verificada: existe && Number(r.no_verificadas) === 0,
+    fecha_corte: r.fecha_corte,
+  };
+}
+
 function meta(periodo, titulo, extra) {
+  const apertura = (extra && extra.apertura) || null;
   return {
     empresa: EMPRESA(),
     titulo,
     periodo: { anio: periodo.anio, mes: periodo.mes, modo: periodo.modo, etiqueta: periodo.etiqueta },
     estatus: extra && extra.soloConfirmadas ? 'solo pólizas confirmadas' : 'todas las pólizas',
+    apertura,
+    advertencia: !apertura ? null
+      : !apertura.existe
+        ? 'SIN SALDOS INICIALES: no hay póliza de apertura cargada para este ejercicio. Las cifras son solo el movimiento del periodo, no un acumulado real desde el inicio de operaciones.'
+        : !apertura.verificada
+          ? 'SALDOS INICIALES PROVISIONALES: la póliza de apertura de este ejercicio NO está verificada con el contador (dato de arranque/prueba). Los saldos iniciales y acumulados de este reporte no deben tomarse como cifras oficiales hasta cargar y confirmar una apertura real.'
+          : null,
     generado: new Date().toISOString(),
   };
 }
@@ -100,7 +126,9 @@ const NOTA = 'Reporte calculado desde las pólizas (catálogo agrupador SAT): sa
 async function balanza(filtros) {
   const periodo = resolverPeriodo(filtros);
   const soloConfirmadas = filtros.solo_confirmadas === '1' || filtros.solo_confirmadas === 'true';
-  const cuentas = await saldos(periodo, soloConfirmadas);
+  const [cuentas, apertura] = await Promise.all([
+    saldos(periodo, soloConfirmadas), estadoApertura(periodo.anio),
+  ]);
 
   const t = cuentas.reduce((s, c) => ({
     si_d: s.si_d + Math.max(c.saldo_inicial, 0), si_a: s.si_a + Math.max(-c.saldo_inicial, 0),
@@ -110,7 +138,7 @@ async function balanza(filtros) {
   for (const k in t) t[k] = r2(t[k]);
 
   return {
-    ...meta(periodo, 'Balanza de Comprobación', { soloConfirmadas }),
+    ...meta(periodo, 'Balanza de Comprobación', { soloConfirmadas, apertura }),
     reporte: 'balanza',
     cuentas,
     totales: {
@@ -127,7 +155,9 @@ async function balanza(filtros) {
 async function estadoResultados(filtros) {
   const periodo = resolverPeriodo(filtros);
   const soloConfirmadas = filtros.solo_confirmadas === '1' || filtros.solo_confirmadas === 'true';
-  const cuentas = await saldos(periodo, soloConfirmadas);
+  const [cuentas, apertura] = await Promise.all([
+    saldos(periodo, soloConfirmadas), estadoApertura(periodo.anio),
+  ]);
 
   // Movimiento neto del periodo por cuenta de resultados (deudor positivo).
   const grupo = (rubro, signo) => {
@@ -148,7 +178,7 @@ async function estadoResultados(filtros) {
   const margen = ingresos.subtotal ? r2((utilidad / ingresos.subtotal) * 100) : 0;
 
   return {
-    ...meta(periodo, 'Estado de Resultados', { soloConfirmadas }),
+    ...meta(periodo, 'Estado de Resultados', { soloConfirmadas, apertura }),
     reporte: 'estado_resultados',
     grupos: { ingresos, costos, gastos, financieros: financ },
     resumen: {
@@ -164,7 +194,9 @@ async function estadoResultados(filtros) {
 async function balanceGeneral(filtros) {
   const periodo = resolverPeriodo(filtros);
   const soloConfirmadas = filtros.solo_confirmadas === '1' || filtros.solo_confirmadas === 'true';
-  const cuentas = await saldos(periodo, soloConfirmadas);
+  const [cuentas, apertura] = await Promise.all([
+    saldos(periodo, soloConfirmadas), estadoApertura(periodo.anio),
+  ]);
 
   const seccion = (rubro, signo) => cuentas.filter((c) => c.rubro === rubro)
     .map((c) => ({ codigo: c.codigo, cuenta: c.nombre, importe: r2(signo * c.saldo_final) }))
@@ -185,7 +217,7 @@ async function balanceGeneral(filtros) {
   const totalCapital = r2(capital.reduce((s, c) => s + c.importe, 0));
 
   return {
-    ...meta(periodo, 'Balance General', { soloConfirmadas }),
+    ...meta(periodo, 'Balance General', { soloConfirmadas, apertura }),
     reporte: 'balance_general',
     activo, pasivo, capital,
     totales: {
@@ -367,4 +399,7 @@ async function cfdiResumenGeneral(f) {
   };
 }
 
-module.exports = { resolverPeriodo, saldos, balanza, estadoResultados, balanceGeneral, cfdiPorComprobante, cfdiResumenGeneral };
+module.exports = {
+  resolverPeriodo, saldos, balanza, estadoResultados, balanceGeneral,
+  cfdiPorComprobante, cfdiResumenGeneral, estadoApertura,
+};

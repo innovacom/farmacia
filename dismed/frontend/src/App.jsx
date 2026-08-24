@@ -35,6 +35,7 @@ import BalanceGeneral from './pages/Contabilidad/BalanceGeneral';
 import BalanzaComprobacion from './pages/Contabilidad/BalanzaComprobacion';
 import CatalogoCuentas from './pages/Contabilidad/CatalogoCuentas';
 import Polizas from './pages/Contabilidad/Polizas';
+import Apertura from './pages/Contabilidad/Apertura';
 import Bancos from './pages/Contabilidad/Bancos';
 import CfdiPorComprobante from './pages/Contabilidad/CfdiPorComprobante';
 import CfdiResumenGeneral from './pages/Contabilidad/CfdiResumenGeneral';
@@ -159,6 +160,7 @@ export default function App() {
         <Route path="contabilidad/balanza"                element={<BalanzaComprobacion />} />
         <Route path="contabilidad/catalogo-cuentas"       element={<CatalogoCuentas />} />
         <Route path="contabilidad/polizas"                element={<Polizas />} />
+        <Route path="contabilidad/apertura"               element={<Apertura />} />
         <Route path="contabilidad/bancos"                 element={<Bancos />} />
         <Route path="contabilidad/cfdi-por-comprobante"  element={<CfdiPorComprobante />} />
         <Route path="contabilidad/cfdi-resumen-general"  element={<CfdiResumenGeneral />} />

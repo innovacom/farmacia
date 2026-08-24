@@ -31,6 +31,7 @@ function impuestosConcepto(concepto) {
     base_iva: null, tasa_iva: null, importe_iva: null,
     base_ieps: null, tasa_ieps: null, importe_ieps: null,
     base_isr: null, tasa_isr: null, importe_isr: null,
+    base_iva_ret: null, tasa_iva_ret: null, importe_iva_ret: null,
   };
   const imp = concepto.Impuestos;
   if (!imp) return out;
@@ -38,10 +39,29 @@ function impuestosConcepto(concepto) {
     if (t['@_Impuesto'] === '002') { out.base_iva = numN(t['@_Base']); out.tasa_iva = numN(t['@_TasaOCuota']); out.importe_iva = numN(t['@_Importe']); }
     else if (t['@_Impuesto'] === '003') { out.base_ieps = numN(t['@_Base']); out.tasa_ieps = numN(t['@_TasaOCuota']); out.importe_ieps = numN(t['@_Importe']); }
   }
+  // Retenciones: 001=ISR, 002=IVA. Antes solo se leía ISR — sin la de IVA no se puede
+  // separar "ISR retenido" de "IVA retenido" en las pólizas (quedaban mezcladas en el
+  // total del encabezado). Ver Reporte Módulo Contable DISMED, limitación de retenciones.
   for (const r of arr(imp.Retenciones?.Retencion)) {
     if (r['@_Impuesto'] === '001') { out.base_isr = numN(r['@_Base']); out.tasa_isr = numN(r['@_TasaOCuota']); out.importe_isr = numN(r['@_Importe']); }
+    else if (r['@_Impuesto'] === '002') { out.base_iva_ret = numN(r['@_Base']); out.tasa_iva_ret = numN(r['@_TasaOCuota']); out.importe_iva_ret = numN(r['@_Importe']); }
   }
   return out;
+}
+
+// Complemento de pago (CFDI 4.0): el IVA de CADA parcialidad puede venir explícito en
+// DoctoRelacionado/ImpuestosDR/TrasladosDR (impuesto '002'). Cuando no viene (CFDI 3.3
+// o pago que no desglosa impuestos), el motor de pólizas prorratea con el total de la
+// factura relacionada.
+function impuestosDoctoRelacionado(d) {
+  let importe_iva_dr = null;
+  const imp = d.ImpuestosDR;
+  if (imp) {
+    for (const t of arr(imp.TrasladosDR?.TrasladoDR)) {
+      if (t['@_ImpuestoDR'] === '002') importe_iva_dr = numN(t['@_ImporteDR']);
+    }
+  }
+  return { importe_iva_dr };
 }
 
 function parseCfdi(xml, { rfcPropio = process.env.EMPRESA_RFC || 'RIC1903041Q2' } = {}) {
@@ -120,6 +140,7 @@ function parseCfdi(xml, { rfcPropio = process.env.EMPRESA_RFC || 'RIC1903041Q2' 
 
   // Pagos: el SAT exige SubTotal=0 y Total=0 en el nodo raíz Comprobante.
   // Los montos reales y los CFDIs pagados están en Complemento/Pagos.
+  const pagosDoctos = [];
   if (comprobante.tipo_comprobante === 'P') {
     const pagosComp = c.Complemento?.Pagos;
     if (pagosComp) {
@@ -129,17 +150,33 @@ function parseCfdi(xml, { rfcPropio = process.env.EMPRESA_RFC || 'RIC1903041Q2' 
         comprobante.subtotal = montoTotal;
         comprobante.total = montoTotal;
       }
-      const doctoUuids = arr(pagosComp.Pago)
-        .flatMap((p) => arr(p.DoctoRelacionado).map((d) => str(d['@_IdDocumento'])))
-        .filter(Boolean)
-        .map((u) => u.toUpperCase());
+      const doctoUuids = [];
+      for (const p of arr(pagosComp.Pago)) {
+        for (const d of arr(p.DoctoRelacionado)) {
+          const uuidDoc = str(d['@_IdDocumento']);
+          if (!uuidDoc) continue;
+          const uuidUp = uuidDoc.toUpperCase();
+          doctoUuids.push(uuidUp);
+          pagosDoctos.push({
+            uuid_documento: uuidUp,
+            moneda_dr: str(d['@_MonedaDR']),
+            equivalencia_dr: numN(d['@_EquivalenciaDR']),
+            num_parcialidad: d['@_NumParcialidad'] ? Number(d['@_NumParcialidad']) : null,
+            imp_saldo_ant: numN(d['@_ImpSaldoAnt']),
+            imp_pagado: num(d['@_ImpPagado']),
+            imp_saldo_insoluto: numN(d['@_ImpSaldoInsoluto']),
+            objeto_imp_dr: str(d['@_ObjetoImpDR']),
+            ...impuestosDoctoRelacionado(d),
+          });
+        }
+      }
       if (doctoUuids.length) {
-        comprobante.cfdi_relacionados = doctoUuids.join(',');
+        comprobante.cfdi_relacionados = [...new Set(doctoUuids)].join(',');
       }
     }
   }
 
-  return { comprobante, conceptos };
+  return { comprobante, conceptos, pagos_doctos: pagosDoctos };
 }
 
 module.exports = { parseCfdi };

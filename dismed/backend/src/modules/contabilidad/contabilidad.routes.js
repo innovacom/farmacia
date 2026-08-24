@@ -3,6 +3,10 @@ const auth = require('../../middleware/auth');
 const { requirePermiso, requireAnyPermiso } = require('../../middleware/permisos');
 const c = require('./contabilidad.controller');
 const pol = require('./polizas.controller');
+const ape = require('./apertura.controller');
+
+const adminOnly = (req, res, next) =>
+  req.user?.rol === 'admin' ? next() : res.status(403).json({ error: 'Se requiere rol admin' });
 
 router.use(auth);
 
@@ -32,5 +36,11 @@ router.post('/polizas',           requirePermiso('contabilidad-polizas'), pol.cr
 router.get('/polizas/:id',        requirePermiso('contabilidad-polizas'), pol.getById);
 router.put('/polizas/:id',        requirePermiso('contabilidad-polizas'), pol.actualizar);
 router.delete('/polizas/:id',     requirePermiso('contabilidad-polizas'), pol.eliminar);
+
+// Saldos iniciales / apertura del ejercicio — solo admin (reescribe el punto de
+// partida contable, igual de sensible que Descargas SAT).
+router.get('/apertura',    adminOnly, ape.obtener);
+router.post('/apertura',   adminOnly, ape.guardar);
+router.delete('/apertura', adminOnly, ape.eliminar);
 
 module.exports = router;

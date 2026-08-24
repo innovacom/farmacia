@@ -34,8 +34,9 @@ const CTA = {
   RESULTADO:          '305',    // Resultado del ejercicio
   // Ingresos / Costos / Gastos
   INGRESOS:           '401',    // Ingresos (ventas)
+  OTROS_INGRESOS:     '403',    // Otros ingresos (p. ej. sobrante de inventario en ajuste físico)
   COSTO_VENTA:        '501.01', // Costo de venta
-  GASTOS:             '601',    // Gastos generales (default de gasto)
+  GASTOS:             '601',    // Gastos generales (default de gasto; también merma de inventario)
   SUELDOS:            '601.01', // Sueldos y salarios
 };
 

@@ -18,7 +18,12 @@ const COLS_CONC = [
   'comprobante_id', 'linea', 'clave_prod_serv', 'no_identificacion', 'cantidad', 'clave_unidad',
   'unidad', 'descripcion', 'valor_unitario', 'importe', 'descuento', 'objeto_imp',
   'base_iva', 'tasa_iva', 'importe_iva', 'base_ieps', 'tasa_ieps', 'importe_ieps',
-  'base_isr', 'tasa_isr', 'importe_isr', 'codigo_interno',
+  'base_isr', 'tasa_isr', 'importe_isr', 'base_iva_ret', 'tasa_iva_ret', 'importe_iva_ret',
+  'codigo_interno',
+];
+const COLS_PAGO_DOC = [
+  'pago_id', 'uuid_documento', 'moneda_dr', 'equivalencia_dr', 'num_parcialidad',
+  'imp_saldo_ant', 'imp_pagado', 'imp_saldo_insoluto', 'objeto_imp_dr', 'importe_iva_dr',
 ];
 
 const pick = (obj, cols) => cols.map((c) => (obj[c] === undefined ? null : obj[c]));
@@ -27,7 +32,7 @@ const pick = (obj, cols) => cols.map((c) => (obj[c] === undefined ? null : obj[c
  * Guarda un CFDI (encabezado + conceptos). Idempotente por uuid.
  * @returns {Promise<{inserted:boolean, id:number}>}
  */
-async function guardarComprobante({ comprobante, conceptos }, { origen, xmlPath, estatus } = {}) {
+async function guardarComprobante({ comprobante, conceptos, pagos_doctos }, { origen, xmlPath, estatus } = {}) {
   if (!comprobante.uuid) throw new Error('Comprobante sin UUID, no se puede guardar');
   const comp = {
     ...comprobante,
@@ -54,6 +59,14 @@ async function guardarComprobante({ comprobante, conceptos }, { origen, xmlPath,
       const phc = '(' + COLS_CONC.map(() => '?').join(',') + ')';
       await conn.query(
         `INSERT INTO cfdi_repositorio_conceptos (${COLS_CONC.join(',')}) VALUES ${rows.map(() => phc).join(',')}`,
+        rows.flat()
+      );
+    }
+    if (pagos_doctos && pagos_doctos.length) {
+      const rows = pagos_doctos.map((d) => pick({ ...d, pago_id: id }, COLS_PAGO_DOC));
+      const phd = '(' + COLS_PAGO_DOC.map(() => '?').join(',') + ')';
+      await conn.query(
+        `INSERT INTO cfdi_repositorio_pagos_doctos (${COLS_PAGO_DOC.join(',')}) VALUES ${rows.map(() => phd).join(',')}`,
         rows.flat()
       );
     }

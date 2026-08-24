@@ -122,6 +122,15 @@ export default function Polizas() {
           <div className="mt-3 text-xs text-gray-500 flex flex-wrap gap-x-4 gap-y-1">
             <span>Banco de movimientos: <b>{generarMut.data.banco_cuenta}</b></span>
             <span>Costo de venta (inventario): <b>${money(generarMut.data.costo_venta_inventario)}</b> ({generarMut.data.salidas_inventario} salidas)</span>
+            {generarMut.data.ajustes_inventario > 0 && (
+              <span>
+                Ajustes físicos: <b>{generarMut.data.ajustes_inventario}</b> · neto{' '}
+                <b className={generarMut.data.ajuste_inventario_neto < 0 ? 'text-red-600' : 'text-green-600'}>
+                  ${money(generarMut.data.ajuste_inventario_neto)}
+                </b>{' '}
+                ({generarMut.data.ajuste_inventario_neto < 0 ? 'merma' : 'sobrante'})
+              </span>
+            )}
             <Cuadre cuadra={generarMut.data.cuadra} cargos={generarMut.data.total_cargos} abonos={generarMut.data.total_abonos} />
           </div>
         )}
