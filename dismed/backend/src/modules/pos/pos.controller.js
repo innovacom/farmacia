@@ -739,6 +739,18 @@ async function reporteRecetas(req, res, next) {
   try { res.json(await reportes.recetasCofepris(req.empresaId, req.query)); }
   catch (err) { next(err); }
 }
+async function reporteTickets(req, res, next) {
+  try { res.json(await reportes.tickets(req.empresaId, req.query)); }
+  catch (err) { next(err); }
+}
+// Reusa ventas.detalleVenta (mismo detalle que Ventas de mostrador), pero
+// bajo el permiso 'pos-reportes' en vez de 'pos-venta' — así un usuario con
+// solo acceso a reportes puede revisar qué incluyó un ticket sin poder
+// cancelar/facturar venta (esas acciones siguen exigiendo 'pos-venta').
+async function reporteTicketDetalle(req, res, next) {
+  try { res.json(await ventas.detalleVenta(req.empresaId, req.params.id)); }
+  catch (err) { next(err); }
+}
 async function reporteGanancias(req, res, next) {
   try { res.json(await reportes.ganancias(req.empresaId, req.query)); }
   catch (err) { next(err); }
@@ -765,6 +777,6 @@ module.exports = {
   citasPendientesConfirmar, confirmarCita, recordatorioWhatsappCita,
   facturarVenta, crearFacturaGlobal, timbrarFacturaGlobal, liberarFacturaGlobal, listarFacturasGlobales,
   reporteResumen, reporteVentasSucursal, reporteTopProductos, reporteVentasProducto, reporteFormasPago,
-  reporteExistencias, reporteRecetas, reporteGanancias, reporteGananciasProductos,
+  reporteExistencias, reporteRecetas, reporteTickets, reporteTicketDetalle, reporteGanancias, reporteGananciasProductos,
   reportePreciosModificados,
 };

@@ -194,6 +194,41 @@ async function ventasDetalladoProducto(empresaId, filtros) {
   };
 }
 
+// Lista de tickets del periodo, para que el usuario pueda verificar el
+// detalle contra el conteo agregado de resumenVentas (mismo condVentas,
+// mismo criterio de "número de ventas" que Turnos/corte de caja). El detalle
+// de cada ticket se consulta aparte con ventas.detalleVenta (pos.controller.js),
+// no se reimplementa aquí.
+async function tickets(empresaId, filtros) {
+  const periodo = resolverRango(filtros);
+  const sucursalId = filtros.sucursal_id || null;
+  const { where, params } = condVentas({ empresaId, ...periodo, sucursalId });
+  const limit = clampInt(filtros.limit, 500, 1, 2000);
+
+  const [rows] = await pool.query(
+    `SELECT v.id, v.folio, v.created_at, s.nombre AS sucursal, c.nombre AS caja, u.nombre AS cajero,
+            v.total, v.pago_efectivo, v.pago_tarjeta,
+            (SELECT COUNT(*) FROM pos_ventas_partidas pp WHERE pp.venta_id = v.id) AS num_partidas,
+            (SELECT COALESCE(SUM(pp.cantidad),0) FROM pos_ventas_partidas pp WHERE pp.venta_id = v.id) AS num_piezas
+     FROM pos_ventas v
+     JOIN sucursales s ON s.id = v.sucursal_id
+     JOIN pos_cajas c ON c.id = v.caja_id
+     JOIN usuarios u ON u.id = v.usuario_id
+     WHERE ${where}
+     ORDER BY v.created_at DESC LIMIT ${limit}`,
+    params
+  );
+  return {
+    ...(await meta(empresaId, periodo, 'Tickets por fecha', { reporte: 'tickets' })),
+    rows: rows.map((r) => ({
+      id: r.id, folio: r.folio, created_at: r.created_at, sucursal: r.sucursal, caja: r.caja, cajero: r.cajero,
+      total: r2(r.total), pago_efectivo: r2(r.pago_efectivo), pago_tarjeta: r2(r.pago_tarjeta),
+      num_partidas: Number(r.num_partidas), num_piezas: Number(r.num_piezas),
+    })),
+    nota: NOTA_OPERATIVO + ' Da clic en un ticket para ver el detalle de lo que incluyó.',
+  };
+}
+
 async function formasPago(empresaId, filtros) {
   const periodo = resolverRango(filtros);
   const { where, params } = condVentas({ empresaId, ...periodo, sucursalId: filtros.sucursal_id || null });
@@ -456,5 +491,5 @@ async function preciosModificados(empresaId, filtros) {
 
 module.exports = {
   resumenVentas, ventasPorSucursal, topProductos, ventasDetalladoProducto, formasPago, existencias, recetasCofepris,
-  ganancias, gananciasPorProducto, preciosModificados,
+  tickets, ganancias, gananciasPorProducto, preciosModificados,
 };

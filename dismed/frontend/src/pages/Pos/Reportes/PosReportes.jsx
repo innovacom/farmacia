@@ -1,13 +1,17 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { BarChart3, Printer, Download } from 'lucide-react';
 import {
   fmt, fnum, useFiltrosPos, useSucursales, useReportePos,
   FiltrosPos, TabsPos, EstadoReporte, NotaReporte, TarjetaKpi,
 } from './comun';
 import { exportarCsv, hoyISO } from '../../../services/exportarExcel';
+import api from '../../../services/api';
+import Modal from '../../../components/ui/Modal';
 
 const TABS = [
   { key: 'resumen',     label: 'Resumen',          endpoint: '/pos/reportes/resumen' },
+  { key: 'tickets',     label: 'Tickets por fecha', endpoint: '/pos/reportes/tickets' },
   { key: 'sucursal',    label: 'Por sucursal',      endpoint: '/pos/reportes/ventas-sucursal' },
   { key: 'productos',   label: 'Top productos',     endpoint: '/pos/reportes/top-productos' },
   { key: 'venta_producto', label: 'Venta por producto (compras)', endpoint: '/pos/reportes/ventas-producto' },
@@ -74,6 +78,7 @@ export default function PosReportes() {
         {data && (
           <>
             {tab === 'resumen' && <VistaResumen data={data} />}
+            {tab === 'tickets' && <VistaTickets data={data} />}
             {tab === 'sucursal' && <VistaSucursal data={data} />}
             {tab === 'productos' && <VistaProductos data={data} />}
             {tab === 'venta_producto' && <VistaVentaProducto data={data} />}
@@ -114,6 +119,86 @@ function VistaResumen({ data }) {
           </tbody>
         </table>
       </div>
+    </>
+  );
+}
+
+// Lista de tickets del periodo con su cuenta de artículos/piezas, para
+// verificar el conteo de "número de ventas" contra lo que cada ticket
+// realmente incluyó. Al hacer clic se consulta el detalle (solo lectura;
+// cancelar/facturar sigue viviendo en Ventas de mostrador, permiso aparte).
+function VistaTickets({ data }) {
+  const [ticketId, setTicketId] = useState(null);
+  const { data: detalle, isFetching } = useQuery({
+    queryKey: ['pos-ticket-detalle', ticketId],
+    queryFn: () => api.get(`/pos/reportes/tickets/${ticketId}`).then((r) => r.data),
+    enabled: !!ticketId,
+  });
+
+  return (
+    <>
+      <div className="card p-0 overflow-x-auto">
+        <table className="table-auto w-full">
+          <thead>
+            <tr>
+              <th>Folio</th><th>Fecha</th><th>Sucursal / Caja</th><th>Cajero</th>
+              <th className="text-center">Artículos</th><th className="text-center">Piezas</th>
+              <th className="text-right">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.rows.map((r) => (
+              <tr key={r.id} className="cursor-pointer hover:bg-gray-50" onClick={() => setTicketId(r.id)}>
+                <td className="font-mono text-xs">{r.folio}</td>
+                <td>{new Date(r.created_at).toLocaleString('es-MX')}</td>
+                <td>{r.sucursal} · {r.caja}</td>
+                <td>{r.cajero}</td>
+                <td className="text-center">{fnum(r.num_partidas)}</td>
+                <td className="text-center">{fnum(r.num_piezas)}</td>
+                <td className="text-right font-semibold">{fmt(r.total)}</td>
+              </tr>
+            ))}
+            {!data.rows.length && <tr><td colSpan={7} className="text-center text-gray-400 py-8">Sin tickets en el periodo</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      {ticketId && (
+        <Modal title={detalle ? `Ticket ${detalle.folio}` : 'Cargando…'} onClose={() => setTicketId(null)} size="lg">
+          {!detalle ? (
+            <p className="text-sm text-gray-400 py-6 text-center">{isFetching ? 'Cargando…' : 'No se pudo cargar el ticket'}</p>
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <p><span className="text-gray-500">Fecha:</span> {new Date(detalle.created_at).toLocaleString('es-MX')}</p>
+                <p><span className="text-gray-500">Cajero:</span> {detalle.cajero}</p>
+                <p><span className="text-gray-500">Sucursal:</span> {detalle.sucursal} · {detalle.caja}</p>
+                <p><span className="text-gray-500">Estatus:</span> {detalle.estatus}</p>
+              </div>
+              <table className="table-auto w-full">
+                <thead><tr><th>Producto</th><th className="text-center">Cant.</th><th className="text-right">Importe</th></tr></thead>
+                <tbody>
+                  {detalle.partidas.map((p) => (
+                    <tr key={p.id}>
+                      <td>
+                        {p.descripcion}
+                        {p.folio_receta || p.medico ? (
+                          <p className="text-xs text-gray-400">
+                            Receta {p.folio_receta || 's/folio'} · {p.medico} ({p.cedula_profesional})
+                          </p>
+                        ) : null}
+                      </td>
+                      <td className="text-center">{Number(p.cantidad)}</td>
+                      <td className="text-right">{fmt(p.importe)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="text-right text-lg font-bold">{fmt(detalle.total)}</div>
+            </div>
+          )}
+        </Modal>
+      )}
     </>
   );
 }

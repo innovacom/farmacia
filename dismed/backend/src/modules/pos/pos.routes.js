@@ -117,6 +117,8 @@ router.get('/reportes/ventas-producto',     requirePermiso('pos-reportes'), c.re
 router.get('/reportes/formas-pago',         requirePermiso('pos-reportes'), c.reporteFormasPago);
 router.get('/reportes/existencias',         requirePermiso('pos-reportes'), c.reporteExistencias);
 router.get('/reportes/recetas',             requirePermiso('pos-reportes'), c.reporteRecetas);
+router.get('/reportes/tickets',             requirePermiso('pos-reportes'), c.reporteTickets);
+router.get('/reportes/tickets/:id',         requirePermiso('pos-reportes'), c.reporteTicketDetalle);
 router.get('/reportes/ganancias',           requirePermiso('pos-reportes-ganancias'), c.reporteGanancias);
 router.get('/reportes/ganancias-productos', requirePermiso('pos-reportes-ganancias'), c.reporteGananciasProductos);
 router.get('/reportes/precios-modificados', requirePermiso('pos-reportes-ganancias'), c.reportePreciosModificados);
