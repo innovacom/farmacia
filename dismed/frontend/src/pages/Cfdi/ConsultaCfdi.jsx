@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
-import { Search, X, Eye, Printer, Loader2, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { Search, X, Eye, Printer, FileText, Loader2, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import api from '../../services/api';
 import { usePrefsStore } from '../../store/prefsStore';
 import Pagination from '../../components/ui/Pagination';
+import { abrirPdfCfdi } from '../../utils/cfdiPdf';
 
 const TABS = [
   { key: 'emitidos',  label: 'Emitidos' },
@@ -256,6 +257,12 @@ function ComprobanteModal({ tab, id, onClose }) {
     queryKey: ['cfdi-comprobante', id],
     queryFn: () => api.get(`/cfdi/comprobante/${id}`).then((r) => r.data),
   });
+  const [generandoPdf, setGenerandoPdf] = useState(false);
+  const verPdf = async () => {
+    setGenerandoPdf(true);
+    await abrirPdfCfdi(id);
+    setGenerandoPdf(false);
+  };
 
   const conceptos = data?.conceptos || [];
 
@@ -274,8 +281,9 @@ function ComprobanteModal({ tab, id, onClose }) {
             </div>
           </div>
           <div className="flex items-center gap-2 no-print">
-            <button onClick={() => window.print()} className="btn-secondary flex items-center gap-2">
-              <Printer size={15} /> Imprimir
+            <button onClick={verPdf} disabled={generandoPdf || isLoading || isError} className="btn-secondary flex items-center gap-2">
+              {generandoPdf ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />}
+              Ver PDF
             </button>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-700"><X size={20} /></button>
           </div>

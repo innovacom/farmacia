@@ -6,6 +6,7 @@
  *   GET /cfdi/:tipo                 ENCABEZADO (comprobantes)   tipo: emitidos|recibidos
  *   GET /cfdi/:tipo/conceptos       DETALLE (renglones)
  *   GET /cfdi/comprobante/:id       header + conceptos (drill-down)
+ *   GET /cfdi/comprobante/:id/pdf   representación impresa (PDF) del XML crudo
  *
  * Descargas:
  *   GET  /cfdi/descargas            bitácora
@@ -17,6 +18,7 @@
 const { pool } = require('../../config/db');
 const svc = require('./sat.descarga.service');
 const client = require('./sat.client');
+const { generarPdfComprobante } = require('./cfdi.pdf');
 
 const like = (v) => `%${String(v).trim()}%`;
 const paging = (req) => ({
@@ -117,6 +119,19 @@ async function detalleComprobante(req, res, next) {
     );
     res.json({ ...h, conceptos });
   } catch (err) { next(err); }
+}
+
+// ---- PDF (representación impresa a partir del XML crudo) ----------------
+async function pdfComprobante(req, res, next) {
+  try {
+    const { buffer, filename } = await generarPdfComprobante(req.params.id);
+    res.set('Content-Type', 'application/pdf');
+    res.set('Content-Disposition', `inline; filename="${filename.replace(/"/g, '')}"`);
+    res.send(buffer);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
 }
 
 // ---- Descargas (bitácora + disparadores) ---------------------------------
@@ -234,7 +249,7 @@ async function descargaBatch(req, res, next) {
 }
 
 module.exports = {
-  listComprobantes, listConceptos, detalleComprobante,
+  listComprobantes, listConceptos, detalleComprobante, pdfComprobante,
   listDescargas, crearDescarga, procesarDescarga, procesarPendientes, validarFiel,
   reconciliarEstatus, eliminarDescarga,
   purgarRepositorio, descargaBatch,

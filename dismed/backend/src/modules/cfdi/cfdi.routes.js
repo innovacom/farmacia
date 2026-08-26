@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const auth = require('../../middleware/auth');
-const { requirePermiso } = require('../../middleware/permisos');
+const { requirePermiso, requireAnyPermiso } = require('../../middleware/permisos');
 const c = require('./cfdi.controller');
 
 const adminOnly = (req, res, next) =>
@@ -24,6 +24,9 @@ router.post('/estatus/reconciliar', adminOnly, c.reconciliarEstatus);
 // ── Consulta (cualquier usuario autenticado con permiso de menú 'cfdi').
 // Drill-down de un comprobante (header + conceptos).
 router.get('/comprobante/:id', requirePermiso('cfdi'), c.detalleComprobante);
+// El PDF también lo abre el detalle de una póliza contable (módulo Contabilidad),
+// no solo la consulta directa de CFDI — se acepta cualquiera de los dos permisos.
+router.get('/comprobante/:id/pdf', requireAnyPermiso(['cfdi', 'contabilidad-polizas']), c.pdfComprobante);
 
 // Consulta encabezado/detalle por tipo (emitidos|recibidos).
 router.get('/:tipo/conceptos', requirePermiso('cfdi'), c.listConceptos);
