@@ -1,7 +1,10 @@
 const { pool } = require('../../config/db');
 
-// Campos editables de un banco.
-const FIELDS = ['clave_sat', 'nombre_corto', 'razon_social', 'descripcion', 'cuenta_contable_codigo', 'activo'];
+// Campos editables de un banco. `rfc` (migrate_v66): identidad real de la
+// institución — es la llave que usa el motor de pólizas (bancosComisionRfc,
+// ver polizas.cuentas.js) para clasificar cualquier CFDI de ese banco como
+// gasto financiero/comisión (701.10) en vez de gasto genérico.
+const FIELDS = ['clave_sat', 'nombre_corto', 'razon_social', 'rfc', 'descripcion', 'cuenta_contable_codigo', 'activo'];
 
 // GET /bancos?q=&activo=0|1   Lista con búsqueda y filtro de activo.
 async function list(req, res, next) {
@@ -10,15 +13,15 @@ async function list(req, res, next) {
     const vals = [];
     if (req.query.q && req.query.q.trim()) {
       const like = `%${req.query.q.trim()}%`;
-      where.push('(b.nombre_corto LIKE ? OR b.razon_social LIKE ? OR b.clave_sat LIKE ? OR b.descripcion LIKE ?)');
-      vals.push(like, like, like, like);
+      where.push('(b.nombre_corto LIKE ? OR b.razon_social LIKE ? OR b.clave_sat LIKE ? OR b.rfc LIKE ? OR b.descripcion LIKE ?)');
+      vals.push(like, like, like, like, like);
     }
     if (req.query.activo === '1') where.push('b.activo = 1');
     else if (req.query.activo === '0') where.push('b.activo = 0');
     const w = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
     const [rows] = await pool.query(
-      `SELECT b.id, b.clave_sat, b.nombre_corto, b.razon_social, b.descripcion,
+      `SELECT b.id, b.clave_sat, b.nombre_corto, b.razon_social, b.rfc, b.descripcion,
               b.cuenta_contable_codigo, b.activo,
               c.nombre AS cuenta_nombre
        FROM bancos b

@@ -34,6 +34,7 @@ import EstadoResultados from './pages/Contabilidad/EstadoResultados';
 import BalanceGeneral from './pages/Contabilidad/BalanceGeneral';
 import BalanzaComprobacion from './pages/Contabilidad/BalanzaComprobacion';
 import CatalogoCuentas from './pages/Contabilidad/CatalogoCuentas';
+import CuentasAuxiliares from './pages/Contabilidad/CuentasAuxiliares';
 import Polizas from './pages/Contabilidad/Polizas';
 import Apertura from './pages/Contabilidad/Apertura';
 import Bancos from './pages/Contabilidad/Bancos';
@@ -159,6 +160,7 @@ export default function App() {
         <Route path="contabilidad/balance-general"        element={<BalanceGeneral />} />
         <Route path="contabilidad/balanza"                element={<BalanzaComprobacion />} />
         <Route path="contabilidad/catalogo-cuentas"       element={<CatalogoCuentas />} />
+        <Route path="contabilidad/auxiliares"             element={<CuentasAuxiliares />} />
         <Route path="contabilidad/polizas"                element={<Polizas />} />
         <Route path="contabilidad/apertura"               element={<Apertura />} />
         <Route path="contabilidad/bancos"                 element={<Bancos />} />

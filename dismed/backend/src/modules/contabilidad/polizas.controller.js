@@ -7,6 +7,17 @@
 const { pool } = require('../../config/db');
 const { generarPeriodo, boundsMes } = require('./polizas.generator');
 
+// cuenta_codigo puede venir a nivel 3 (auxiliar de detalle, ej. 105.01.01):
+// el nombre se resuelve contra cuentas_auxiliares y el rubro/naturaleza/nivel
+// contra el agrupador SAT de su subcuenta padre (nivel ≤2).
+const AGRUPADOR_SQL = "IF(" +
+  "(LENGTH(m.cuenta_codigo) - LENGTH(REPLACE(m.cuenta_codigo,'.',''))) >= 2, " +
+  "SUBSTRING_INDEX(m.cuenta_codigo,'.',2), m.cuenta_codigo)";
+const JOIN_CUENTA = `
+       LEFT JOIN sat_cuentas_agrupador c ON c.codigo = ${AGRUPADOR_SQL} COLLATE utf8mb4_general_ci
+       LEFT JOIN cuentas_auxiliares a ON a.codigo = m.cuenta_codigo COLLATE utf8mb4_general_ci`;
+const NOMBRE_CUENTA_SQL = 'COALESCE(a.nombre, c.nombre, m.cuenta_codigo)';
+
 async function generar(req, res, next) {
   try {
     const anio = req.body.anio || req.query.anio;
@@ -27,21 +38,37 @@ async function listar(req, res, next) {
     const vals = [anio, mes];
     if (req.query.tipo) { where.push('tipo=?'); vals.push(req.query.tipo); }
     if (req.query.origen) { where.push('origen=?'); vals.push(req.query.origen); }
+    // Búsqueda libre: concepto/referencia/UUID de la póliza, o cliente/proveedor/banco
+    // y cuenta de cualquiera de sus movimientos (el nombre real vive en el auxiliar
+    // de nivel 3, ver cuentas_auxiliares — p. ej. "BBVA", "Petróleos Mexicanos", "701.10").
+    if (req.query.q && req.query.q.trim()) {
+      const like = `%${req.query.q.trim()}%`;
+      where.push(`(
+        p.concepto LIKE ? OR p.referencia LIKE ? OR p.cfdi_uuid LIKE ?
+        OR EXISTS (
+          SELECT 1 FROM polizas_movimientos m
+          LEFT JOIN cuentas_auxiliares a ON a.codigo = m.cuenta_codigo COLLATE utf8mb4_general_ci
+          LEFT JOIN sat_cuentas_agrupador c ON c.codigo = ${AGRUPADOR_SQL} COLLATE utf8mb4_general_ci
+          WHERE m.poliza_id = p.id
+            AND (m.cuenta_codigo LIKE ? OR m.concepto LIKE ? OR a.nombre LIKE ? OR c.nombre LIKE ?)
+        )
+      )`);
+      vals.push(like, like, like, like, like, like, like);
+    }
 
     const [polizas] = await pool.query(
-      `SELECT id, tipo, fecha, concepto, origen, estado, cfdi_uuid, referencia,
-              total_cargos, total_abonos
-         FROM polizas WHERE ${where.join(' AND ')}
-        ORDER BY fecha, id`, vals);
+      `SELECT p.id, p.tipo, p.fecha, p.concepto, p.origen, p.estado, p.cfdi_id, p.cfdi_uuid, p.referencia,
+              p.total_cargos, p.total_abonos
+         FROM polizas p WHERE ${where.join(' AND ')}
+        ORDER BY p.fecha, p.id`, vals);
 
     let movs = [];
     if (polizas.length) {
       const ids = polizas.map((p) => p.id);
       const [rows] = await pool.query(
-        `SELECT m.poliza_id, m.cuenta_codigo, c.nombre AS cuenta_nombre,
+        `SELECT m.poliza_id, m.cuenta_codigo, ${NOMBRE_CUENTA_SQL} AS cuenta_nombre,
                 m.cargo, m.abono, m.concepto, m.entidad_tipo
-           FROM polizas_movimientos m
-           LEFT JOIN sat_cuentas_agrupador c ON c.codigo = m.cuenta_codigo COLLATE utf8mb4_general_ci
+           FROM polizas_movimientos m${JOIN_CUENTA}
           WHERE m.poliza_id IN (?) ORDER BY m.id`, [ids]);
       movs = rows;
     }
@@ -73,13 +100,12 @@ async function balanza(req, res, next) {
     if (!anio || !mes) return res.status(400).json({ error: 'anio y mes son obligatorios' });
 
     const [rows] = await pool.query(
-      `SELECT m.cuenta_codigo, c.nombre AS cuenta_nombre, c.rubro, c.naturaleza,
+      `SELECT m.cuenta_codigo, ${NOMBRE_CUENTA_SQL} AS cuenta_nombre, c.rubro, c.naturaleza,
               SUM(m.cargo) AS cargos, SUM(m.abono) AS abonos
          FROM polizas_movimientos m
-         JOIN polizas p ON p.id = m.poliza_id
-         LEFT JOIN sat_cuentas_agrupador c ON c.codigo = m.cuenta_codigo COLLATE utf8mb4_general_ci
+         JOIN polizas p ON p.id = m.poliza_id${JOIN_CUENTA}
         WHERE p.periodo_anio=? AND p.periodo_mes=?
-        GROUP BY m.cuenta_codigo, c.nombre, c.rubro, c.naturaleza
+        GROUP BY m.cuenta_codigo, a.nombre, c.nombre, c.rubro, c.naturaleza
         ORDER BY m.cuenta_codigo`, [anio, mes]);
 
     const cuentas = rows.map((r) => {
@@ -128,10 +154,16 @@ async function prepararMovs(movimientos) {
     if (r.cargo < 0 || r.abono < 0) { const e = new Error('Cargo/abono no pueden ser negativos'); e.status = 400; throw e; }
     if (r.cargo > 0 && r.abono > 0) { const e = new Error(`El movimiento ${r.cuenta_codigo} tiene cargo y abono a la vez`); e.status = 400; throw e; }
   }
+  // Acepta tanto cuentas del agrupador (nivel 1-2) como auxiliares de detalle
+  // (nivel 3, ver cuentas_auxiliares) — una póliza editada que ya trae
+  // movimientos con auxiliar (autogenerada por el motor) debe poder guardarse
+  // sin que el editor manual la rechace por "cuenta inexistente".
   const codes = [...new Set(rows.map((r) => r.cuenta_codigo))];
-  const [cat] = await pool.query(
-    `SELECT codigo FROM sat_cuentas_agrupador WHERE codigo IN (?)`, [codes]);
-  const set = new Set(cat.map((c) => c.codigo));
+  const [[cat], [aux]] = await Promise.all([
+    pool.query(`SELECT codigo FROM sat_cuentas_agrupador WHERE codigo IN (?)`, [codes]),
+    pool.query(`SELECT codigo FROM cuentas_auxiliares WHERE codigo IN (?)`, [codes]),
+  ]);
+  const set = new Set([...cat.map((c) => c.codigo), ...aux.map((c) => c.codigo)]);
   const faltan = codes.filter((c) => !set.has(c));
   if (faltan.length) { const e = new Error('Cuentas inexistentes: ' + faltan.join(', ')); e.status = 400; throw e; }
 
@@ -154,8 +186,7 @@ async function getById(req, res, next) {
     const [[p]] = await pool.query('SELECT * FROM polizas WHERE id=?', [req.params.id]);
     if (!p) return res.status(404).json({ error: 'Póliza no encontrada' });
     const [movs] = await pool.query(
-      `SELECT m.*, c.nombre AS cuenta_nombre FROM polizas_movimientos m
-       LEFT JOIN sat_cuentas_agrupador c ON c.codigo=m.cuenta_codigo COLLATE utf8mb4_general_ci
+      `SELECT m.*, ${NOMBRE_CUENTA_SQL} AS cuenta_nombre FROM polizas_movimientos m${JOIN_CUENTA}
        WHERE m.poliza_id=? ORDER BY m.id`, [p.id]);
     res.json({ ...p, movimientos: movs });
   } catch (err) { next(err); }

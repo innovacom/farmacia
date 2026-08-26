@@ -27,6 +27,17 @@ router.get('/catalogo-cuentas', requireAnyPermiso([
   'productos', 'proveedores', 'clientes',
 ]), c.catalogoCuentas);
 
+// Cuentas auxiliares (nivel 3, detalle) — catálogo + estado de cuenta por
+// subcuenta. Comparte permiso con catálogo de cuentas y pólizas.
+router.get('/auxiliares', requireAnyPermiso([
+  'contabilidad-catalogo-cuentas', 'contabilidad-polizas',
+]), c.auxiliaresListar);
+router.post('/auxiliares', requirePermiso('contabilidad-catalogo-cuentas'), c.auxiliaresCrear);
+router.put('/auxiliares/:id', requirePermiso('contabilidad-catalogo-cuentas'), c.auxiliaresActualizar);
+router.get('/estado-cuenta', requireAnyPermiso([
+  'contabilidad-catalogo-cuentas', 'contabilidad-polizas',
+]), c.estadoCuenta);
+
 // Pólizas derivadas (CFDI + inventario) y balanza por cuenta real.
 router.post('/polizas/generar',   requirePermiso('contabilidad-polizas'), pol.generar);
 router.post('/polizas/confirmar', requirePermiso('contabilidad-polizas'), pol.confirmarPeriodo);

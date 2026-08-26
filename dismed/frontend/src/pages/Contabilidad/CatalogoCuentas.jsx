@@ -13,7 +13,10 @@ export default function CatalogoCuentas() {
     queryKey: ['catalogo-cuentas', q, rubro, nivel],
     queryFn: () =>
       api.get('/contabilidad/catalogo-cuentas', {
-        params: { q: q || undefined, rubro: rubro || undefined, nivel: nivel || undefined, limit: 2000 },
+        params: {
+          q: q || undefined, rubro: rubro || undefined, nivel: nivel || undefined,
+          incluir_auxiliares: '1', limit: 5000,
+        },
       }).then((r) => r.data),
     keepPreviousData: true,
   });
@@ -55,6 +58,7 @@ export default function CatalogoCuentas() {
             <option value="">Todos los niveles</option>
             <option value="1">Nivel 1 — Cuenta de mayor</option>
             <option value="2">Nivel 2 — Subcuenta</option>
+            <option value="3">Nivel 3 — Auxiliar (detalle)</option>
           </select>
         </div>
       </div>
@@ -81,7 +85,10 @@ export default function CatalogoCuentas() {
                 <td className={`font-mono ${c.nivel === 1 ? 'font-semibold text-gray-900' : 'text-gray-500'}`}>
                   {c.codigo}
                 </td>
-                <td className={c.nivel === 1 ? 'font-medium text-gray-900' : 'text-gray-700 pl-4'}>
+                <td className={
+                  c.nivel === 1 ? 'font-medium text-gray-900'
+                    : c.nivel === 3 ? 'text-gray-600 pl-8 italic' : 'text-gray-700 pl-4'
+                }>
                   {c.nombre}
                 </td>
                 <td className="text-gray-500">{c.rubro}</td>

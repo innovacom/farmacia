@@ -5,7 +5,7 @@ import {
   Calculator, TrendingUp, Scale, BookOpenCheck, ListTree, Landmark, BookText,
   FileSpreadsheet, BarChart3, Store, Clock, Pill, Building2, FileUp, Tags,
   HeartPulse, Stethoscope, PiggyBank, CalendarClock, MessageCircle, Megaphone,
-  FileQuestion, Percent, Heart, ShoppingBag, Gauge, Mail, CreditCard, ShieldAlert,
+  FileQuestion, Percent, Heart, ShoppingBag, Gauge, Mail, CreditCard, ShieldAlert, Rows3,
 } from 'lucide-react';
 
 // Catálogo canónico del menú. Debe mantenerse en sincronía con el backend
@@ -61,6 +61,7 @@ export const MENU = {
         { key: 'contabilidad-balance-general',   to: '/contabilidad/balance-general',   label: 'Balance general',         icon: Scale },
         { key: 'contabilidad-balanza',           to: '/contabilidad/balanza',           label: 'Balanza de comprobación', icon: BookOpenCheck },
         { key: 'contabilidad-catalogo-cuentas',  to: '/contabilidad/catalogo-cuentas',  label: 'Catálogo de cuentas',     icon: ListTree },
+        { key: 'contabilidad-auxiliares',        to: '/contabilidad/auxiliares',        label: 'Cuentas auxiliares',      icon: Rows3 },
         { key: 'contabilidad-polizas',                  to: '/contabilidad/polizas',                  label: 'Pólizas',                    icon: BookText },
         { key: 'contabilidad-apertura', to: '/contabilidad/apertura', label: 'Saldos iniciales', icon: ShieldAlert, adminOnly: true },
         { key: 'contabilidad-bancos',                  to: '/contabilidad/bancos',                  label: 'Bancos',                     icon: Landmark },

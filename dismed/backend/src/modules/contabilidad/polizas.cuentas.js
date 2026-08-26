@@ -29,15 +29,17 @@ const CTA = {
   RET_ISR_SUELDOS:    '216.01', // ISR retenido por sueldos (nómina)
   RET_ISR_SERV:       '216.04', // ISR retenido por servicios profesionales
   RET_IVA:            '216.10', // IVA retenido
-  RET_GENERICA:       '216',    // Impuestos retenidos (fallback)
+  RET_GENERICA:       '216.12', // Otras impuestos retenidos (residual sin desglosar)
   // Capital
-  RESULTADO:          '305',    // Resultado del ejercicio
+  RESULTADO:          '305',    // Resultado del ejercicio (solo se usa para mostrar el
+                                 // Balance General, nunca se postea a polizas_movimientos)
   // Ingresos / Costos / Gastos
-  INGRESOS:           '401',    // Ingresos (ventas)
-  OTROS_INGRESOS:     '403',    // Otros ingresos (p. ej. sobrante de inventario en ajuste físico)
+  INGRESOS:           '401.01', // Ventas y/o servicios gravados a la tasa general
+  OTROS_INGRESOS:     '403.01', // Otros ingresos (p. ej. sobrante de inventario en ajuste físico)
   COSTO_VENTA:        '501.01', // Costo de venta
-  GASTOS:             '601',    // Gastos generales (default de gasto; también merma de inventario)
+  GASTOS:             '601.84', // Otros gastos generales (default de gasto; también merma de inventario)
   SUELDOS:            '601.01', // Sueldos y salarios
+  COMISIONES_BANCARIAS: '701.10', // Comisiones bancarias (ver cuentaCompra)
 };
 
 /**
@@ -49,8 +51,50 @@ function cuentaPorUsoCfdi(uso, cuentaGastoProveedor) {
   const u = (uso || '').toUpperCase();
   if (u === 'G01') return { tipo: 'mercancia', cuenta: CTA.INVENTARIO };
   if (/^I0[1-8]$/.test(u)) return { tipo: 'activo', cuenta: cuentaGastoProveedor || CTA.GASTOS };
-  // G03 gastos en general, P01 por definir, vacío, etc. → gasto del proveedor o 601
+  // G03 gastos en general, P01 por definir, vacío, etc. → gasto del proveedor o 601.84
   return { tipo: 'gasto', cuenta: cuentaGastoProveedor || CTA.GASTOS };
+}
+
+/**
+ * RFC de instituciones bancarias que SÍ le han facturado a DISMED, tomados de
+ * `bancos.rfc` — NO hardcodeados. El catálogo `bancos` (migrate_v20, fuente
+ * SAT/Banxico "Instituciones bancarias participantes SPEI") no trae RFC de
+ * origen; `scripts/cruzar_rfc_bancos.js` lo cruza contra los RFC REALES de
+ * `cfdi_repositorio` (autoritativos, validados por el PAC/SAT al timbrar) y
+ * los guarda ahí. Cualquier banco nuevo se agrega recargando ese cruce — no
+ * hay que tocar código.
+ */
+async function bancosComisionRfc() {
+  const [rows] = await pool.query("SELECT rfc FROM bancos WHERE rfc IS NOT NULL AND rfc<>''");
+  return new Set(rows.map((r) => r.rfc.toUpperCase().trim()));
+}
+
+/**
+ * Clasifica una compra. Dos señales, en orden:
+ *   1) El emisor es un banco conocido (bancosRfc, ver bancosComisionRfc) →
+ *      siempre comisión/gasto financiero, sin importar uso_cfdi ni concepto.
+ *      El uso_cfdi que reportan casi siempre es "G03 Gastos en general" y el
+ *      concepto viene abreviado ("COM MEMBRESIA CUENTA E PYME", "SERVICIOS DE
+ *      FACTURACIÓN", "PRIMA DE SEGURO...") — no todos dicen literalmente
+ *      "comisión", así que depender solo del texto del concepto deja fuera
+ *      casos reales. OJO: NO generalizar a "cualquier texto que empiece con
+ *      COM" — se probó y rompe con proveedores reales (FARMACOS NACIONALES
+ *      factura comprimidos como "LOSARTAN KENDRICK 50 mg 30 COM", donde
+ *      "COM" = comprimidos, no comisión).
+ *   2) Para cualquier otro proveedor: si el concepto menciona la palabra
+ *      completa "comisión"/"comisiones" → también comisión/gasto financiero.
+ * Cualquier otro caso sigue la regla de siempre (cuentaPorUsoCfdi).
+ * Devuelve { tipo: 'mercancia'|'gasto'|'activo'|'financiero', cuenta }.
+ */
+function cuentaCompra(uso, cuentaGastoProveedor, conceptos, rfcEmisor, bancosRfc) {
+  const rfc = (rfcEmisor || '').toUpperCase().trim();
+  if (bancosRfc && bancosRfc.has(rfc)) {
+    return { tipo: 'financiero', cuenta: CTA.COMISIONES_BANCARIAS };
+  }
+  if (conceptos && /comisi[oó]n(es)?/i.test(conceptos)) {
+    return { tipo: 'financiero', cuenta: CTA.COMISIONES_BANCARIAS };
+  }
+  return cuentaPorUsoCfdi(uso, cuentaGastoProveedor);
 }
 
 /**
@@ -69,4 +113,4 @@ async function cuentaBanco() {
   }
 }
 
-module.exports = { CTA, cuentaPorUsoCfdi, cuentaBanco };
+module.exports = { CTA, cuentaPorUsoCfdi, cuentaCompra, cuentaBanco, bancosComisionRfc };

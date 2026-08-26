@@ -3,11 +3,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
   BookText, RefreshCw, Loader2, ChevronRight, ChevronDown, CheckCircle2, AlertTriangle,
-  Plus, Trash2, Pencil, X, ShieldCheck, Undo2,
+  Plus, Trash2, Pencil, X, ShieldCheck, Undo2, Search,
 } from 'lucide-react';
 import api from '../../services/api';
 import CuentaContableSelect from '../../components/shared/CuentaContableSelect';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { abrirPdfCfdi } from '../../utils/cfdiPdf';
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -30,19 +31,20 @@ export default function Polizas() {
   const hoy = new Date();
   const [anioTxt, setAnioTxt] = useState(String(hoy.getFullYear())); // texto crudo, captura libre
   const [mes, setMes] = useState(hoy.getMonth() + 1);
+  const [q, setQ] = useState('');
   const [vista, setVista] = useState('polizas');
   const [abierta, setAbierta] = useState(null);
   const [editor, setEditor] = useState(null); // { poliza } | { nueva:true } | null
 
   const anio = parseInt(anioTxt, 10) || hoy.getFullYear();
-  const params = { anio, mes };
+  const params = { anio, mes, q: q.trim() || undefined };
   const invalidar = () => {
     qc.invalidateQueries({ queryKey: ['polizas'] });
     qc.invalidateQueries({ queryKey: ['polizas-balanza'] });
   };
 
   const polizasQ = useQuery({
-    queryKey: ['polizas', anio, mes],
+    queryKey: ['polizas', anio, mes, q],
     queryFn: () => api.get('/contabilidad/polizas', { params }).then((r) => r.data),
     keepPreviousData: true,
   });
@@ -69,6 +71,15 @@ export default function Polizas() {
   const bal = balanzaQ.data;
   const borradores = polizas.filter((p) => p.estado === 'borrador').length;
 
+  // Doble clic sobre una póliza generada de CFDI abre la representación
+  // impresa (PDF) del comprobante que la originó — mismo formato que en
+  // Consultas > Facturas CFDI. Las pólizas manuales o de inventario no
+  // tienen cfdi_id y no hacen nada.
+  const verCfdi = (p) => {
+    if (!p.cfdi_id) return;
+    abrirPdfCfdi(p.cfdi_id);
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -78,6 +89,7 @@ export default function Polizas() {
           </h1>
           <p className="text-sm text-gray-500 mt-1">
             Asientos derivados de CFDI e inventario. Revisa, confirma o edita antes de reportar.
+            Doble clic en una póliza que venga de un CFDI para ver su representación impresa (PDF).
           </p>
         </div>
       </div>
@@ -96,6 +108,14 @@ export default function Polizas() {
               {MESES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
             </select>
           </div>
+          {vista === 'polizas' && (
+            <div className="relative">
+              <label className="label">Buscar</label>
+              <Search size={15} className="absolute left-2.5 top-1/2 translate-y-[2px] text-gray-400" />
+              <input className="input pl-8 w-64" placeholder="Cliente, proveedor, banco, cuenta, folio, UUID…"
+                value={q} onChange={(e) => setQ(e.target.value)} />
+            </div>
+          )}
           <button onClick={() => generarMut.mutate()} disabled={generarMut.isPending} className="btn-primary">
             {generarMut.isPending ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
             Generar
@@ -164,7 +184,8 @@ export default function Polizas() {
             <tbody>
               {polizas.map((p) => (
                 <Fragment key={p.id}>
-                  <tr className="hover:bg-gray-50">
+                  <tr className="hover:bg-gray-50" onDoubleClick={() => verCfdi(p)}
+                    title={p.cfdi_id ? 'Doble clic para ver el CFDI (PDF)' : undefined}>
                     <td className="text-gray-400 cursor-pointer" onClick={() => setAbierta(abierta === p.id ? null : p.id)}>
                       {abierta === p.id ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
                     </td>
@@ -190,7 +211,7 @@ export default function Polizas() {
                     </td>
                   </tr>
                   {abierta === p.id && (
-                    <tr>
+                    <tr onDoubleClick={() => verCfdi(p)}>
                       <td></td>
                       <td colSpan={7} className="bg-gray-50/70">
                         <table className="w-full text-xs my-1">
@@ -223,7 +244,7 @@ export default function Polizas() {
               ))}
               {!polizasQ.isLoading && polizas.length === 0 && (
                 <tr><td colSpan={8} className="text-center text-gray-400 py-8">
-                  Sin pólizas en este periodo. Usa «Generar».
+                  {q.trim() ? 'Sin pólizas que coincidan con la búsqueda.' : 'Sin pólizas en este periodo. Usa «Generar».'}
                 </td></tr>
               )}
             </tbody>

@@ -6,9 +6,11 @@ import api from '../../services/api';
 /**
  * Selector de cuenta contable (Código Agrupador del SAT).
  * Controlado: `value` es el código (string) y `onChange(codigo|'')`.
- * Props opcionales: `rubro` (precarga/filtra por rubro), `placeholder`.
+ * Props opcionales: `rubro` (precarga/filtra por rubro), `nivel` (1|2, ej. 2
+ * para forzar solo subcuentas — útil al elegir la cuenta_padre de un auxiliar),
+ * `placeholder`.
  */
-export default function CuentaContableSelect({ value, onChange, rubro, placeholder = 'Sin asignar' }) {
+export default function CuentaContableSelect({ value, onChange, rubro, nivel, placeholder = 'Sin asignar' }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const boxRef = useRef(null);
@@ -23,9 +25,9 @@ export default function CuentaContableSelect({ value, onChange, rubro, placehold
 
   // Resultados de búsqueda al abrir.
   const { data, isLoading } = useQuery({
-    queryKey: ['cuenta-buscar', q, rubro],
+    queryKey: ['cuenta-buscar', q, rubro, nivel],
     queryFn: () => api.get('/contabilidad/catalogo-cuentas', {
-      params: { q: q || undefined, rubro: rubro || undefined, limit: 50 },
+      params: { q: q || undefined, rubro: rubro || undefined, nivel: nivel || undefined, limit: 50 },
     }).then((r) => r.data.rows || []),
     enabled: open,
     keepPreviousData: true,

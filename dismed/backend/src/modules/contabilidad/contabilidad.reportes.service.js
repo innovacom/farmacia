@@ -53,22 +53,33 @@ function resolverPeriodo(f) {
   return { anio, mes: mesRaw, modo: modoEfectivo, mesDesde, mesHasta, etiqueta };
 }
 
-// Saldos por cuenta del agrupador para el periodo.
+// Cuenta agrupadora (nivel ≤2, mayor.subcuenta) de un cuenta_codigo que puede
+// venir a nivel 3 (auxiliar de detalle, ej. 105.01.01 → 105.01). Los 3 reportes
+// financieros (Balanza/ER/Balance) se paran en el nivel del agrupador SAT, no
+// por auxiliar — de lo contrario "Clientes" se fragmentaría en una fila por
+// cliente y perdería el rubro (sat_cuentas_agrupador no tiene filas nivel 3).
+const AGRUPADOR_SQL = "IF(" +
+  "(LENGTH(m.cuenta_codigo) - LENGTH(REPLACE(m.cuenta_codigo,'.',''))) >= 2, " +
+  "SUBSTRING_INDEX(m.cuenta_codigo,'.',2), m.cuenta_codigo)";
+
+// Saldos por cuenta del agrupador (nivel ≤2) para el periodo — para Balanza,
+// Estado de Resultados y Balance General. Los auxiliares (nivel 3) se suman a
+// su subcuenta; para el detalle por auxiliar ver `saldosAuxiliares`.
 async function saldos(periodo, soloConfirmadas) {
   const cond = soloConfirmadas ? "AND p.estado='confirmada'" : '';
   const [rows] = await pool.query(
-    `SELECT m.cuenta_codigo,
-            COALESCE(c.nombre, m.cuenta_codigo) AS nombre,
+    `SELECT ${AGRUPADOR_SQL} AS cuenta_codigo,
+            COALESCE(c.nombre, ${AGRUPADOR_SQL}) AS nombre,
             c.rubro, c.naturaleza, c.nivel,
             SUM(CASE WHEN p.periodo_mes <  ? THEN m.cargo - m.abono ELSE 0 END) AS saldo_inicial,
             SUM(CASE WHEN p.periodo_mes BETWEEN ? AND ? THEN m.cargo ELSE 0 END) AS cargos,
             SUM(CASE WHEN p.periodo_mes BETWEEN ? AND ? THEN m.abono ELSE 0 END) AS abonos
        FROM polizas_movimientos m
        JOIN polizas p ON p.id = m.poliza_id
-       LEFT JOIN sat_cuentas_agrupador c ON c.codigo = m.cuenta_codigo COLLATE utf8mb4_general_ci
+       LEFT JOIN sat_cuentas_agrupador c ON c.codigo = ${AGRUPADOR_SQL} COLLATE utf8mb4_general_ci
       WHERE p.periodo_anio = ? ${cond}
-      GROUP BY m.cuenta_codigo, c.nombre, c.rubro, c.naturaleza, c.nivel
-      ORDER BY m.cuenta_codigo`,
+      GROUP BY cuenta_codigo, c.nombre, c.rubro, c.naturaleza, c.nivel
+      ORDER BY cuenta_codigo`,
     [periodo.mesDesde, periodo.mesDesde, periodo.mesHasta,
      periodo.mesDesde, periodo.mesHasta, periodo.anio]);
 
@@ -80,6 +91,56 @@ async function saldos(periodo, soloConfirmadas) {
       saldo_inicial: si, cargos: cg, abonos: ab, saldo_final: r2(si + cg - ab),
     };
   }).filter((x) => x.saldo_inicial || x.cargos || x.abonos);
+}
+
+// Saldos por AUXILIAR (nivel 3, detalle) dentro de una subcuenta — el estado
+// de cuenta por cliente/proveedor. Misma fórmula de saldo_inicial/cargos/
+// abonos/saldo_final que `saldos`, pero sin colapsar al agrupador.
+async function saldosAuxiliares(periodo, cuentaPadre, soloConfirmadas) {
+  const cond = soloConfirmadas ? "AND p.estado='confirmada'" : '';
+  const [rows] = await pool.query(
+    `SELECT m.cuenta_codigo AS codigo, a.nombre, a.entidad_tipo, a.entidad_id,
+            SUM(CASE WHEN p.periodo_mes <  ? THEN m.cargo - m.abono ELSE 0 END) AS saldo_inicial,
+            SUM(CASE WHEN p.periodo_mes BETWEEN ? AND ? THEN m.cargo ELSE 0 END) AS cargos,
+            SUM(CASE WHEN p.periodo_mes BETWEEN ? AND ? THEN m.abono ELSE 0 END) AS abonos
+       FROM polizas_movimientos m
+       JOIN polizas p ON p.id = m.poliza_id
+       JOIN cuentas_auxiliares a ON a.codigo = m.cuenta_codigo COLLATE utf8mb4_general_ci
+      WHERE p.periodo_anio = ? AND a.cuenta_padre = ? ${cond}
+      GROUP BY m.cuenta_codigo, a.nombre, a.entidad_tipo, a.entidad_id
+      ORDER BY m.cuenta_codigo`,
+    [periodo.mesDesde, periodo.mesDesde, periodo.mesHasta,
+     periodo.mesDesde, periodo.mesHasta, periodo.anio, cuentaPadre]);
+
+  return rows.map((x) => {
+    const si = r2(x.saldo_inicial), cg = r2(x.cargos), ab = r2(x.abonos);
+    return {
+      codigo: x.codigo, nombre: x.nombre, entidad_tipo: x.entidad_tipo, entidad_id: x.entidad_id,
+      saldo_inicial: si, cargos: cg, abonos: ab, saldo_final: r2(si + cg - ab),
+    };
+  }).filter((x) => x.saldo_inicial || x.cargos || x.abonos);
+}
+
+// Reporte "estado de cuenta" por subcuenta: saldos por auxiliar + el total,
+// que debe coincidir con la fila del agrupador en `saldos` (mismo periodo).
+async function estadoCuentaAuxiliar(filtros) {
+  const periodo = resolverPeriodo(filtros);
+  const cuentaPadre = String(filtros.cuenta_padre || '').trim();
+  if (!cuentaPadre) httpError('cuenta_padre es obligatorio');
+  const soloConfirmadas = filtros.solo_confirmadas === '1' || filtros.solo_confirmadas === 'true';
+  const [[padre]] = await pool.query(
+    'SELECT codigo, nombre, rubro, naturaleza FROM sat_cuentas_agrupador WHERE codigo=?', [cuentaPadre]);
+  if (!padre) httpError('cuenta_padre no existe en el catálogo agrupador', 404);
+  const auxiliares = await saldosAuxiliares(periodo, cuentaPadre, soloConfirmadas);
+  const total = auxiliares.reduce((s, a) => ({
+    saldo_inicial: r2(s.saldo_inicial + a.saldo_inicial), cargos: r2(s.cargos + a.cargos),
+    abonos: r2(s.abonos + a.abonos), saldo_final: r2(s.saldo_final + a.saldo_final),
+  }), { saldo_inicial: 0, cargos: 0, abonos: 0, saldo_final: 0 });
+  return {
+    ...meta(periodo, `Estado de Cuenta — ${padre.nombre} (${cuentaPadre})`, { soloConfirmadas }),
+    reporte: 'estado_cuenta_auxiliar', cuenta_padre: padre, auxiliares, total,
+    nota: NOTA,
+  };
 }
 
 // Estado de la póliza de apertura del ejercicio: si existe y si está verificada
@@ -400,6 +461,6 @@ async function cfdiResumenGeneral(f) {
 }
 
 module.exports = {
-  resolverPeriodo, saldos, balanza, estadoResultados, balanceGeneral,
-  cfdiPorComprobante, cfdiResumenGeneral, estadoApertura,
+  resolverPeriodo, saldos, saldosAuxiliares, estadoCuentaAuxiliar, balanza,
+  estadoResultados, balanceGeneral, cfdiPorComprobante, cfdiResumenGeneral, estadoApertura,
 };

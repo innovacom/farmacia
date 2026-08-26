@@ -25,7 +25,8 @@
  *   - Costo de venta depende 100% de que exista la salida en inventario_movimientos.
  */
 const { pool } = require('../../config/db');
-const { CTA, cuentaPorUsoCfdi, cuentaBanco } = require('./polizas.cuentas');
+const { CTA, cuentaCompra, cuentaBanco, bancosComisionRfc } = require('./polizas.cuentas');
+const { resolverAuxiliar, resolverDefault } = require('./cuentas.auxiliares');
 
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
@@ -37,12 +38,17 @@ function boundsMes(anio, mes) {
   return { desde, hasta };
 }
 
-// Acumula movimientos no nulos y descarta los que quedan en 0.
-function mov(cuenta, cargo, abono, concepto, entidad_tipo, entidad_id) {
+// Acumula movimientos no nulos y descarta los que quedan en 0. entidad_rfc/
+// entidad_nombre son transitorios (no se guardan en polizas_movimientos, el
+// INSERT solo toma columnas explícitas): los usa aplicarNivelDetalle() para
+// identificar/crear el auxiliar aunque la entidad no esté en el catálogo de
+// clientes/proveedores (ver migrate_v65 — el RFC es la llave real).
+function mov(cuenta, cargo, abono, concepto, entidad_tipo, entidad_id, entidad_rfc, entidad_nombre) {
   const c = r2(cargo), a = r2(abono);
   if (c === 0 && a === 0) return null;
   return { cuenta_codigo: cuenta, cargo: c, abono: a, concepto: concepto || null,
-           entidad_tipo: entidad_tipo || null, entidad_id: entidad_id || null };
+           entidad_tipo: entidad_tipo || null, entidad_id: entidad_id || null,
+           entidad_rfc: entidad_rfc || null, entidad_nombre: entidad_nombre || null };
 }
 
 /**
@@ -60,13 +66,59 @@ function armar({ tipo, fecha, concepto, origen, cfdi_id, cfdi_uuid, referencia }
 
 async function cargarMapas() {
   const [cli] = await pool.query(
-    "SELECT id, UPPER(TRIM(rfc)) rfc, cuenta_cobrar_codigo FROM clientes WHERE rfc IS NOT NULL AND rfc<>''");
+    "SELECT id, UPPER(TRIM(rfc)) rfc, razon_social, cuenta_cobrar_codigo FROM clientes WHERE rfc IS NOT NULL AND rfc<>''");
   const [prov] = await pool.query(
-    "SELECT id, UPPER(TRIM(rfc)) rfc, cuenta_pasivo_codigo, cuenta_gasto_codigo FROM proveedores WHERE rfc IS NOT NULL AND rfc<>''");
+    "SELECT id, UPPER(TRIM(rfc)) rfc, nombre_empresa, cuenta_pasivo_codigo, cuenta_gasto_codigo FROM proveedores WHERE rfc IS NOT NULL AND rfc<>''");
   const clientes = new Map(), proveedores = new Map();
-  for (const c of cli) if (!clientes.has(c.rfc)) clientes.set(c.rfc, c);
-  for (const p of prov) if (!proveedores.has(p.rfc)) proveedores.set(p.rfc, p);
-  return { clientes, proveedores };
+  const clientesPorId = new Map(), proveedoresPorId = new Map();
+  for (const c of cli) { if (!clientes.has(c.rfc)) clientes.set(c.rfc, c); clientesPorId.set(c.id, c); }
+  for (const p of prov) { if (!proveedores.has(p.rfc)) proveedores.set(p.rfc, p); proveedoresPorId.set(p.id, p); }
+  return { clientes, proveedores, clientesPorId, proveedoresPorId };
+}
+
+// Regla de negocio (2026-08-25): NINGUNA póliza queda contabilizada arriba de
+// nivel 3 — toda subcuenta (nivel 2) usada en un movimiento se resuelve a un
+// auxiliar antes de guardar. Dos caminos:
+//   - Con entidad (cliente/proveedor, identificados por RFC — no por el id de
+//     catálogo: así se crea auxiliar aunque la entidad no esté dada de alta
+//     en el sistema, el RFC siempre viene en el CFDI) → auxiliar de esa
+//     entidad (01, 02... el nombre del catálogo gana si hay match, si no cae
+//     al nombre del XML). Se asigna en el primer movimiento y no se reasigna.
+//   - Sin entidad (IVA, ingresos, gastos, banco, costo, etc.) → auxiliar
+//     genérico ".00" de la subcuenta, con el mismo nombre que la subcuenta
+//     (resolverDefault).
+// Ya viene resuelto (2 puntos, nivel 3) → se deja igual, no se reprocesa.
+async function aplicarNivelDetalle(polizas, clientesPorId, proveedoresPorId) {
+  const cache = new Map();
+  const nombresSubcuenta = new Map();
+  for (const p of polizas) {
+    for (const m of p.movs) {
+      const puntos = (m.cuenta_codigo.match(/\./g) || []).length;
+      if (puntos >= 2) continue; // ya es nivel 3
+
+      if ((m.entidad_tipo === 'cliente' || m.entidad_tipo === 'proveedor') && m.entidad_rfc) {
+        let nombreCatalogo = null;
+        if (m.entidad_id) {
+          nombreCatalogo = m.entidad_tipo === 'cliente'
+            ? (clientesPorId.get(m.entidad_id) || {}).razon_social
+            : (proveedoresPorId.get(m.entidad_id) || {}).nombre_empresa;
+        }
+        m.cuenta_codigo = await resolverAuxiliar(pool, {
+          cuentaPadre: m.cuenta_codigo, entidadTipo: m.entidad_tipo, entidadId: m.entidad_id,
+          rfc: m.entidad_rfc, nombre: nombreCatalogo || m.entidad_nombre,
+        }, cache);
+        continue;
+      }
+
+      if (puntos !== 1) continue; // nivel 1 (mayor) suelto: no debería pasar, se deja (defensivo)
+      if (!nombresSubcuenta.has(m.cuenta_codigo)) {
+        const [[row]] = await pool.query(
+          'SELECT nombre FROM sat_cuentas_agrupador WHERE codigo=?', [m.cuenta_codigo]);
+        nombresSubcuenta.set(m.cuenta_codigo, row ? row.nombre : m.cuenta_codigo);
+      }
+      m.cuenta_codigo = await resolverDefault(pool, m.cuenta_codigo, nombresSubcuenta.get(m.cuenta_codigo), cache);
+    }
+  }
 }
 
 // Desglosa la retención del encabezado en ISR / IVA (con detalle a nivel concepto,
@@ -97,7 +149,8 @@ function polizaVenta(c, banco, cli) {
       cfdi_uuid: c.uuid, referencia: ref,
       concepto: `Venta ${c.nombre_receptor || c.rfc_receptor || ''}`.trim() },
     [
-      mov(ctaCobro, total, 0, 'Cobro/cartera', pue ? 'banco' : 'cliente', pue ? null : (cli && cli.id)),
+      mov(ctaCobro, total, 0, 'Cobro/cartera', pue ? 'banco' : 'cliente', pue ? null : (cli && cli.id),
+        pue ? null : c.rfc_receptor, pue ? null : c.nombre_receptor),
       mov(CTA.ISR_A_FAVOR, ret.isr, 0, 'ISR retenido por clientes'),
       mov(CTA.IVA_A_FAVOR, ret.iva, 0, 'IVA retenido por clientes'),
       mov(CTA.RET_GENERICA, ret.otras, 0, 'Otras retenciones de clientes (sin desglosar)'),
@@ -122,59 +175,70 @@ function polizaNotaCreditoVenta(c, banco, cli) {
     [
       mov(CTA.INGRESOS, ingreso, 0, 'Devolución/descuento s/ventas'),
       mov(ctaIva, iva, 0, 'IVA trasladado (cancelación)'),
-      mov(ctaCobro, 0, total, 'Cartera/banco', pue ? 'banco' : 'cliente', pue ? null : (cli && cli.id)),
+      mov(ctaCobro, 0, total, 'Cartera/banco', pue ? 'banco' : 'cliente', pue ? null : (cli && cli.id),
+        pue ? null : c.rfc_receptor, pue ? null : c.nombre_receptor),
       mov(CTA.ISR_A_FAVOR, 0, ret.isr, 'ISR retenido (cancelación)'),
       mov(CTA.IVA_A_FAVOR, 0, ret.iva, 'IVA retenido (cancelación)'),
       mov(CTA.RET_GENERICA, 0, ret.otras, 'Otras retenciones (cancelación)'),
     ]);
 }
 
-function polizaCompra(c, banco, prov) {
+function polizaCompra(c, banco, prov, bancosRfc) {
   const tc = Number(c.tipo_cambio) || 1;
   const base  = r2((Number(c.subtotal) - Number(c.descuento)) * tc);
   const iva   = r2(Number(c.total_impuestos_trasladados || 0) * tc);
   const ret   = desgloseRetencion(c, tc);
   const total = r2(Number(c.total) * tc);
   const pue   = (c.metodo_pago || '').toUpperCase() === 'PUE';
-  const destino = cuentaPorUsoCfdi(c.uso_cfdi, prov && prov.cuenta_gasto_codigo);
+  const destino = cuentaCompra(c.uso_cfdi, prov && prov.cuenta_gasto_codigo, c.conceptos, c.rfc_emisor, bancosRfc);
   const ctaPago = pue ? banco : (prov && prov.cuenta_pasivo_codigo) || CTA.PROVEEDORES;
   const ctaIva  = pue ? CTA.IVA_ACRED_PAGADO : CTA.IVA_ACRED_PEND;
-  const etq = destino.tipo === 'mercancia' ? 'Compra de mercancía' : 'Gasto';
+  const etq = destino.tipo === 'mercancia' ? 'Compra de mercancía'
+    : destino.tipo === 'financiero' ? 'Comisión bancaria/financiera' : 'Gasto';
+  // Comisión bancaria: el cargo también lleva la entidad (el banco emisor) para
+  // que aterrice en SU auxiliar bajo 701.10 (ej. 701.10.04 BBVA), no en el
+  // genérico 701.10.00 — así se distingue de qué banco es cada comisión.
+  const esFinanciero = destino.tipo === 'financiero';
   const ref = (c.serie || '') + (c.folio || '');
   return armar(
     { tipo: pue ? 'egreso' : 'diario', fecha: c.fecha, origen: 'cfdi', cfdi_id: c.id,
       cfdi_uuid: c.uuid, referencia: ref,
       concepto: `${etq} ${c.nombre_emisor || c.rfc_emisor || ''}`.trim() },
     [
-      mov(destino.cuenta, base, 0, etq),
+      mov(destino.cuenta, base, 0, etq, esFinanciero ? 'proveedor' : null, esFinanciero ? (prov && prov.id) : null,
+        esFinanciero ? c.rfc_emisor : null, esFinanciero ? c.nombre_emisor : null),
       mov(ctaIva, iva, 0, 'IVA acreditable'),
-      mov(ctaPago, 0, total, 'Pago/cartera', pue ? 'banco' : 'proveedor', pue ? null : (prov && prov.id)),
+      mov(ctaPago, 0, total, 'Pago/cartera', pue ? 'banco' : 'proveedor', pue ? null : (prov && prov.id),
+        pue ? null : c.rfc_emisor, pue ? null : c.nombre_emisor),
       mov(CTA.RET_ISR_SERV, 0, ret.isr, 'ISR retenido a terceros'),
       mov(CTA.RET_IVA, 0, ret.iva, 'IVA retenido a terceros'),
       mov(CTA.RET_GENERICA, 0, ret.otras, 'Otras retenciones a terceros (sin desglosar)'),
     ]);
 }
 
-function polizaNotaCreditoCompra(c, banco, prov) {
+function polizaNotaCreditoCompra(c, banco, prov, bancosRfc) {
   const tc = Number(c.tipo_cambio) || 1;
   const base  = r2((Number(c.subtotal) - Number(c.descuento)) * tc);
   const iva   = r2(Number(c.total_impuestos_trasladados || 0) * tc);
   const ret   = desgloseRetencion(c, tc);
   const total = r2(Number(c.total) * tc);
   const pue   = (c.metodo_pago || '').toUpperCase() === 'PUE';
-  const destino = cuentaPorUsoCfdi(c.uso_cfdi, prov && prov.cuenta_gasto_codigo);
+  const destino = cuentaCompra(c.uso_cfdi, prov && prov.cuenta_gasto_codigo, c.conceptos, c.rfc_emisor, bancosRfc);
   const ctaPago = pue ? banco : (prov && prov.cuenta_pasivo_codigo) || CTA.PROVEEDORES;
   const ctaIva  = pue ? CTA.IVA_ACRED_PAGADO : CTA.IVA_ACRED_PEND;
+  const esFinanciero = destino.tipo === 'financiero';
   const ref = (c.serie || '') + (c.folio || '');
   return armar(
     { tipo: 'diario', fecha: c.fecha, origen: 'cfdi', cfdi_id: c.id, cfdi_uuid: c.uuid,
       referencia: ref, concepto: `Nota de crédito s/compra ${c.nombre_emisor || ''}`.trim() },
     [
-      mov(ctaPago, total, 0, 'Cartera/banco', pue ? 'banco' : 'proveedor', pue ? null : (prov && prov.id)),
+      mov(ctaPago, total, 0, 'Cartera/banco', pue ? 'banco' : 'proveedor', pue ? null : (prov && prov.id),
+        pue ? null : c.rfc_emisor, pue ? null : c.nombre_emisor),
       mov(CTA.RET_ISR_SERV, ret.isr, 0, 'ISR retenido (cancelación)'),
       mov(CTA.RET_IVA, ret.iva, 0, 'IVA retenido (cancelación)'),
       mov(CTA.RET_GENERICA, ret.otras, 0, 'Otras retenciones (cancelación)'),
-      mov(destino.cuenta, 0, base, 'Devolución/descuento s/compras'),
+      mov(destino.cuenta, 0, base, 'Devolución/descuento s/compras', esFinanciero ? 'proveedor' : null,
+        esFinanciero ? (prov && prov.id) : null, esFinanciero ? c.rfc_emisor : null, esFinanciero ? c.nombre_emisor : null),
       mov(ctaIva, 0, iva, 'IVA acreditable (cancelación)'),
     ]);
 }
@@ -256,11 +320,13 @@ async function polizaPago(c, banco, clientes, proveedores) {
 
   const movs = esCobro ? [
     mov(banco, aplicado, 0, 'Cobro recibido', 'banco'),
-    mov(ctaCartera, 0, aplicado, 'Aplicación a cartera de clientes', 'cliente', entidad && entidad.id),
+    mov(ctaCartera, 0, aplicado, 'Aplicación a cartera de clientes', 'cliente', entidad && entidad.id,
+      rfcContraparte, nombreContraparte),
     mov(ctaIvaPend, ivaAplicado, 0, 'IVA trasladado: reclasifica pendiente→cobrado'),
     mov(ctaIvaReal, 0, ivaAplicado, 'IVA trasladado cobrado'),
   ] : [
-    mov(ctaCartera, aplicado, 0, 'Aplicación a cartera de proveedores', 'proveedor', entidad && entidad.id),
+    mov(ctaCartera, aplicado, 0, 'Aplicación a cartera de proveedores', 'proveedor', entidad && entidad.id,
+      rfcContraparte, nombreContraparte),
     mov(ctaIvaReal, ivaAplicado, 0, 'IVA acreditable pagado'),
     mov(ctaIvaPend, 0, ivaAplicado, 'IVA acreditable: reclasifica pendiente→pagado'),
     mov(banco, 0, aplicado, 'Pago realizado', 'banco'),
@@ -278,7 +344,8 @@ async function generarPeriodo({ anio, mes }, usuarioId = null) {
   if (!anio || !mes) { const e = new Error('anio y mes son obligatorios'); e.status = 400; throw e; }
   const { desde, hasta } = boundsMes(anio, mes);
   const banco = await cuentaBanco();
-  const { clientes, proveedores } = await cargarMapas();
+  const { clientes, proveedores, clientesPorId, proveedoresPorId } = await cargarMapas();
+  const bancosRfc = await bancosComisionRfc();
 
   const [cfdis] = await pool.query(
     `SELECT c.id, c.uuid, c.tipo, c.tipo_comprobante, c.serie, c.folio, c.fecha,
@@ -288,7 +355,9 @@ async function generarPeriodo({ anio, mes }, usuarioId = null) {
             (SELECT COALESCE(SUM(importe_isr),0) FROM cfdi_repositorio_conceptos
               WHERE comprobante_id = c.id) AS ret_isr,
             (SELECT COALESCE(SUM(importe_iva_ret),0) FROM cfdi_repositorio_conceptos
-              WHERE comprobante_id = c.id) AS ret_iva
+              WHERE comprobante_id = c.id) AS ret_iva,
+            (SELECT GROUP_CONCAT(descripcion SEPARATOR ' | ') FROM cfdi_repositorio_conceptos
+              WHERE comprobante_id = c.id) AS conceptos
        FROM cfdi_repositorio c
       WHERE c.estatus='vigente' AND c.fecha >= ? AND c.fecha <= ?
         AND c.tipo_comprobante IN ('I','E','N','P')
@@ -307,8 +376,8 @@ async function generarPeriodo({ anio, mes }, usuarioId = null) {
       else if (c.tipo_comprobante === 'E') p = polizaNotaCreditoVenta(c, banco, clientes.get(rfcCli));
       else if (c.tipo_comprobante === 'N') p = polizaNomina(c, banco);
     } else { // recibido
-      if (c.tipo_comprobante === 'I') p = polizaCompra(c, banco, proveedores.get(rfcProv));
-      else if (c.tipo_comprobante === 'E') p = polizaNotaCreditoCompra(c, banco, proveedores.get(rfcProv));
+      if (c.tipo_comprobante === 'I') p = polizaCompra(c, banco, proveedores.get(rfcProv), bancosRfc);
+      else if (c.tipo_comprobante === 'E') p = polizaNotaCreditoCompra(c, banco, proveedores.get(rfcProv), bancosRfc);
       // nómina recibida no aplica
     }
     if (p) polizas.push(p);
@@ -368,6 +437,9 @@ async function generarPeriodo({ anio, mes }, usuarioId = null) {
       ]);
   }
   if (ajustePoliza) polizas.push(ajustePoliza);
+
+  // Nivel 3: ningún movimiento queda arriba de nivel 3 (ver aplicarNivelDetalle).
+  await aplicarNivelDetalle(polizas, clientesPorId, proveedoresPorId);
 
   // ── Persistencia transaccional: borra autogeneradas y reinserta ─────────────
   const conn = await pool.getConnection();

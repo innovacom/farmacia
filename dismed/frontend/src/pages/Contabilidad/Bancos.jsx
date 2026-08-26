@@ -9,7 +9,7 @@ import Modal from '../../components/ui/Modal';
 import CuentaContableSelect from '../../components/shared/CuentaContableSelect';
 
 const FORM_VACIO = {
-  clave_sat: '', nombre_corto: '', razon_social: '', descripcion: '',
+  clave_sat: '', nombre_corto: '', razon_social: '', rfc: '', descripcion: '',
   cuenta_contable_codigo: '', activo: 1,
 };
 
@@ -44,7 +44,7 @@ export default function Bancos() {
     setEditando(b);
     setForm({
       clave_sat: b.clave_sat || '', nombre_corto: b.nombre_corto || '',
-      razon_social: b.razon_social || '', descripcion: b.descripcion || '',
+      razon_social: b.razon_social || '', rfc: b.rfc || '', descripcion: b.descripcion || '',
       cuenta_contable_codigo: b.cuenta_contable_codigo || '', activo: b.activo ?? 1,
     });
     setShowModal(true);
@@ -58,6 +58,7 @@ export default function Bancos() {
     guardarMut.mutate({
       ...form,
       clave_sat: form.clave_sat || null,
+      rfc: form.rfc ? form.rfc.toUpperCase().trim() : null,
       cuenta_contable_codigo: form.cuenta_contable_codigo || null,
     });
   }
@@ -70,7 +71,9 @@ export default function Bancos() {
             <Landmark size={22} className="text-brand-500" /> Bancos
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Catálogo de bancos del SAT. Asigna una descripción y la cuenta contable a los que utilices.
+            Catálogo de bancos de México (Banxico/SAT). El RFC es lo que usa el motor de
+            pólizas para clasificar automáticamente cualquier CFDI de ese banco como
+            comisión bancaria (701.10) en vez de gasto genérico.
           </p>
         </div>
         <button onClick={abrirNuevo} className="btn-primary"><Plus size={16} /> Nuevo banco</button>
@@ -93,6 +96,7 @@ export default function Bancos() {
               <tr>
                 <th className="w-20">Clave</th>
                 <th>Banco</th>
+                <th className="w-28">RFC</th>
                 <th>Descripción</th>
                 <th>Cuenta contable</th>
                 <th className="text-center w-20">Estado</th>
@@ -107,6 +111,7 @@ export default function Bancos() {
                     <p className="font-medium text-gray-800">{b.nombre_corto}</p>
                     {b.razon_social && <p className="text-xs text-gray-400">{b.razon_social}</p>}
                   </td>
+                  <td className="font-mono text-xs text-gray-500">{b.rfc || <span className="text-gray-300">—</span>}</td>
                   <td className="text-gray-600">{b.descripcion || <span className="text-gray-300">—</span>}</td>
                   <td>
                     {b.cuenta_contable_codigo ? (
@@ -125,7 +130,7 @@ export default function Bancos() {
                 </tr>
               ))}
               {pageItems.length === 0 && (
-                <tr><td colSpan={6} className="text-center text-gray-400 py-8">Sin bancos</td></tr>
+                <tr><td colSpan={7} className="text-center text-gray-400 py-8">Sin bancos</td></tr>
               )}
             </tbody>
           </table>
@@ -152,6 +157,11 @@ export default function Bancos() {
             <div>
               <label className="label">Razón social</label>
               <input className="input" value={form.razon_social} onChange={(e) => set('razon_social', e.target.value)} />
+            </div>
+            <div>
+              <label className="label">RFC</label>
+              <input className="input font-mono" maxLength={13} placeholder="Identidad real del banco — la usa el motor de pólizas"
+                value={form.rfc} onChange={(e) => set('rfc', e.target.value.toUpperCase())} />
             </div>
             <div>
               <label className="label">Descripción (uso interno)</label>

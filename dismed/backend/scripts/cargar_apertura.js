@@ -14,6 +14,7 @@
 require('dotenv').config();
 const path = require('path');
 const { pool } = require('../src/config/db');
+const { resolverDefault } = require('../src/modules/contabilidad/cuentas.auxiliares');
 
 (async () => {
   const data = require(path.resolve(__dirname, 'saldos_iniciales_2026.json'));
@@ -37,18 +38,35 @@ const { pool } = require('../src/config/db');
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
+    // Preserva el estado verificada/provisional de la apertura previa (si la
+    // hay) — recargar NO debe "reverificar" en silencio una apertura marcada
+    // provisional (default de la columna es 1/verificada, ver migrate_v63).
+    const [[previa]] = await conn.query(
+      "SELECT verificada FROM polizas WHERE origen='apertura' AND periodo_anio=? LIMIT 1", [meta.ejercicio]);
+    const verificada = previa ? previa.verificada : 0;
+
     const [del] = await conn.query(
       "DELETE FROM polizas WHERE origen='apertura' AND periodo_anio=?", [meta.ejercicio]);
 
     const [res] = await conn.query(
       `INSERT INTO polizas
          (tipo, fecha, periodo_anio, periodo_mes, concepto, origen, referencia,
-          total_cargos, total_abonos)
-       VALUES ('diario', ?, ?, ?, ?, 'apertura', 'APERTURA', ?, ?)`,
+          total_cargos, total_abonos, verificada)
+       VALUES ('diario', ?, ?, ?, ?, 'apertura', 'APERTURA', ?, ?, ?)`,
       [meta.fecha_corte, meta.ejercicio, mes,
        `Saldos iniciales / apertura ${meta.ejercicio} (corte ${meta.fecha_corte})`,
-       meta.total_cargos, meta.total_abonos]);
+       meta.total_cargos, meta.total_abonos, verificada]);
     const pid = res.insertId;
+
+    // Nivel 3: la apertura viene a nivel agrupador (2 niveles); ningún
+    // movimiento debe quedar arriba de nivel 3 (misma regla que el motor de
+    // pólizas para CFDI, ver polizas.generator.js/aplicarNivelDetalle). Como
+    // la apertura no trae entidad por cliente/proveedor, siempre resuelve al
+    // auxiliar genérico ".00" de su subcuenta.
+    const cacheAux = new Map();
+    for (const m of movimientos) {
+      m.cuenta_codigo = await resolverDefault(conn, m.cuenta_codigo, m.nombre, cacheAux);
+    }
 
     const values = movimientos.map((m) =>
       [pid, m.cuenta_codigo, m.cargo, m.abono, m.nombre || null]);
