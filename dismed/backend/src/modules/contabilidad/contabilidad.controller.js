@@ -12,6 +12,7 @@
  */
 const svc = require('./contabilidad.reportes.service');
 const aux = require('./cuentas.auxiliares');
+const invPer = require('./inventario.periodo');
 const { pool } = require('../../config/db');
 
 // Toma los filtros comunes desde el query string.
@@ -154,7 +155,44 @@ async function estadoCuenta(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// ── Método de costeo del ejercicio + inventario final por periodo ───────────
+// GET /contabilidad/ejercicio?anio=2026 → { anio, metodo_inventario }
+async function ejercicioGet(req, res, next) {
+  try {
+    const anio = parseInt(req.query.anio, 10);
+    if (!anio) return res.status(400).json({ error: 'anio es obligatorio' });
+    res.json({ anio, metodo_inventario: await invPer.metodoEjercicio(anio) });
+  } catch (err) { next(err); }
+}
+
+// PUT /contabilidad/ejercicio  { anio, metodo_inventario }  (admin)
+async function ejercicioPut(req, res, next) {
+  try {
+    res.json(await invPer.guardarMetodo(req.body.anio, req.body.metodo_inventario, req.user && req.user.id));
+  } catch (err) { next(err); }
+}
+
+// GET /contabilidad/inventario-periodo?anio=2026&mes=8 → valor guardado o sugerencia del kardex
+async function inventarioPeriodoGet(req, res, next) {
+  try {
+    const anio = parseInt(req.query.anio, 10);
+    const mes = parseInt(req.query.mes, 10);
+    if (!anio || !(mes >= 1 && mes <= 13)) {
+      return res.status(400).json({ error: 'anio y mes (1..13) son obligatorios' });
+    }
+    res.json(await invPer.obtenerInventarioFinal(anio, mes));
+  } catch (err) { next(err); }
+}
+
+// PUT /contabilidad/inventario-periodo  { anio, mes, inventario_final, notas }  (admin)
+async function inventarioPeriodoPut(req, res, next) {
+  try {
+    res.json(await invPer.guardarInventarioFinal(req.body || {}, req.user && req.user.id));
+  } catch (err) { next(err); }
+}
+
 module.exports = {
   estadoResultados, balanceGeneral, balanza, catalogoCuentas, cfdiPorComprobante, cfdiResumenGeneral,
   auxiliaresListar, auxiliaresCrear, auxiliaresActualizar, estadoCuenta,
+  ejercicioGet, ejercicioPut, inventarioPeriodoGet, inventarioPeriodoPut,
 };

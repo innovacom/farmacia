@@ -16,10 +16,11 @@
  * así que el Balance cuadra exacto (Activo = Pasivo + Capital) sin caja de ajuste.
  */
 const { pool } = require('../../config/db');
+const invPer = require('./inventario.periodo');
 
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 const MESES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio',
-  'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre', 'Cierre'];
 
 const RUBROS_RESULTADO = ['Ingresos', 'Costos', 'Gastos', 'Resultado integral de financiamiento'];
 
@@ -37,11 +38,13 @@ function resolverPeriodo(f) {
   if (!anio) httpError('anio es obligatorio');
   const modo = f.modo === 'mensual' ? 'mensual' : 'acumulado';
   const mesRaw = f.mes ? parseInt(f.mes, 10) : null;
-  if (mesRaw && (mesRaw < 1 || mesRaw > 12)) httpError('mes inválido');
+  // Mes 13 = periodo de cierre del ejercicio (asiento de ajuste de inventario, método
+  // periódico). No es un mes real; queda incluido solo en la vista de ejercicio completo.
+  if (mesRaw && (mesRaw < 1 || mesRaw > 13)) httpError('mes inválido');
 
   let mesDesde, mesHasta, etiqueta, modoEfectivo = modo;
   if (!mesRaw) {
-    mesDesde = 1; mesHasta = 12; modoEfectivo = 'acumulado';
+    mesDesde = 1; mesHasta = 13; modoEfectivo = 'acumulado';
     etiqueta = `Ejercicio ${anio}`;
   } else if (modo === 'mensual') {
     mesDesde = mesRaw; mesHasta = mesRaw;
@@ -234,6 +237,14 @@ async function estadoResultados(filtros) {
   const gastos = grupo('Gastos', 1);
   const financ = grupo('Resultado integral de financiamiento', 1);
 
+  // Desglose "Inventario inicial + Compras − Devoluciones − Inventario final = Costo" —
+  // solo cuando el ejercicio costea por método periódico/compras (en perpetuo el
+  // "inventario final" sería un valor tapón, no un dato real, y confundiría).
+  const metodoInv = await invPer.metodoEjercicio(periodo.anio);
+  const costosDesglose = metodoInv === 'perpetuo'
+    ? null
+    : { metodo: metodoInv, ...(await invPer.desgloseCostoVentas(periodo)) };
+
   const utilidadBruta = r2(ingresos.subtotal - costos.subtotal);
   const utilidad = r2(utilidadBruta - gastos.subtotal - financ.subtotal);
   const margen = ingresos.subtotal ? r2((utilidad / ingresos.subtotal) * 100) : 0;
@@ -241,7 +252,8 @@ async function estadoResultados(filtros) {
   return {
     ...meta(periodo, 'Estado de Resultados', { soloConfirmadas, apertura }),
     reporte: 'estado_resultados',
-    grupos: { ingresos, costos, gastos, financieros: financ },
+    metodo_inventario: metodoInv,
+    grupos: { ingresos, costos, gastos, financieros: financ, costos_desglose: costosDesglose },
     resumen: {
       ingresos: ingresos.subtotal, costos: costos.subtotal, utilidad_bruta: utilidadBruta,
       gastos: gastos.subtotal, financieros: financ.subtotal,

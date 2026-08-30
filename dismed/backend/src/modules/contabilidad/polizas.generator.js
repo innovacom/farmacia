@@ -27,11 +27,17 @@
 const { pool } = require('../../config/db');
 const { CTA, cuentaCompra, cuentaBanco, bancosComisionRfc } = require('./polizas.cuentas');
 const { resolverAuxiliar, resolverDefault } = require('./cuentas.auxiliares');
+const {
+  metodoEjercicio, saldoInventarioPrevio, obtenerInventarioFinal,
+} = require('./inventario.periodo');
 
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
 function boundsMes(anio, mes) {
   const a = Number(anio), m = Number(mes);
+  // Mes 13 = periodo de cierre del ejercicio (método periódico). No es un mes real:
+  // no se procesa ningún CFDI y la póliza de ajuste se fecha al 31 de diciembre.
+  if (m === 13) return { desde: `${a}-12-31`, hasta: `${a}-12-31` };
   const desde = `${a}-${String(m).padStart(2, '0')}-01`;
   const ultimo = new Date(a, m, 0).getDate();
   const hasta = `${a}-${String(m).padStart(2, '0')}-${String(ultimo).padStart(2, '0')}`;
@@ -347,7 +353,13 @@ async function generarPeriodo({ anio, mes }, usuarioId = null) {
   const { clientes, proveedores, clientesPorId, proveedoresPorId } = await cargarMapas();
   const bancosRfc = await bancosComisionRfc();
 
-  const [cfdis] = await pool.query(
+  const esCierre = Number(mes) === 13;
+
+  // Mes 13 (cierre del ejercicio): no cae ningún CFDI en ese periodo; solo se arma el
+  // asiento de ajuste de inventario más abajo.
+  let cfdis = [];
+  if (!esCierre) {
+    [cfdis] = await pool.query(
     `SELECT c.id, c.uuid, c.tipo, c.tipo_comprobante, c.serie, c.folio, c.fecha,
             c.rfc_emisor, c.nombre_emisor, c.rfc_receptor, c.nombre_receptor, c.uso_cfdi,
             c.metodo_pago, c.forma_pago, c.tipo_cambio, c.subtotal, c.descuento, c.total,
@@ -362,7 +374,8 @@ async function generarPeriodo({ anio, mes }, usuarioId = null) {
       WHERE c.estatus='vigente' AND c.fecha >= ? AND c.fecha <= ?
         AND c.tipo_comprobante IN ('I','E','N','P')
       ORDER BY c.fecha, c.id`,
-    [desde + ' 00:00:00', hasta + ' 23:59:59']);
+      [desde + ' 00:00:00', hasta + ' 23:59:59']);
+  }
 
   const polizas = [];
   for (const c of cfdis) {
@@ -383,60 +396,124 @@ async function generarPeriodo({ anio, mes }, usuarioId = null) {
     if (p) polizas.push(p);
   }
 
-  // Costo de venta del periodo (perpetuo) desde salidas de inventario.
-  // registrarSalida (inventario/movimientos.service.js) guarda `cantidad` en NEGATIVO
-  // para tipo='salida' (es un decremento de existencia); se usa ABS() para que el
-  // costo de venta salga positivo. BUG encontrado en la revisión 2026-08-24: sin el
-  // ABS(), `costo` siempre salía negativo y `if (costo > 0)` nunca se cumplía — el
-  // costo de venta nunca se generó en producción desde que hay salidas reales.
-  const [[cv]] = await pool.query(
-    `SELECT COALESCE(SUM(ABS(cantidad) * costo_unitario),0) costo, COUNT(*) n
-       FROM inventario_movimientos
-      WHERE tipo='salida' AND created_at >= ? AND created_at <= ?`,
-    [desde + ' 00:00:00', hasta + ' 23:59:59']);
-  const costo = r2(cv.costo);
-  let costoPoliza = null;
-  if (costo > 0) {
-    costoPoliza = armar(
-      { tipo: 'diario', fecha: hasta, origen: 'inventario', cfdi_id: null, cfdi_uuid: null,
-        referencia: 'COSTO', concepto: `Costo de venta del periodo (${cv.n} salidas)` },
-      [
-        mov(CTA.COSTO_VENTA, costo, 0, 'Costo de venta'),
-        mov(CTA.INVENTARIO, 0, costo, 'Salida de inventario'),
-      ]);
-    if (costoPoliza) polizas.push(costoPoliza);
-  }
+  // ── Costo de ventas según el método del ejercicio (contabilidad_ejercicio) ──
+  //   perpetuo  → Σ salidas del kardex (comportamiento histórico)
+  //   periodico → saldo previo de 115 + movimiento del periodo a 115 − inventario final
+  //   compras   → costo = movimiento del periodo a 115 (caso IF ≡ II del periódico)
+  const metodo = await metodoEjercicio(anio);
+  const costeo = { metodo_inventario: metodo, costo_venta: 0 };
 
-  // Ajustes de inventario por conteo físico (mermas/sobrantes, tipo='ajuste') del
-  // periodo: no son venta, pero si no se reconocen aquí el saldo contable de
-  // Inventario (115.01) se desalinea silenciosamente del kardex real cada vez que
-  // alguien corrige una existencia. Ver Fase D del plan de corrección (auditoría de
-  // captura de inventario, revisión 2026-08-24).
-  const [[aj]] = await pool.query(
-    `SELECT COALESCE(SUM(cantidad * costo_unitario),0) neto, COUNT(*) n
-       FROM inventario_movimientos
-      WHERE tipo='ajuste' AND created_at >= ? AND created_at <= ?`,
-    [desde + ' 00:00:00', hasta + ' 23:59:59']);
-  const ajusteNeto = r2(aj.neto);
-  let ajustePoliza = null;
-  if (ajusteNeto < 0) {
-    ajustePoliza = armar(
-      { tipo: 'diario', fecha: hasta, origen: 'inventario', cfdi_id: null, cfdi_uuid: null,
-        referencia: 'MERMA', concepto: `Merma neta de inventario por ajustes físicos del periodo (${aj.n} ajustes)` },
-      [
-        mov(CTA.GASTOS, -ajusteNeto, 0, 'Merma de inventario (ajuste físico)'),
-        mov(CTA.INVENTARIO, 0, -ajusteNeto, 'Salida de inventario por merma'),
-      ]);
-  } else if (ajusteNeto > 0) {
-    ajustePoliza = armar(
-      { tipo: 'diario', fecha: hasta, origen: 'inventario', cfdi_id: null, cfdi_uuid: null,
-        referencia: 'SOBRANTE', concepto: `Sobrante neto de inventario por ajustes físicos del periodo (${aj.n} ajustes)` },
-      [
-        mov(CTA.INVENTARIO, ajusteNeto, 0, 'Entrada de inventario por sobrante'),
-        mov(CTA.OTROS_INGRESOS, 0, ajusteNeto, 'Sobrante de inventario (ajuste físico)'),
-      ]);
+  if (metodo === 'perpetuo') {
+    // registrarSalida (inventario/movimientos.service.js) guarda `cantidad` en NEGATIVO
+    // para tipo='salida'; el ABS() lo devuelve positivo. BUG del 2026-08-24: sin ABS()
+    // `costo` siempre salía negativo y `if (costo > 0)` nunca se cumplía.
+    const [[cv]] = await pool.query(
+      `SELECT COALESCE(SUM(ABS(cantidad) * costo_unitario),0) costo, COUNT(*) n
+         FROM inventario_movimientos
+        WHERE tipo='salida' AND created_at >= ? AND created_at <= ?`,
+      [desde + ' 00:00:00', hasta + ' 23:59:59']);
+    const costo = r2(cv.costo);
+    if (costo > 0) {
+      const cp = armar(
+        { tipo: 'diario', fecha: hasta, origen: 'inventario', cfdi_id: null, cfdi_uuid: null,
+          referencia: 'COSTO', concepto: `Costo de venta del periodo (${cv.n} salidas)` },
+        [
+          mov(CTA.COSTO_VENTA, costo, 0, 'Costo de venta'),
+          mov(CTA.INVENTARIO, 0, costo, 'Salida de inventario'),
+        ]);
+      if (cp) polizas.push(cp);
+    }
+
+    // Ajustes físicos (merma/sobrante). SOLO en perpetuo: en periódico la diferencia
+    // física ya queda absorbida en II + Compras − IF y postearla aparte la contaría dos veces.
+    const [[aj]] = await pool.query(
+      `SELECT COALESCE(SUM(cantidad * costo_unitario),0) neto, COUNT(*) n
+         FROM inventario_movimientos
+        WHERE tipo='ajuste' AND created_at >= ? AND created_at <= ?`,
+      [desde + ' 00:00:00', hasta + ' 23:59:59']);
+    const ajusteNeto = r2(aj.neto);
+    let ajustePoliza = null;
+    if (ajusteNeto < 0) {
+      ajustePoliza = armar(
+        { tipo: 'diario', fecha: hasta, origen: 'inventario', cfdi_id: null, cfdi_uuid: null,
+          referencia: 'MERMA', concepto: `Merma neta de inventario por ajustes físicos del periodo (${aj.n} ajustes)` },
+        [
+          mov(CTA.GASTOS, -ajusteNeto, 0, 'Merma de inventario (ajuste físico)'),
+          mov(CTA.INVENTARIO, 0, -ajusteNeto, 'Salida de inventario por merma'),
+        ]);
+    } else if (ajusteNeto > 0) {
+      ajustePoliza = armar(
+        { tipo: 'diario', fecha: hasta, origen: 'inventario', cfdi_id: null, cfdi_uuid: null,
+          referencia: 'SOBRANTE', concepto: `Sobrante neto de inventario por ajustes físicos del periodo (${aj.n} ajustes)` },
+        [
+          mov(CTA.INVENTARIO, ajusteNeto, 0, 'Entrada de inventario por sobrante'),
+          mov(CTA.OTROS_INGRESOS, 0, ajusteNeto, 'Sobrante de inventario (ajuste físico)'),
+        ]);
+    }
+    if (ajustePoliza) polizas.push(ajustePoliza);
+
+    costeo.costo_venta = costo;
+    costeo.salidas_inventario = cv.n;
+    costeo.ajuste_inventario_neto = ajusteNeto;
+    costeo.ajustes_inventario = aj.n;
+  } else {
+    // Movimiento del periodo a 115 = pólizas CFDI recién armadas EN MEMORIA (cuenta
+    // 115.01, antes de aplicarNivelDetalle) + pólizas manuales YA guardadas en este
+    // mismo periodo (el DELETE de la persistencia solo toca cfdi/inventario, así que
+    // esas sobreviven y su movimiento a 115 es real). La apertura no cuenta aquí: ya
+    // va en el saldo previo (saldoInventarioPrevio la trata como previa por su origen).
+    const mov115mem = polizas.reduce((s, p) => s + p.movs
+      .filter((m) => m && String(m.cuenta_codigo).startsWith('115.01'))
+      .reduce((ss, m) => ss + (m.cargo - m.abono), 0), 0);
+    const [[m115db]] = await pool.query(
+      `SELECT COALESCE(SUM(mv.cargo - mv.abono),0) s
+         FROM polizas_movimientos mv JOIN polizas p ON p.id = mv.poliza_id
+        WHERE (mv.cuenta_codigo = '115.01' OR mv.cuenta_codigo LIKE '115.01.%')
+          AND p.periodo_anio = ? AND p.periodo_mes = ?
+          AND p.origen NOT IN ('cfdi','inventario','apertura')`,
+      [anio, mes]);
+    const mov115 = r2(mov115mem + Number(m115db.s));
+    const saldoPrevio = await saldoInventarioPrevio(anio, mes);
+
+    let invFinal, invFinalOrigen, invFinalSugerido = false;
+    if (metodo === 'compras') {
+      invFinal = saldoPrevio;            // IF ≡ II ⟹ costo = movimiento del periodo a 115
+      invFinalOrigen = 'compras';
+    } else {
+      const info = await obtenerInventarioFinal(anio, mes);
+      invFinal = info.inventario_final;
+      invFinalOrigen = info.origen;
+      invFinalSugerido = !!info.sugerido;
+    }
+
+    const costo = r2(saldoPrevio + mov115 - invFinal);
+    if (Math.abs(costo) >= 0.005) {
+      const ref = esCierre ? 'CIERRE' : 'COSTO';
+      const concepto = esCierre
+        ? 'Ajuste de cierre del ejercicio: costo de ventas contra inventario físico'
+        : `Costo de ventas del periodo (método ${metodo})`;
+      const movs = costo >= 0
+        ? [
+            mov(CTA.COSTO_VENTA, costo, 0, 'Costo de ventas'),
+            mov(CTA.INVENTARIO, 0, costo, 'Baja de inventario a costo de ventas'),
+          ]
+        : [
+            mov(CTA.INVENTARIO, -costo, 0, 'Alta de inventario (inventario final > II + compras)'),
+            mov(CTA.COSTO_VENTA, 0, -costo, 'Costo de ventas (ajuste en negativo)'),
+          ];
+      const cp = armar(
+        { tipo: 'diario', fecha: hasta, origen: 'inventario', cfdi_id: null, cfdi_uuid: null,
+          referencia: ref, concepto }, movs);
+      if (cp) polizas.push(cp);
+    }
+
+    costeo.costo_venta = costo;
+    costeo.saldo_inventario_previo = saldoPrevio;
+    costeo.compras_periodo = mov115;
+    costeo.inventario_final = invFinal;
+    costeo.inventario_final_origen = invFinalOrigen;
+    costeo.inventario_final_sugerido = invFinalSugerido;
   }
-  if (ajustePoliza) polizas.push(ajustePoliza);
 
   // Nivel 3: ningún movimiento queda arriba de nivel 3 (ver aplicarNivelDetalle).
   await aplicarNivelDetalle(polizas, clientesPorId, proveedoresPorId);
@@ -482,10 +559,12 @@ async function generarPeriodo({ anio, mes }, usuarioId = null) {
     banco_cuenta: banco,
     generadas: polizas.length,
     cfdis_procesados: cfdis.length,
-    costo_venta_inventario: costo,
-    salidas_inventario: cv.n,
-    ajuste_inventario_neto: ajusteNeto,
-    ajustes_inventario: aj.n,
+    // Claves legacy que la UI ya leía — válidas tal cual en perpetuo, 0 en los demás métodos.
+    costo_venta_inventario: r2(costeo.costo_venta),
+    salidas_inventario: costeo.salidas_inventario || 0,
+    ajuste_inventario_neto: costeo.ajuste_inventario_neto || 0,
+    ajustes_inventario: costeo.ajustes_inventario || 0,
+    ...costeo,
     total_cargos: cargos,
     total_abonos: abonos,
     cuadra: Math.abs(cargos - abonos) < 0.05,

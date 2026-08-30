@@ -16,6 +16,7 @@ export default function EstadoResultados() {
               <tbody>
                 <Grupo titulo="Ingresos" grupo={g.ingresos} />
                 <Grupo titulo="Costo de ventas" grupo={g.costos} signo="−" />
+                {g.costos_desglose && <DesgloseCosto d={g.costos_desglose} />}
                 <Total label="Utilidad bruta" valor={r.utilidad_bruta} />
                 <Grupo titulo="Gastos" grupo={g.gastos} signo="−" />
                 <Grupo titulo="Resultado integral de financiamiento" grupo={g.financieros} signo="−" />
@@ -52,6 +53,36 @@ function Grupo({ titulo, grupo, signo }) {
       {items.length === 0 && (
         <tr><td colSpan={3} className="text-xs text-gray-300 pl-4">— sin movimientos —</td></tr>
       )}
+    </>
+  );
+}
+
+// Desglose del costo de ventas cuando el ejercicio costea por método periódico / compras:
+// Inventario inicial + Compras − Devoluciones − Inventario final = Costo de ventas.
+function DesgloseCosto({ d }) {
+  const fila = (label, valor, signo) => (
+    <tr>
+      <td className="w-16" />
+      <td className="text-gray-500 pl-4 text-xs">{signo ? `(${signo}) ` : ''}{label}</td>
+      <td className="text-right tabular-nums text-gray-500 text-xs">{fmt(valor)}</td>
+    </tr>
+  );
+  const metodoTxt = d.metodo === 'compras'
+    ? 'método compras (inventario final ≡ inicial)'
+    : 'método periódico';
+  return (
+    <>
+      {fila('Inventario inicial', d.inventario_inicial)}
+      {fila('Compras de mercancía del periodo', d.compras, '+')}
+      {Math.abs(d.devoluciones) > 0.005 && fila('Devoluciones sobre compras', d.devoluciones, '−')}
+      {fila('Inventario final', d.inventario_final, '−')}
+      <tr>
+        <td className="w-16" />
+        <td className="text-gray-600 pl-4 text-xs font-medium">
+          (=) Costo de ventas <span className="text-gray-300">· {metodoTxt}</span>
+        </td>
+        <td className="text-right tabular-nums text-gray-600 text-xs font-medium">{fmt(d.costo)}</td>
+      </tr>
     </>
   );
 }

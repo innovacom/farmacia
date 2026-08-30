@@ -1,17 +1,24 @@
-import { useState, Fragment } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
   BookText, RefreshCw, Loader2, ChevronRight, ChevronDown, CheckCircle2, AlertTriangle,
-  Plus, Trash2, Pencil, X, ShieldCheck, Undo2, Search,
+  Plus, Trash2, Pencil, X, ShieldCheck, Undo2, Search, Package,
 } from 'lucide-react';
 import api from '../../services/api';
 import CuentaContableSelect from '../../components/shared/CuentaContableSelect';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { usePermisos } from '../../hooks/usePermisos';
 import { abrirPdfCfdi } from '../../utils/cfdiPdf';
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre', 'Cierre (13)'];
+
+const METODOS_INV = [
+  ['perpetuo', 'Perpetuo — costo por salidas del kardex'],
+  ['periodico', 'Periódico — inventario inicial + compras − inventario final'],
+  ['compras', 'Compras = costo — compras netas de mercancía del periodo'],
+];
 const money = (n) =>
   Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const TIPO_BADGE = { ingreso: 'badge-green', egreso: 'badge-red', diario: 'badge-blue' };
@@ -28,6 +35,7 @@ function Cuadre({ cuadra, cargos, abonos }) {
 
 export default function Polizas() {
   const qc = useQueryClient();
+  const { isAdmin } = usePermisos();
   const hoy = new Date();
   const [anioTxt, setAnioTxt] = useState(String(hoy.getFullYear())); // texto crudo, captura libre
   const [mes, setMes] = useState(hoy.getMonth() + 1);
@@ -41,6 +49,7 @@ export default function Polizas() {
   const invalidar = () => {
     qc.invalidateQueries({ queryKey: ['polizas'] });
     qc.invalidateQueries({ queryKey: ['polizas-balanza'] });
+    qc.invalidateQueries({ queryKey: ['contab-invper'] });
   };
 
   const polizasQ = useQuery({
@@ -57,7 +66,11 @@ export default function Polizas() {
 
   const generarMut = useMutation({
     mutationFn: () => api.post('/contabilidad/polizas/generar', { anio, mes }).then((r) => r.data),
-    onSuccess: (d) => { toast.success(`${d.generadas} pólizas generadas · ${d.cfdis_procesados} CFDI`); invalidar(); },
+    onSuccess: (d) => {
+      const met = d.metodo_inventario ? ` · costeo ${d.metodo_inventario}` : '';
+      toast.success(`${d.generadas} pólizas generadas · ${d.cfdis_procesados} CFDI${met}`);
+      invalidar();
+    },
     onError: (e) => toast.error(e.response?.data?.error || 'Error al generar'),
   });
   const confirmarMut = useMutation({
@@ -155,6 +168,8 @@ export default function Polizas() {
           </div>
         )}
       </div>
+
+      <CosteoInventario anio={anio} mes={mes} isAdmin={isAdmin} onSaved={invalidar} />
 
       {/* Vista: Pólizas */}
       {vista === 'polizas' && (
@@ -295,6 +310,106 @@ export default function Polizas() {
           onClose={() => setEditor(null)}
           onSaved={() => { setEditor(null); invalidar(); }}
         />
+      )}
+    </div>
+  );
+}
+
+// ── Costeo de inventario del ejercicio (método + inventario final por periodo) ──
+function CosteoInventario({ anio, mes, isAdmin, onSaved }) {
+  const qc = useQueryClient();
+  const ejQ = useQuery({
+    queryKey: ['contab-ejercicio', anio],
+    queryFn: () => api.get('/contabilidad/ejercicio', { params: { anio } }).then((r) => r.data),
+  });
+  const metodo = ejQ.data?.metodo_inventario || 'perpetuo';
+
+  const metodoMut = useMutation({
+    mutationFn: (m) => api.put('/contabilidad/ejercicio', { anio, metodo_inventario: m }).then((r) => r.data),
+    onSuccess: (d) => {
+      qc.setQueryData(['contab-ejercicio', anio], d);
+      qc.invalidateQueries({ queryKey: ['contab-invper'] });
+      toast.success(`Método de costeo ${anio}: ${d.metodo_inventario}`);
+    },
+    onError: (e) => toast.error(e.response?.data?.error || 'No se pudo cambiar el método'),
+  });
+
+  const esPeriodico = metodo === 'periodico';
+  const invQ = useQuery({
+    queryKey: ['contab-invper', anio, mes],
+    queryFn: () => api.get('/contabilidad/inventario-periodo', { params: { anio, mes } }).then((r) => r.data),
+    enabled: esPeriodico,
+  });
+
+  const [valor, setValor] = useState('');
+  useEffect(() => {
+    if (invQ.data) setValor(String(invQ.data.inventario_final ?? ''));
+  }, [invQ.data]);
+
+  const invMut = useMutation({
+    mutationFn: () => api.put('/contabilidad/inventario-periodo', {
+      anio, mes, inventario_final: Number(String(valor).replace(',', '.')) || 0,
+    }).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contab-invper', anio, mes] });
+      toast.success('Inventario final guardado');
+      onSaved?.();
+    },
+    onError: (e) => toast.error(e.response?.data?.error || 'No se pudo guardar'),
+  });
+
+  const mesTxt = MESES[mes - 1] || `mes ${mes}`;
+
+  return (
+    <div className="card mb-4">
+      <div className="flex flex-wrap items-end gap-4">
+        <div className="flex items-center gap-2 text-gray-700 pb-1">
+          <Package size={18} className="text-brand-500" />
+          <span className="font-medium text-sm">Costeo de inventario · ejercicio {anio}</span>
+        </div>
+        <div>
+          <label className="label">Método</label>
+          <select className="input w-[26rem] max-w-full" value={metodo} disabled={!isAdmin || metodoMut.isPending}
+            onChange={(e) => metodoMut.mutate(e.target.value)}>
+            {METODOS_INV.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+        </div>
+        {esPeriodico && (
+          <>
+            <div>
+              <label className="label">
+                Inventario final · {mesTxt}
+                {mes === 13 && <span className="text-gray-400"> (conteo físico del ejercicio)</span>}
+              </label>
+              <input className="input w-40 text-right tabular-nums" inputMode="decimal"
+                value={valor} disabled={!isAdmin} onChange={(e) => setValor(e.target.value)} />
+            </div>
+            <button onClick={() => invMut.mutate()} disabled={!isAdmin || invMut.isPending} className="btn-primary">
+              {invMut.isPending ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
+              Guardar
+            </button>
+            {invQ.data && (
+              <div className="text-xs text-gray-500 pb-1">
+                {invQ.data.sugerido
+                  ? <>Sugerido del kardex: <b>${money(invQ.data.kardex)}</b> — sin capturar</>
+                  : <>Capturado · el kardex sugiere ${money(invQ.data.kardex)}</>}
+                {' · '}
+                <button type="button" className="text-brand-600 hover:underline"
+                  onClick={() => setValor(String(invQ.data.kardex ?? ''))}>usar kardex</button>
+              </div>
+            )}
+          </>
+        )}
+        {!esPeriodico && (
+          <p className="text-xs text-gray-400 pb-1 max-w-md">
+            {metodo === 'perpetuo'
+              ? 'El costo de venta sale de las salidas del kardex al generar el periodo.'
+              : 'El costo de venta del periodo se toma como las compras netas de mercancía (uso G01) del mes.'}
+          </p>
+        )}
+      </div>
+      {!isAdmin && (
+        <p className="text-xs text-gray-400 mt-2">Solo un administrador puede cambiar el método o el inventario final.</p>
       )}
     </div>
   );

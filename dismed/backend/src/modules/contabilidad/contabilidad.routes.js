@@ -48,6 +48,14 @@ router.get('/polizas/:id',        requirePermiso('contabilidad-polizas'), pol.ge
 router.put('/polizas/:id',        requirePermiso('contabilidad-polizas'), pol.actualizar);
 router.delete('/polizas/:id',     requirePermiso('contabilidad-polizas'), pol.eliminar);
 
+// Método de costeo del ejercicio (perpetuo/periódico/compras) e inventario final
+// por periodo. Lectura con permiso de pólizas; escritura solo admin (mueve el
+// resultado del ejercicio, igual de sensible que la apertura).
+router.get('/ejercicio',          requirePermiso('contabilidad-polizas'), c.ejercicioGet);
+router.put('/ejercicio',          adminOnly, c.ejercicioPut);
+router.get('/inventario-periodo', requirePermiso('contabilidad-polizas'), c.inventarioPeriodoGet);
+router.put('/inventario-periodo', adminOnly, c.inventarioPeriodoPut);
+
 // Saldos iniciales / apertura del ejercicio — solo admin (reescribe el punto de
 // partida contable, igual de sensible que Descargas SAT).
 router.get('/apertura',    adminOnly, ape.obtener);
