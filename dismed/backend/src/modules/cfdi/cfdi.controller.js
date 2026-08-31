@@ -198,6 +198,45 @@ async function eliminarDescarga(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// Sube uno o varios XML de CFDI descargados por otros medios (no por la e.firma).
+// multipart, campo 'archivos' (1..N). Idempotente por uuid.
+async function subirXml(req, res, next) {
+  const archivos = req.files || [];
+  if (!archivos.length) return res.status(400).json({ error: 'Adjunta al menos un archivo .xml (campo "archivos").' });
+  const resultados = [];
+  const periodos = new Set();
+  let importados = 0, duplicados = 0, complementosEsperaban = 0;
+
+  for (const f of archivos) {
+    try {
+      // multer.memoryStorage → el contenido llega en f.buffer. Se quita el BOM si viene.
+      const xml = f.buffer.toString('utf8').replace(/^﻿/, '');
+      const r = await svc.guardarXmlManual(xml);
+      if (r.inserted) importados++; else duplicados++;
+      complementosEsperaban += r.complementos_esperaban;
+      r.periodos.forEach((p) => periodos.add(p));
+      resultados.push({ archivo: f.originalname, ok: true, ...r });
+    } catch (e) {
+      resultados.push({ archivo: f.originalname, ok: false, error: e.message });
+    }
+  }
+
+  const regenerar = [...periodos].sort();
+  const partes = [`${importados} importado(s)`];
+  if (duplicados) partes.push(`${duplicados} ya estaban`);
+  const fallidos = resultados.filter((x) => !x.ok).length;
+  if (fallidos) partes.push(`${fallidos} con error`);
+
+  res.json({
+    ok: true,
+    mensaje: partes.join(', ') + '.',
+    importados, duplicados, fallidos,
+    complementos_esperaban: complementosEsperaban,
+    regenerar_periodos: regenerar,
+    resultados,
+  });
+}
+
 async function validarFiel(req, res, next) {
   try { res.json(await client.validarFiel()); }
   catch (err) { res.status(400).json({ valida: false, error: err.message }); }
@@ -250,7 +289,7 @@ async function descargaBatch(req, res, next) {
 
 module.exports = {
   listComprobantes, listConceptos, detalleComprobante, pdfComprobante,
-  listDescargas, crearDescarga, procesarDescarga, procesarPendientes, validarFiel,
+  listDescargas, crearDescarga, procesarDescarga, procesarPendientes, subirXml, validarFiel,
   reconciliarEstatus, eliminarDescarga,
   purgarRepositorio, descargaBatch,
 };

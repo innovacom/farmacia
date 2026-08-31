@@ -341,8 +341,59 @@ async function programarBatch({ desdeAnio = 2019, desMes = 3, hastaAnio, hastaMe
   return { ok: true, total, meses: trabajos.length, mensaje: `Enviando ${total} solicitudes al SAT en segundo plano (${trabajos.length} meses × 2 tipos). Revisa la bitácora en unos minutos.` };
 }
 
+/**
+ * Guarda un CFDI suelto que el contador subió a mano (XML descargado por otros
+ * medios: portal del emisor, correo, SAT web…). Mismo pipeline que la descarga
+ * masiva —parseCfdi + guardarComprobante— pero con origen='manual'. Idempotente
+ * por uuid: re-subir el mismo XML no duplica.
+ *
+ * @param {string} xml  contenido del archivo .xml
+ * @returns {Promise<{inserted, duplicado, uuid, tipo, tipo_comprobante, serie,
+ *   folio, fecha, total, periodos:string[], complementos_esperaban:number}>}
+ */
+async function guardarXmlManual(xml) {
+  const parsed = parseCfdi(xml);
+  const c = parsed.comprobante;
+  if (!c.uuid) throw new Error('El XML no tiene UUID timbrado (¿es un CFDI válido y timbrado?)');
+
+  const dir = path.join(xmlBaseDir(), c.tipo);
+  fs.mkdirSync(dir, { recursive: true });
+  const xmlPath = path.join(dir, `${c.uuid}.xml`);
+  fs.writeFileSync(xmlPath, xml, 'utf8');
+  const rel = path.relative(path.resolve(process.env.OUTPUT_DIR || './outputs'), xmlPath).replace(/\\/g, '/');
+
+  const res = await guardarComprobante(parsed, { origen: 'manual', xmlPath: rel, estatus: 'vigente' });
+
+  // Periodos contables tocados: por FechaPago si es complemento, por Fecha si no.
+  const periodos = c.tipo_comprobante === 'P' && parsed.pagos.length
+    ? [...new Set(parsed.pagos.map((p) => String(p.fecha_pago || '').slice(0, 7)).filter(Boolean))]
+    : [String(c.fecha || '').slice(0, 7)].filter(Boolean);
+
+  // Si esta factura era el DoctoRelacionado de un complemento ya registrado "a
+  // ciegas", re-marca su póliza para revisión (igual que la descarga masiva).
+  const esperaban = [];
+  if (res.inserted && c.tipo_comprobante === 'I') {
+    await avisarComplementoEsperaba(c, esperaban);
+  }
+
+  return {
+    inserted: res.inserted,
+    duplicado: !res.inserted,
+    id: res.id,
+    uuid: c.uuid,
+    tipo: c.tipo,
+    tipo_comprobante: c.tipo_comprobante,
+    serie: c.serie,
+    folio: c.folio,
+    fecha: c.fecha,
+    total: c.total,
+    periodos,
+    complementos_esperaban: esperaban.length,
+  };
+}
+
 module.exports = {
   periodoMes, solicitarDescarga, procesarDescarga, procesarConEspera,
   crearJobReconciliacion, procesarPendientes, descargaMensualAutomatica,
-  purgarRepositorio, programarBatch,
+  purgarRepositorio, programarBatch, guardarXmlManual,
 };

@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { X, Loader2, Download, RefreshCw, Cog, Trash2, ShieldCheck, ShieldAlert, AlertTriangle, CalendarRange } from 'lucide-react';
+import { X, Loader2, Download, Upload, RefreshCw, Cog, Trash2, ShieldCheck, ShieldAlert, AlertTriangle, CalendarRange } from 'lucide-react';
 import api from '../../services/api';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 
@@ -22,6 +22,7 @@ export default function DescargasSat() {
   const [descargaOpen, setDescargaOpen] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
   const [purgarOpen, setPurgarOpen] = useState(false);
+  const [subirOpen, setSubirOpen] = useState(false);
 
   return (
     <div>
@@ -35,6 +36,10 @@ export default function DescargasSat() {
           <button onClick={() => setBatchOpen(true)}
             className="btn-secondary flex items-center gap-2">
             <CalendarRange size={15} /> Carga histórica
+          </button>
+          <button onClick={() => setSubirOpen(true)}
+            className="btn-secondary flex items-center gap-2">
+            <Upload size={15} /> Subir XML
           </button>
           <button onClick={() => setDescargaOpen(true)} className="btn-primary flex items-center gap-2">
             <Download size={15} /> Descargar del SAT
@@ -51,6 +56,7 @@ export default function DescargasSat() {
       {descargaOpen && <DescargaModal onClose={() => setDescargaOpen(false)} />}
       {batchOpen    && <BatchModal    onClose={() => setBatchOpen(false)} />}
       {purgarOpen   && <PurgarModal   onClose={() => setPurgarOpen(false)} />}
+      {subirOpen    && <SubirXmlModal onClose={() => setSubirOpen(false)} />}
     </div>
   );
 }
@@ -230,6 +236,182 @@ function PurgarModal({ onClose }) {
             {purgar.isPending ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
             Purgar todo
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---- Modal: Subir XML sueltos (descargados por otros medios) -------------
+function SubirXmlModal({ onClose }) {
+  const qc = useQueryClient();
+  const inputRef = useRef(null);
+  const [files, setFiles] = useState([]);
+  const [resumen, setResumen] = useState(null);
+  const [dragActive, setDragActive] = useState(false);
+
+  const [progreso, setProgreso] = useState(null); // { hechos, total }
+
+  const subir = useMutation({
+    mutationFn: async () => {
+      const LOTE = 40; // se sube en tandas para no chocar con el límite del servidor
+      const acc = {
+        importados: 0, duplicados: 0, fallidos: 0, complementos_esperaban: 0,
+        regenerar_periodos: new Set(), resultados: [],
+      };
+      for (let i = 0; i < files.length; i += LOTE) {
+        const tanda = files.slice(i, i + LOTE);
+        setProgreso({ hechos: i, total: files.length });
+        const fd = new FormData();
+        tanda.forEach((f) => fd.append('archivos', f));
+        // Sin fijar Content-Type: el navegador agrega el boundary del multipart.
+        const d = (await api.post('/cfdi/subir-xml', fd, { timeout: 180000 })).data;
+        acc.importados += d.importados;
+        acc.duplicados += d.duplicados;
+        acc.fallidos += d.fallidos;
+        acc.complementos_esperaban += d.complementos_esperaban;
+        (d.regenerar_periodos || []).forEach((p) => acc.regenerar_periodos.add(p));
+        acc.resultados.push(...d.resultados);
+      }
+      setProgreso(null);
+      const partes = [`${acc.importados} importado(s)`];
+      if (acc.duplicados) partes.push(`${acc.duplicados} ya estaban`);
+      if (acc.fallidos) partes.push(`${acc.fallidos} con error`);
+      return { ...acc, regenerar_periodos: [...acc.regenerar_periodos].sort(), mensaje: partes.join(', ') + '.' };
+    },
+    onSuccess: (data) => {
+      setResumen(data);
+      qc.invalidateQueries({ queryKey: ['cfdi-descargas'] });
+      qc.invalidateQueries({ queryKey: ['cfdi'] });
+      if (data.importados) toast.success(data.mensaje);
+      else toast(data.mensaje, { icon: 'ℹ️' });
+    },
+    onError: (e) => { setProgreso(null); toast.error(e.response?.data?.error || 'No se pudieron procesar los XML'); },
+  });
+
+  const soloXml = (lista) => [...lista].filter(
+    (f) => /\.xml$/i.test(f.name) || f.type === 'text/xml' || f.type === 'application/xml'
+  );
+  const agregar = (lista) => {
+    const xmls = soloXml(lista);
+    const noXml = [...lista].length - xmls.length;
+    if (noXml) toast.error(`${noXml} archivo(s) ignorado(s): solo se aceptan .xml`);
+    if (!xmls.length) return;
+    setResumen(null);
+    // Acumula y de-duplica por nombre+tamaño (permite soltar en varias tandas).
+    setFiles((prev) => {
+      const clave = (f) => `${f.name}|${f.size}`;
+      const vistos = new Set(prev.map(clave));
+      return [...prev, ...xmls.filter((f) => !vistos.has(clave(f)))];
+    });
+  };
+  const pick = (e) => { agregar(e.target.files); e.target.value = ''; };
+
+  // El navegador abre el archivo en una pestaña si el drop cae fuera de un
+  // handler con preventDefault — se bloquea en todo el modal por si acaso.
+  const stop = (e) => { e.preventDefault(); e.stopPropagation(); };
+  const onDrop = (e) => {
+    stop(e); setDragActive(false);
+    if (e.dataTransfer?.files?.length) agregar(e.dataTransfer.files);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 overflow-y-auto"
+      onDragOver={stop} onDrop={stop}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg my-8">
+        <div className="flex items-start justify-between gap-3 p-5 border-b border-gray-100">
+          <div>
+            <div className="text-lg font-bold text-gray-900">Subir XML de CFDI</div>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Para facturas que la descarga masiva no trajo (emitidas a otro RFC, de un
+              periodo aún no descargado, etc.). Se leen igual que las del SAT.
+            </p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700"><X size={20} /></button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <input
+            ref={inputRef} type="file" accept=".xml,text/xml,application/xml"
+            multiple className="hidden" onChange={pick}
+          />
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            onDragEnter={(e) => { stop(e); setDragActive(true); }}
+            onDragOver={(e) => { stop(e); setDragActive(true); }}
+            onDragLeave={(e) => { stop(e); setDragActive(false); }}
+            onDrop={onDrop}
+            className={`w-full border-2 border-dashed rounded-lg py-6 text-sm flex flex-col items-center gap-1 transition-colors
+              ${dragActive
+                ? 'border-brand-400 bg-brand-50 text-brand-600'
+                : 'border-gray-200 text-gray-500 hover:border-brand-300 hover:text-brand-600'}`}>
+            <Upload size={20} />
+            {files.length
+              ? `${files.length} archivo(s) · clic o arrastra para agregar más`
+              : 'Arrastra aquí los .xml o haz clic para elegirlos'}
+          </button>
+
+          {files.length > 0 && !resumen && (
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-gray-400">{files.length} seleccionado(s)</span>
+                <button onClick={() => setFiles([])} className="text-xs text-gray-400 hover:text-red-500">Quitar todos</button>
+              </div>
+              <ul className="text-xs text-gray-500 max-h-32 overflow-y-auto space-y-0.5">
+                {files.map((f, i) => (
+                  <li key={`${f.name}|${f.size}`} className="flex items-center gap-1">
+                    <span className="truncate flex-1">· {f.name}</span>
+                    <button
+                      onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}
+                      className="text-gray-300 hover:text-red-500 shrink-0"><X size={12} /></button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {resumen && (
+            <div className="space-y-3">
+              <div className="rounded-lg bg-gray-50 text-sm text-gray-700 px-4 py-3">
+                {resumen.mensaje}
+                {resumen.complementos_esperaban > 0 && (
+                  <div className="text-amber-700 mt-1">
+                    {resumen.complementos_esperaban} complemento(s) de pago ya registrado(s) esperaban
+                    alguna de estas facturas: su póliza quedó marcada para revisión.
+                  </div>
+                )}
+                {resumen.regenerar_periodos?.length > 0 && (
+                  <div className="text-gray-600 mt-1">
+                    Regenera en Contabilidad → Pólizas: <strong>{resumen.regenerar_periodos.join(', ')}</strong>
+                  </div>
+                )}
+              </div>
+              <ul className="text-xs max-h-40 overflow-y-auto space-y-1">
+                {resumen.resultados.map((r, i) => (
+                  <li key={i} className={r.ok ? 'text-gray-600' : 'text-red-600'}>
+                    {r.ok
+                      ? `${r.duplicado ? '↺' : '✓'} ${r.tipo_comprobante} ${r.serie || ''}${r.folio || ''} · ${r.tipo}${r.duplicado ? ' (ya estaba)' : ''}`
+                      : `✗ ${r.archivo}: ${r.error}`}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 p-5 border-t border-gray-100">
+          <button onClick={onClose} className="btn-secondary">{resumen ? 'Cerrar' : 'Cancelar'}</button>
+          {!resumen && (
+            <button
+              onClick={() => subir.mutate()}
+              disabled={subir.isPending || files.length === 0}
+              className="btn-primary flex items-center gap-2">
+              {subir.isPending ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
+              {progreso ? `Subiendo ${progreso.hechos}/${progreso.total}…` : `Subir ${files.length || ''}`}
+            </button>
+          )}
         </div>
       </div>
     </div>
