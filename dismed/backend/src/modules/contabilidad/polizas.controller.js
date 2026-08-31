@@ -38,6 +38,7 @@ async function listar(req, res, next) {
     const vals = [anio, mes];
     if (req.query.tipo) { where.push('tipo=?'); vals.push(req.query.tipo); }
     if (req.query.origen) { where.push('origen=?'); vals.push(req.query.origen); }
+    if (req.query.revisar === '1') where.push('p.revisar=1');
     // Búsqueda libre: concepto/referencia/UUID de la póliza, o cliente/proveedor/banco
     // y cuenta de cualquiera de sus movimientos (el nombre real vive en el auxiliar
     // de nivel 3, ver cuentas_auxiliares — p. ej. "BBVA", "Petróleos Mexicanos", "701.10").
@@ -58,7 +59,7 @@ async function listar(req, res, next) {
 
     const [polizas] = await pool.query(
       `SELECT p.id, p.tipo, p.fecha, p.concepto, p.origen, p.estado, p.cfdi_id, p.cfdi_uuid, p.referencia,
-              p.total_cargos, p.total_abonos
+              p.total_cargos, p.total_abonos, p.revisar, p.revisar_motivo
          FROM polizas p WHERE ${where.join(' AND ')}
         ORDER BY p.fecha, p.id`, vals);
 
@@ -83,10 +84,17 @@ async function listar(req, res, next) {
       cargos: s.cargos + Number(p.total_cargos), abonos: s.abonos + Number(p.total_abonos),
     }), { cargos: 0, abonos: 0 });
 
+    // Conteo de "por revisar" del periodo completo (ignora los filtros de la lista)
+    // para el chip de la UI.
+    const [[rv]] = await pool.query(
+      'SELECT COUNT(*) n FROM polizas WHERE periodo_anio=? AND periodo_mes=? AND revisar=1',
+      [anio, mes]);
+
     res.json({
       anio, mes, total: data.length,
       total_cargos: Math.round(tot.cargos * 100) / 100,
       total_abonos: Math.round(tot.abonos * 100) / 100,
+      por_revisar: rv.n,
       polizas: data,
     });
   } catch (err) { next(err); }
@@ -232,6 +240,8 @@ async function actualizar(req, res, next) {
     if (concepto !== undefined) { sets.push('concepto=?'); vals.push(concepto || null); }
     if (referencia !== undefined) { sets.push('referencia=?'); vals.push(referencia || null); }
     if (estado && ['borrador', 'confirmada'].includes(estado)) { sets.push('estado=?'); vals.push(estado); }
+    // Editar la póliza a mano = "ya la revisé": se apaga la bandera de revisión.
+    sets.push('revisar=0', 'revisar_motivo=NULL');
     if (fecha) {
       const per = periodoDeFecha(fecha);
       sets.push('fecha=?', 'periodo_anio=?', 'periodo_mes=?'); vals.push(fecha, per.anio, per.mes);

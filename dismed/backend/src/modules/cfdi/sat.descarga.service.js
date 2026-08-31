@@ -89,6 +89,7 @@ async function procesarPaquetesXml(job, paquetes) {
   const dir = path.join(xmlBaseDir(), job.tipo);
   fs.mkdirSync(dir, { recursive: true });
   let importados = 0, vistos = 0;
+  const facturasDeComplementos = []; // facturas nuevas que un complemento ya registrado estaba esperando
   for (const pid of paquetes) {
     const zip = await client.descargarPaquete(pid);
     for await (const { xml } of client.leerCfdisDeZip(zip)) {
@@ -100,13 +101,46 @@ async function procesarPaquetesXml(job, paquetes) {
         fs.writeFileSync(xmlPath, xml, 'utf8');
         const rel = path.relative(path.resolve(process.env.OUTPUT_DIR || './outputs'), xmlPath).replace(/\\/g, '/');
         const res = await guardarComprobante(parsed, { origen: 'sat', xmlPath: rel });
-        if (res.inserted) importados++;
+        if (res.inserted) {
+          importados++;
+          if (parsed.comprobante.tipo_comprobante === 'I') {
+            await avisarComplementoEsperaba(parsed.comprobante, facturasDeComplementos);
+          }
+        }
       } catch (e) {
         console.error(`[cfdi] error guardando XML de descarga ${job.id}:`, e.message);
       }
     }
   }
-  return { vistos, importados };
+  return { vistos, importados, facturas_de_complementos: facturasDeComplementos };
+}
+
+/**
+ * Si la factura recién importada es el DoctoRelacionado de un complemento de pago
+ * ya guardado, re-marca la póliza de ese pago para revisión (la registró "a ciegas"
+ * porque su factura no existía) y la agrega al resumen de la descarga. NO regenera
+ * el periodo: el contador decide cuándo hacerlo.
+ */
+async function avisarComplementoEsperaba(comp, acumulador) {
+  const [pagos] = await pool.query(
+    `SELECT DISTINCT c.id, c.serie, c.folio, c.fecha
+       FROM cfdi_repositorio_pagos_doctos d
+       JOIN cfdi_repositorio c ON c.id = d.pago_id
+      WHERE d.uuid_documento = ? AND c.tipo_comprobante = 'P'`,
+    [comp.uuid]);
+  if (!pagos.length) return;
+  await pool.query(
+    `UPDATE polizas SET revisar = 1,
+            revisar_motivo = 'La factura relacionada de este complemento ya está en el repositorio; regenera el periodo del pago para reconstruir el asiento.'
+      WHERE origen = 'cfdi' AND cfdi_id IN (?)`,
+    [pagos.map((p) => p.id)]);
+  for (const p of pagos) {
+    acumulador.push({
+      factura: `${comp.serie || ''}${comp.folio || ''}`.trim() || comp.uuid.slice(0, 8),
+      complemento: `${p.serie || ''}${p.folio || ''}`.trim() || String(p.id),
+      periodo_pago: String(p.fecha).slice(0, 7),
+    });
+  }
 }
 
 /**
@@ -168,8 +202,15 @@ async function procesarDescarga(jobId) {
   }
 
   // XML: parsear y guardar; al terminar, encolar la reconciliación de estatus.
-  const { vistos, importados } = await procesarPaquetesXml(job, v.paquetes);
-  await actualizar(jobId, { estado: 'descargada', num_cfdis: vistos, num_importados: importados });
+  const { vistos, importados, facturas_de_complementos: facturasComp } = await procesarPaquetesXml(job, v.paquetes);
+  const avisoComp = facturasComp && facturasComp.length
+    ? ` · ${facturasComp.length} factura(s) que un complemento de pago ya registrado esperaba `
+      + `(regenera el periodo del pago: ${[...new Set(facturasComp.map((f) => f.periodo_pago))].join(', ')})`
+    : '';
+  await actualizar(jobId, {
+    estado: 'descargada', num_cfdis: vistos, num_importados: importados,
+    mensaje: `${importados} importado(s) de ${vistos}${avisoComp}.`,
+  });
   // Reconciliar estatus por metadata (job aparte, reanudable). Evita duplicar si ya hay uno.
   crearJobReconciliacion({
     tipo: job.tipo,

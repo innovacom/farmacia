@@ -43,9 +43,10 @@ export default function Polizas() {
   const [vista, setVista] = useState('polizas');
   const [abierta, setAbierta] = useState(null);
   const [editor, setEditor] = useState(null); // { poliza } | { nueva:true } | null
+  const [soloRevisar, setSoloRevisar] = useState(false);
 
   const anio = parseInt(anioTxt, 10) || hoy.getFullYear();
-  const params = { anio, mes, q: q.trim() || undefined };
+  const params = { anio, mes, q: q.trim() || undefined, revisar: soloRevisar ? '1' : undefined };
   const invalidar = () => {
     qc.invalidateQueries({ queryKey: ['polizas'] });
     qc.invalidateQueries({ queryKey: ['polizas-balanza'] });
@@ -53,7 +54,7 @@ export default function Polizas() {
   };
 
   const polizasQ = useQuery({
-    queryKey: ['polizas', anio, mes, q],
+    queryKey: ['polizas', anio, mes, q, soloRevisar],
     queryFn: () => api.get('/contabilidad/polizas', { params }).then((r) => r.data),
     keepPreviousData: true,
   });
@@ -69,6 +70,10 @@ export default function Polizas() {
     onSuccess: (d) => {
       const met = d.metodo_inventario ? ` · costeo ${d.metodo_inventario}` : '';
       toast.success(`${d.generadas} pólizas generadas · ${d.cfdis_procesados} CFDI${met}`);
+      if (d.por_revisar > 0) {
+        toast(`${d.por_revisar} póliza${d.por_revisar > 1 ? 's' : ''} requiere${d.por_revisar > 1 ? 'n' : ''} revisión`,
+          { icon: '⚠️', duration: 6000 });
+      }
       invalidar();
     },
     onError: (e) => toast.error(e.response?.data?.error || 'Error al generar'),
@@ -83,6 +88,7 @@ export default function Polizas() {
   const polizas = data?.polizas || [];
   const bal = balanzaQ.data;
   const borradores = polizas.filter((p) => p.estado === 'borrador').length;
+  const porRevisar = data?.por_revisar || 0;
 
   // Doble clic sobre una póliza generada de CFDI abre la representación
   // impresa (PDF) del comprobante que la originó — mismo formato que en
@@ -137,6 +143,13 @@ export default function Polizas() {
             className="btn-secondary" title="Confirma todas las pólizas en borrador del periodo">
             <ShieldCheck size={16} /> Confirmar borradores{borradores ? ` (${borradores})` : ''}
           </button>
+          {(porRevisar > 0 || soloRevisar) && (
+            <button onClick={() => setSoloRevisar((v) => !v)}
+              className={`btn-secondary ${soloRevisar ? 'ring-2 ring-amber-400' : ''} ${porRevisar > 0 ? 'text-amber-700' : ''}`}
+              title="Pólizas autogeneradas que el motor no pudo registrar con certeza — revísalas y edítalas si hace falta">
+              <AlertTriangle size={16} /> {soloRevisar ? 'Ver todas' : `Por revisar${porRevisar ? ` (${porRevisar})` : ''}`}
+            </button>
+          )}
           <button onClick={() => setEditor({ nueva: true })} className="btn-secondary">
             <Plus size={16} /> Póliza manual
           </button>
@@ -211,6 +224,15 @@ export default function Polizas() {
                       {p.referencia && <span className="text-gray-400 text-xs ml-2">{p.referencia}</span>}
                       {p.origen === 'apertura' && <span className="ml-2 text-[10px] text-brand-600">apertura</span>}
                       {p.origen === 'manual' && <span className="ml-2 text-[10px] text-purple-600">manual</span>}
+                      {!!p.revisar && (
+                        <span className="ml-2 inline-flex items-center gap-1 badge text-[10px] bg-amber-100 text-amber-800 align-middle"
+                          title={p.revisar_motivo || 'Requiere revisión manual'}>
+                          <AlertTriangle size={11} /> revisar
+                        </span>
+                      )}
+                      {!!p.revisar && p.revisar_motivo && (
+                        <span className="block text-[11px] text-amber-700 mt-0.5">{p.revisar_motivo}</span>
+                      )}
                     </td>
                     <td className="text-center">
                       {p.estado === 'confirmada'

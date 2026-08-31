@@ -49,19 +49,27 @@ function impuestosConcepto(concepto) {
   return out;
 }
 
-// Complemento de pago (CFDI 4.0): el IVA de CADA parcialidad puede venir explícito en
-// DoctoRelacionado/ImpuestosDR/TrasladosDR (impuesto '002'). Cuando no viene (CFDI 3.3
-// o pago que no desglosa impuestos), el motor de pólizas prorratea con el total de la
-// factura relacionada.
+// Complemento de pago (CFDI 4.0): los impuestos de CADA parcialidad pueden venir
+// explícitos en DoctoRelacionado/ImpuestosDR:
+//   - TrasladosDR: IVA '002' (importe_iva_dr) e IEPS '003' (imp_ieps_dr, informativo).
+//   - RetencionesDR: ISR '001' (ret_isr_dr) e IVA '002' (ret_iva_dr) — en PPD la
+//     retención se causa al pago, así que la asienta el complemento, no la factura.
+// Cuando el IVA no viene (CFDI 3.3 o pago que no desglosa), el motor de pólizas
+// prorratea con el total de la factura relacionada.
 function impuestosDoctoRelacionado(d) {
-  let importe_iva_dr = null;
+  let importe_iva_dr = null, imp_ieps_dr = null, ret_isr_dr = null, ret_iva_dr = null;
   const imp = d.ImpuestosDR;
   if (imp) {
     for (const t of arr(imp.TrasladosDR?.TrasladoDR)) {
       if (t['@_ImpuestoDR'] === '002') importe_iva_dr = numN(t['@_ImporteDR']);
+      else if (t['@_ImpuestoDR'] === '003') imp_ieps_dr = numN(t['@_ImporteDR']);
+    }
+    for (const r of arr(imp.RetencionesDR?.RetencionDR)) {
+      if (r['@_ImpuestoDR'] === '001') ret_isr_dr = numN(r['@_ImporteDR']);
+      else if (r['@_ImpuestoDR'] === '002') ret_iva_dr = numN(r['@_ImporteDR']);
     }
   }
-  return { importe_iva_dr };
+  return { importe_iva_dr, imp_ieps_dr, ret_isr_dr, ret_iva_dr };
 }
 
 function parseCfdi(xml, { rfcPropio = process.env.EMPRESA_RFC || 'RIC1903041Q2' } = {}) {
@@ -140,6 +148,10 @@ function parseCfdi(xml, { rfcPropio = process.env.EMPRESA_RFC || 'RIC1903041Q2' 
 
   // Pagos: el SAT exige SubTotal=0 y Total=0 en el nodo raíz Comprobante.
   // Los montos reales y los CFDIs pagados están en Complemento/Pagos.
+  //   pagos       = un renglón por nodo <Pago> (fecha real del cobro/pago).
+  //   pagosDoctos = un renglón por <DoctoRelacionado>, con pago_linea que lo liga
+  //                 a su <Pago> (cfdi.repo lo resuelve a pago_detalle_id al guardar).
+  const pagos = [];
   const pagosDoctos = [];
   if (comprobante.tipo_comprobante === 'P') {
     const pagosComp = c.Complemento?.Pagos;
@@ -151,13 +163,25 @@ function parseCfdi(xml, { rfcPropio = process.env.EMPRESA_RFC || 'RIC1903041Q2' 
         comprobante.total = montoTotal;
       }
       const doctoUuids = [];
+      let linea = 0;
       for (const p of arr(pagosComp.Pago)) {
+        linea += 1;
+        pagos.push({
+          linea,
+          fecha_pago: str(p['@_FechaPago']),
+          forma_pago: str(p['@_FormaDePagoP']),
+          moneda: str(p['@_MonedaP']),
+          tipo_cambio: numN(p['@_TipoCambioP']),
+          monto: num(p['@_Monto']),
+          num_operacion: str(p['@_NumOperacion']),
+        });
         for (const d of arr(p.DoctoRelacionado)) {
           const uuidDoc = str(d['@_IdDocumento']);
           if (!uuidDoc) continue;
           const uuidUp = uuidDoc.toUpperCase();
           doctoUuids.push(uuidUp);
           pagosDoctos.push({
+            pago_linea: linea,
             uuid_documento: uuidUp,
             moneda_dr: str(d['@_MonedaDR']),
             equivalencia_dr: numN(d['@_EquivalenciaDR']),
@@ -176,7 +200,7 @@ function parseCfdi(xml, { rfcPropio = process.env.EMPRESA_RFC || 'RIC1903041Q2' 
     }
   }
 
-  return { comprobante, conceptos, pagos_doctos: pagosDoctos };
+  return { comprobante, conceptos, pagos, pagos_doctos: pagosDoctos };
 }
 
 module.exports = { parseCfdi };

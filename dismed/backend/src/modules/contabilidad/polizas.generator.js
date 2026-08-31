@@ -9,14 +9,20 @@
  *   - PUE → directo por Banco (Santander); PPD → por cartera (Clientes/Proveedores),
  *     que se salda con el complemento de pago (CFDI tipo P) cuando llega.
  *   - Nómina → gasto Sueldos 601.01 contra Banco, deducciones a retenciones.
+ *   - Complemento de pago: una póliza POR NODO <Pago>, periodizada y fechada por
+ *     FechaPago (NO por la emisión del complemento). En PPD la retención se causa al
+ *     pago: la factura la carga por el bruto y el complemento asienta la retención.
+ *   - polizas.revisar/revisar_motivo: banderas que el motor enciende cuando registra
+ *     un asiento "a ciegas" (complemento sin factura relacionada en el repositorio,
+ *     complemento sin FechaPago desglosada, retención en el pago). La póliza se genera
+ *     igual pero queda señalada para verificación manual (se apaga al editarla).
  *
  * Idempotente: borra las pólizas autogeneradas (origen cfdi/inventario) del periodo
  * y las reconstruye; las pólizas 'manual' y 'apertura' se preservan.
  *
  * Limitaciones v2 (revisión 2026-08-24, ver Reporte Módulo Contable DISMED):
- *   - Complementos de pago (CFDI tipo P): SÍ se procesan (polizaPago). Requieren que
- *     el detalle por documento (cfdi_repositorio_pagos_doctos) exista; un pago sin ese
- *     detalle no genera póliza (no hay forma segura de saber a qué cartera aplica).
+ *   - Complementos de pago (CFDI tipo P): requieren el detalle por documento
+ *     (cfdi_repositorio_pagos_doctos); un pago sin ese detalle no genera póliza.
  *   - Retenciones ISR/IVA de ventas/compras: desglosadas cuando el XML trae el detalle
  *     por concepto (importe_isr / importe_iva_ret); si no, cae a una cuenta genérica
  *     de "otras retenciones" para no perder el cuadre.
@@ -66,8 +72,10 @@ function armar({ tipo, fecha, concepto, origen, cfdi_id, cfdi_uuid, referencia }
   if (!movs.length) return null;
   const total_cargos = r2(movs.reduce((s, m) => s + m.cargo, 0));
   const total_abonos = r2(movs.reduce((s, m) => s + m.abono, 0));
+  // revisar/revisar_motivo: banderas de "verificar a mano" que el motor puede
+  // encender después de armar la póliza (ver polizaPagoNodo y generarPeriodo).
   return { tipo, fecha, concepto, origen, cfdi_id, cfdi_uuid, referencia,
-           total_cargos, total_abonos, movs };
+           total_cargos, total_abonos, movs, revisar: 0, revisar_motivo: null };
 }
 
 async function cargarMapas() {
@@ -150,16 +158,21 @@ function polizaVenta(c, banco, cli) {
   const ctaCobro = pue ? banco : (cli && cli.cuenta_cobrar_codigo) || CTA.CLIENTES;
   const ctaIva   = pue ? CTA.IVA_TRAS_COBRADO : CTA.IVA_TRAS_NOCOBRADO;
   const ref = (c.serie || '') + (c.folio || '');
+  // PUE: la cartera/banco se carga por el total del CFDI (neto de retención) y la
+  // retención se reconoce aquí como crédito fiscal. PPD: nada se ha retenido aún
+  // al emitir; se carga la cartera por el BRUTO (ingreso + IVA) y la retención se
+  // asienta cuando llega el pago (polizaPagoNodo), para no registrarla dos veces.
+  const cargoCartera = pue ? total : r2(ingreso + iva);
   return armar(
     { tipo: pue ? 'ingreso' : 'diario', fecha: c.fecha, origen: 'cfdi', cfdi_id: c.id,
       cfdi_uuid: c.uuid, referencia: ref,
       concepto: `Venta ${c.nombre_receptor || c.rfc_receptor || ''}`.trim() },
     [
-      mov(ctaCobro, total, 0, 'Cobro/cartera', pue ? 'banco' : 'cliente', pue ? null : (cli && cli.id),
+      mov(ctaCobro, cargoCartera, 0, 'Cobro/cartera', pue ? 'banco' : 'cliente', pue ? null : (cli && cli.id),
         pue ? null : c.rfc_receptor, pue ? null : c.nombre_receptor),
-      mov(CTA.ISR_A_FAVOR, ret.isr, 0, 'ISR retenido por clientes'),
-      mov(CTA.IVA_A_FAVOR, ret.iva, 0, 'IVA retenido por clientes'),
-      mov(CTA.RET_GENERICA, ret.otras, 0, 'Otras retenciones de clientes (sin desglosar)'),
+      mov(CTA.ISR_A_FAVOR, pue ? ret.isr : 0, 0, 'ISR retenido por clientes'),
+      mov(CTA.IVA_A_FAVOR, pue ? ret.iva : 0, 0, 'IVA retenido por clientes'),
+      mov(CTA.RET_GENERICA, pue ? ret.otras : 0, 0, 'Otras retenciones de clientes (sin desglosar)'),
       mov(CTA.INGRESOS, 0, ingreso, 'Ingreso por ventas'),
       mov(ctaIva, 0, iva, 'IVA trasladado'),
     ]);
@@ -206,6 +219,9 @@ function polizaCompra(c, banco, prov, bancosRfc) {
   // genérico 701.10.00 — así se distingue de qué banco es cada comisión.
   const esFinanciero = destino.tipo === 'financiero';
   const ref = (c.serie || '') + (c.folio || '');
+  // Igual que en la venta: PPD abona el pasivo por el BRUTO (base + IVA) y difiere
+  // la retención al pago (polizaPagoNodo). PUE la reconoce aquí.
+  const abonoPasivo = pue ? total : r2(base + iva);
   return armar(
     { tipo: pue ? 'egreso' : 'diario', fecha: c.fecha, origen: 'cfdi', cfdi_id: c.id,
       cfdi_uuid: c.uuid, referencia: ref,
@@ -214,11 +230,11 @@ function polizaCompra(c, banco, prov, bancosRfc) {
       mov(destino.cuenta, base, 0, etq, esFinanciero ? 'proveedor' : null, esFinanciero ? (prov && prov.id) : null,
         esFinanciero ? c.rfc_emisor : null, esFinanciero ? c.nombre_emisor : null),
       mov(ctaIva, iva, 0, 'IVA acreditable'),
-      mov(ctaPago, 0, total, 'Pago/cartera', pue ? 'banco' : 'proveedor', pue ? null : (prov && prov.id),
+      mov(ctaPago, 0, abonoPasivo, 'Pago/cartera', pue ? 'banco' : 'proveedor', pue ? null : (prov && prov.id),
         pue ? null : c.rfc_emisor, pue ? null : c.nombre_emisor),
-      mov(CTA.RET_ISR_SERV, 0, ret.isr, 'ISR retenido a terceros'),
-      mov(CTA.RET_IVA, 0, ret.iva, 'IVA retenido a terceros'),
-      mov(CTA.RET_GENERICA, 0, ret.otras, 'Otras retenciones a terceros (sin desglosar)'),
+      mov(CTA.RET_ISR_SERV, 0, pue ? ret.isr : 0, 'ISR retenido a terceros'),
+      mov(CTA.RET_IVA, 0, pue ? ret.iva : 0, 'IVA retenido a terceros'),
+      mov(CTA.RET_GENERICA, 0, pue ? ret.otras : 0, 'Otras retenciones a terceros (sin desglosar)'),
     ]);
 }
 
@@ -266,14 +282,12 @@ function polizaNomina(c, banco) {
 }
 
 // ── Complemento de pago (CFDI tipo P) ───────────────────────────────────────
-// Salda la cartera PPD generada por polizaVenta/polizaCompra y reclasifica el IVA
-// de "pendiente" a "cobrado/pagado" por lo efectivamente liquidado.
-async function documentosPago(pagoId) {
-  const [rows] = await pool.query(
-    `SELECT uuid_documento, imp_pagado, importe_iva_dr
-       FROM cfdi_repositorio_pagos_doctos WHERE pago_id = ?`, [pagoId]);
-  return rows;
-}
+// Salda la cartera PPD generada por polizaVenta/polizaCompra, reclasifica el IVA
+// de "pendiente" a "cobrado/pagado" por lo efectivamente liquidado y reconoce las
+// retenciones que la factura PPD dejó pendientes para el momento del pago.
+//
+// La póliza se genera POR NODO <Pago> y se fecha/periodiza con su FechaPago — NO
+// con la fecha de emisión del complemento, que suele caer un mes después.
 
 async function facturaPorUuid(uuid) {
   const [rows] = await pool.query(
@@ -282,14 +296,110 @@ async function facturaPorUuid(uuid) {
   return rows[0] || null;
 }
 
-async function polizaPago(c, banco, clientes, proveedores) {
-  const tc = Number(c.tipo_cambio) || 1;
-  const docs = await documentosPago(c.id);
-  // Sin detalle por documento no hay forma segura de saber a qué cartera aplica
-  // (no se genera póliza; el pago queda pendiente hasta que el detalle exista).
+// row: fila del JOIN cfdi_repositorio_pagos × cfdi_repositorio (ver generarPeriodo).
+// Trae: id, uuid, tipo, serie, folio, fecha (emisión), rfc_*/nombre_*, y del nodo
+// <Pago>: pago_detalle_id, fecha_pago, pg_tc (TipoCambioP).
+async function polizaPagoNodo(row, banco, clientes, proveedores) {
+  const tc = Number(row.pg_tc) || Number(row.tipo_cambio) || 1;
+  const [docs] = await pool.query(
+    `SELECT uuid_documento, imp_pagado, importe_iva_dr, ret_isr_dr, ret_iva_dr
+       FROM cfdi_repositorio_pagos_doctos WHERE pago_detalle_id = ?`, [row.pago_detalle_id]);
   if (!docs.length) return null;
 
-  const esCobro = c.tipo === 'emitido'; // lo emitimos nosotros → documenta que NOS pagaron
+  const esCobro = row.tipo === 'emitido'; // lo emitimos nosotros → nos pagaron
+  const rfcContraparte = ((esCobro ? row.rfc_receptor : row.rfc_emisor) || '').toUpperCase().trim();
+  const entidad = esCobro ? clientes.get(rfcContraparte) : proveedores.get(rfcContraparte);
+  const ctaCartera = esCobro
+    ? (entidad && entidad.cuenta_cobrar_codigo) || CTA.CLIENTES
+    : (entidad && entidad.cuenta_pasivo_codigo) || CTA.PROVEEDORES;
+
+  let aplicado = 0, ivaAplicado = 0, retIsr = 0, retIva = 0;
+  const faltan = [];
+  for (const d of docs) {
+    const impPagado = Number(d.imp_pagado) || 0;
+    aplicado += impPagado;
+    retIsr += Number(d.ret_isr_dr) || 0;
+    retIva += Number(d.ret_iva_dr) || 0;
+    const f = await facturaPorUuid(d.uuid_documento);
+    if (!f) faltan.push(d.uuid_documento);
+    if (d.importe_iva_dr != null) {
+      ivaAplicado += Number(d.importe_iva_dr);
+    } else if (f && Number(f.total) > 0) {
+      // Sin ImpuestosDR en el XML: prorratea el IVA de la factura por lo pagado.
+      ivaAplicado += (impPagado / Number(f.total)) * Number(f.total_impuestos_trasladados || 0);
+    }
+  }
+  // Se usa lo aplicado a documentos (no el Monto del encabezado) como base de la
+  // póliza: así siempre cuadra aunque el pago no matchee el 100% (p. ej. documento
+  // relacionado de un ejercicio no cargado en el repositorio).
+  aplicado = r2(aplicado * tc);
+  ivaAplicado = r2(ivaAplicado * tc);
+  retIsr = r2(retIsr * tc);
+  retIva = r2(retIva * tc);
+  if (!aplicado) return null;
+
+  // La cartera se salda por el BRUTO liquidado = efectivo (ImpPagado, ya neto de
+  // retención) + lo que la contraparte retuvo. Así el saldo del cliente/proveedor
+  // llega a cero y la retención queda sólo en la cuenta de impuestos (113.xx / 216.xx),
+  // no duplicada en cartera. Sin retención: liquidada == aplicado (sin cambio).
+  const carteraLiquidada = r2(aplicado + retIsr + retIva);
+  const ctaIvaPend = esCobro ? CTA.IVA_TRAS_NOCOBRADO : CTA.IVA_ACRED_PEND;
+  const ctaIvaReal = esCobro ? CTA.IVA_TRAS_COBRADO : CTA.IVA_ACRED_PAGADO;
+  const nombreContraparte = esCobro
+    ? (row.nombre_receptor || row.rfc_receptor || '')
+    : (row.nombre_emisor || row.rfc_emisor || '');
+  const ref = (row.serie || '') + (row.folio || '');
+  // fecha_pago viene como Date (DATETIME) o string; se pasa tal cual, igual que
+  // c.fecha en las demás pólizas — mysql2 la serializa con la zona de la sesión.
+  const fecha = row.fecha_pago || row.fecha;
+
+  const movs = esCobro ? [
+    mov(banco, aplicado, 0, 'Cobro recibido', 'banco'),
+    mov(CTA.ISR_A_FAVOR, retIsr, 0, 'ISR retenido por el cliente en el pago'),
+    mov(CTA.IVA_A_FAVOR, retIva, 0, 'IVA retenido por el cliente en el pago'),
+    mov(ctaCartera, 0, carteraLiquidada, 'Aplicación a cartera de clientes', 'cliente', entidad && entidad.id,
+      rfcContraparte, nombreContraparte),
+    mov(ctaIvaPend, ivaAplicado, 0, 'IVA trasladado: reclasifica pendiente→cobrado'),
+    mov(ctaIvaReal, 0, ivaAplicado, 'IVA trasladado cobrado'),
+  ] : [
+    mov(ctaCartera, carteraLiquidada, 0, 'Aplicación a cartera de proveedores', 'proveedor', entidad && entidad.id,
+      rfcContraparte, nombreContraparte),
+    mov(ctaIvaReal, ivaAplicado, 0, 'IVA acreditable pagado'),
+    mov(ctaIvaPend, 0, ivaAplicado, 'IVA acreditable: reclasifica pendiente→pagado'),
+    mov(CTA.RET_ISR_SERV, 0, retIsr, 'ISR retenido a terceros en el pago'),
+    mov(CTA.RET_IVA, 0, retIva, 'IVA retenido a terceros en el pago'),
+    mov(banco, 0, aplicado, 'Pago realizado', 'banco'),
+  ];
+
+  const p = armar(
+    { tipo: esCobro ? 'ingreso' : 'egreso', fecha, origen: 'cfdi', cfdi_id: row.id,
+      cfdi_uuid: row.uuid, referencia: ref,
+      concepto: `${esCobro ? 'Cobro' : 'Pago'} ${nombreContraparte}`.trim() },
+    movs);
+  if (!p) return null;
+  const motivos = [];
+  if (faltan.length) {
+    motivos.push(`${faltan.length} factura(s) relacionada(s) no están en el repositorio `
+      + `(${faltan.map((u) => String(u).slice(0, 8)).join(', ')}): verifica que el saldo de cartera y el `
+      + 'IVA pendiente que este pago cancela hayan sido registrados.');
+  }
+  if (retIsr > 0 || retIva > 0) {
+    motivos.push(`Retención en el pago (ISR ${r2(retIsr)}, IVA ${r2(retIva)}): confirma que la factura PPD `
+      + 'no haya registrado ya la retención al emitirse (posible doble registro).');
+  }
+  if (motivos.length) { p.revisar = 1; p.revisar_motivo = motivos.join(' '); }
+  return p;
+}
+
+// Fallback para complementos importados ANTES de migrate_v69 (sin renglones en
+// cfdi_repositorio_pagos): se periodiza por la emisión y se marca para revisión.
+async function polizaPagoLegacy(c, banco, clientes, proveedores) {
+  const [docs] = await pool.query(
+    `SELECT uuid_documento, imp_pagado, importe_iva_dr
+       FROM cfdi_repositorio_pagos_doctos WHERE pago_id = ?`, [c.id]);
+  if (!docs.length) return null;
+  const tc = Number(c.tipo_cambio) || 1;
+  const esCobro = c.tipo === 'emitido';
   const rfcContraparte = ((esCobro ? c.rfc_receptor : c.rfc_emisor) || '').toUpperCase().trim();
   const entidad = esCobro ? clientes.get(rfcContraparte) : proveedores.get(rfcContraparte);
   const ctaCartera = esCobro
@@ -303,16 +413,12 @@ async function polizaPago(c, banco, clientes, proveedores) {
     if (d.importe_iva_dr != null) {
       ivaAplicado += Number(d.importe_iva_dr);
     } else {
-      // Sin ImpuestosDR en el XML: prorratea el IVA de la factura por lo pagado.
       const f = await facturaPorUuid(d.uuid_documento);
       if (f && Number(f.total) > 0) {
         ivaAplicado += (impPagado / Number(f.total)) * Number(f.total_impuestos_trasladados || 0);
       }
     }
   }
-  // Se usa lo aplicado a documentos (no el total del encabezado) como monto de la
-  // póliza: así siempre cuadra aunque el pago no logre matchear el 100% del monto
-  // (p.ej. documento relacionado de un ejercicio no cargado en el repositorio).
   aplicado = r2(aplicado * tc);
   ivaAplicado = r2(ivaAplicado * tc);
   if (!aplicado) return null;
@@ -323,7 +429,6 @@ async function polizaPago(c, banco, clientes, proveedores) {
     ? (c.nombre_receptor || c.rfc_receptor || '')
     : (c.nombre_emisor || c.rfc_emisor || '');
   const ref = (c.serie || '') + (c.folio || '');
-
   const movs = esCobro ? [
     mov(banco, aplicado, 0, 'Cobro recibido', 'banco'),
     mov(ctaCartera, 0, aplicado, 'Aplicación a cartera de clientes', 'cliente', entidad && entidad.id,
@@ -337,12 +442,17 @@ async function polizaPago(c, banco, clientes, proveedores) {
     mov(ctaIvaPend, 0, ivaAplicado, 'IVA acreditable: reclasifica pendiente→pagado'),
     mov(banco, 0, aplicado, 'Pago realizado', 'banco'),
   ];
-
-  return armar(
+  const p = armar(
     { tipo: esCobro ? 'ingreso' : 'egreso', fecha: c.fecha, origen: 'cfdi', cfdi_id: c.id,
       cfdi_uuid: c.uuid, referencia: ref,
       concepto: `${esCobro ? 'Cobro' : 'Pago'} ${nombreContraparte}`.trim() },
     movs);
+  if (p) {
+    p.revisar = 1;
+    p.revisar_motivo = 'Complemento sin FechaPago desglosada (importado antes de v69). Se periodizó '
+      + 'por la fecha de emisión; regenera este periodo tras correr el backfill de complementos.';
+  }
+  return p;
 }
 
 // ── Generación del periodo ────────────────────────────────────────────────────
@@ -372,7 +482,7 @@ async function generarPeriodo({ anio, mes }, usuarioId = null) {
               WHERE comprobante_id = c.id) AS conceptos
        FROM cfdi_repositorio c
       WHERE c.estatus='vigente' AND c.fecha >= ? AND c.fecha <= ?
-        AND c.tipo_comprobante IN ('I','E','N','P')
+        AND c.tipo_comprobante IN ('I','E','N')
       ORDER BY c.fecha, c.id`,
       [desde + ' 00:00:00', hasta + ' 23:59:59']);
   }
@@ -382,9 +492,7 @@ async function generarPeriodo({ anio, mes }, usuarioId = null) {
     const rfcCli = (c.rfc_receptor || '').toUpperCase().trim();
     const rfcProv = (c.rfc_emisor || '').toUpperCase().trim();
     let p = null;
-    if (c.tipo_comprobante === 'P') {
-      p = await polizaPago(c, banco, clientes, proveedores);
-    } else if (c.tipo === 'emitido') {
+    if (c.tipo === 'emitido') {
       if (c.tipo_comprobante === 'I') p = polizaVenta(c, banco, clientes.get(rfcCli));
       else if (c.tipo_comprobante === 'E') p = polizaNotaCreditoVenta(c, banco, clientes.get(rfcCli));
       else if (c.tipo_comprobante === 'N') p = polizaNomina(c, banco);
@@ -394,6 +502,43 @@ async function generarPeriodo({ anio, mes }, usuarioId = null) {
       // nómina recibida no aplica
     }
     if (p) polizas.push(p);
+  }
+
+  // ── Complementos de pago (CFDI tipo P) ──────────────────────────────────────
+  // Una póliza por nodo <Pago>, periodizada por FechaPago (no por la emisión del
+  // complemento, que suele caer un mes después). Los complementos importados antes
+  // de migrate_v69 no tienen el desglose de <Pago>: se procesan por la emisión con
+  // polizaPagoLegacy y quedan marcados para revisión.
+  let pagosProcesados = 0;
+  if (!esCierre) {
+    const [pagosNodo] = await pool.query(
+      `SELECT c.id, c.uuid, c.tipo, c.serie, c.folio, c.fecha, c.tipo_cambio,
+              c.rfc_emisor, c.nombre_emisor, c.rfc_receptor, c.nombre_receptor,
+              fp.id AS pago_detalle_id, fp.fecha_pago, fp.tipo_cambio AS pg_tc
+         FROM cfdi_repositorio_pagos fp
+         JOIN cfdi_repositorio c ON c.id = fp.pago_id
+        WHERE c.estatus='vigente' AND c.tipo_comprobante='P'
+          AND fp.fecha_pago >= ? AND fp.fecha_pago <= ?
+        ORDER BY fp.fecha_pago, fp.id`,
+      [desde + ' 00:00:00', hasta + ' 23:59:59']);
+    for (const row of pagosNodo) {
+      const p = await polizaPagoNodo(row, banco, clientes, proveedores);
+      if (p) { polizas.push(p); pagosProcesados++; }
+    }
+
+    const [pagosLegacy] = await pool.query(
+      `SELECT c.id, c.uuid, c.tipo, c.serie, c.folio, c.fecha, c.tipo_cambio,
+              c.rfc_emisor, c.nombre_emisor, c.rfc_receptor, c.nombre_receptor
+         FROM cfdi_repositorio c
+        WHERE c.estatus='vigente' AND c.tipo_comprobante='P'
+          AND c.fecha >= ? AND c.fecha <= ?
+          AND NOT EXISTS (SELECT 1 FROM cfdi_repositorio_pagos fp WHERE fp.pago_id = c.id)
+        ORDER BY c.fecha, c.id`,
+      [desde + ' 00:00:00', hasta + ' 23:59:59']);
+    for (const c of pagosLegacy) {
+      const p = await polizaPagoLegacy(c, banco, clientes, proveedores);
+      if (p) { polizas.push(p); pagosProcesados++; }
+    }
   }
 
   // ── Costo de ventas según el método del ejercicio (contabilidad_ejercicio) ──
@@ -530,10 +675,11 @@ async function generarPeriodo({ anio, mes }, usuarioId = null) {
       const [res] = await conn.query(
         `INSERT INTO polizas
            (tipo, fecha, periodo_anio, periodo_mes, concepto, origen, cfdi_id, cfdi_uuid,
-            referencia, total_cargos, total_abonos, usuario_id)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+            referencia, total_cargos, total_abonos, revisar, revisar_motivo, usuario_id)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [p.tipo, p.fecha, anio, mes, p.concepto, p.origen, p.cfdi_id, p.cfdi_uuid,
-         p.referencia, p.total_cargos, p.total_abonos, usuarioId]);
+         p.referencia, p.total_cargos, p.total_abonos,
+         p.revisar ? 1 : 0, p.revisar_motivo || null, usuarioId]);
       const pid = res.insertId;
       const values = p.movs.map((m) => [pid, m.cuenta_codigo, m.cargo, m.abono, m.concepto,
                                         m.entidad_tipo, m.entidad_id]);
@@ -554,11 +700,17 @@ async function generarPeriodo({ anio, mes }, usuarioId = null) {
 
   const cargos = r2(polizas.reduce((s, p) => s + p.total_cargos, 0));
   const abonos = r2(polizas.reduce((s, p) => s + p.total_abonos, 0));
+  const revisiones = polizas
+    .filter((p) => p.revisar)
+    .map((p) => ({ referencia: p.referencia, concepto: p.concepto, motivo: p.revisar_motivo }));
   return {
     anio: Number(anio), mes: Number(mes), periodo: { desde, hasta },
     banco_cuenta: banco,
     generadas: polizas.length,
-    cfdis_procesados: cfdis.length,
+    cfdis_procesados: cfdis.length + pagosProcesados,
+    pagos_procesados: pagosProcesados,
+    por_revisar: revisiones.length,
+    revisiones,
     // Claves legacy que la UI ya leía — válidas tal cual en perpetuo, 0 en los demás métodos.
     costo_venta_inventario: r2(costeo.costo_venta),
     salidas_inventario: costeo.salidas_inventario || 0,
