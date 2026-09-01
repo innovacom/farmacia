@@ -41,7 +41,12 @@ export default function Polizas() {
   const [mes, setMes] = useState(hoy.getMonth() + 1);
   const [q, setQ] = useState('');
   const [vista, setVista] = useState('polizas');
-  const [abierta, setAbierta] = useState(null);
+  const [abiertas, setAbiertas] = useState(() => new Set()); // ids de pólizas con detalle expandido (varias a la vez)
+  const toggleAbierta = (id) => setAbiertas((prev) => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
   const [editor, setEditor] = useState(null); // { poliza } | { nueva:true } | null
   const [soloRevisar, setSoloRevisar] = useState(false);
 
@@ -214,8 +219,8 @@ export default function Polizas() {
                 <Fragment key={p.id}>
                   <tr className="hover:bg-gray-50" onDoubleClick={() => verCfdi(p)}
                     title={p.cfdi_id ? 'Doble clic para ver el CFDI (PDF)' : undefined}>
-                    <td className="text-gray-400 cursor-pointer" onClick={() => setAbierta(abierta === p.id ? null : p.id)}>
-                      {abierta === p.id ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                    <td className="text-gray-400 cursor-pointer" onClick={() => toggleAbierta(p.id)}>
+                      {abiertas.has(p.id) ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
                     </td>
                     <td className="text-gray-500">{String(p.fecha).slice(0, 10)}</td>
                     <td><span className={`badge text-xs ${TIPO_BADGE[p.tipo] || 'badge-gray'}`}>{p.tipo}</span></td>
@@ -247,7 +252,7 @@ export default function Polizas() {
                       </button>
                     </td>
                   </tr>
-                  {abierta === p.id && (
+                  {abiertas.has(p.id) && (
                     <tr onDoubleClick={() => verCfdi(p)}>
                       <td></td>
                       <td colSpan={7} className="bg-gray-50/70">
