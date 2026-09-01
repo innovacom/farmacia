@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { SlidersHorizontal, Check, Loader2, ShieldCheck, Save, Clock, MessageCircle, Truck } from 'lucide-react';
+import { SlidersHorizontal, Check, Loader2, ShieldCheck, Save, Clock, MessageCircle, Truck, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { usePrefsStore, ROWS_PER_PAGE_OPTIONS } from '../../store/prefsStore';
 import { usePermisos } from '../../hooks/usePermisos';
@@ -54,6 +54,9 @@ export default function Configuracion() {
 
       {/* Vigencia de precios (solo admin) */}
       {isAdmin && <VigenciaPrecios />}
+
+      {/* Radio de cobertura a domicilio (solo admin) */}
+      {isAdmin && <RadioCobertura />}
 
       {/* WhatsApp API (recordatorio de citas, solo admin) */}
       {isAdmin && <WhatsAppEstado />}
@@ -148,6 +151,75 @@ function VigenciaPrecios() {
               Guardar
             </button>
             <span className="text-xs text-gray-400">Valores permitidos: 1 a 120 meses.</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RadioCobertura() {
+  const qc = useQueryClient();
+  const [radio, setRadio] = useState('');
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['configuracion'],
+    queryFn: () => api.get('/configuracion').then((r) => r.data),
+  });
+
+  useEffect(() => {
+    if (data) setRadio(String(data.radio_cobertura_km ?? ''));
+  }, [data]);
+
+  const guardar = useMutation({
+    mutationFn: () => api.put('/configuracion', { radio_cobertura_km: Number(radio) }),
+    onSuccess: (r) => {
+      toast.success('Radio de cobertura actualizado');
+      qc.setQueryData(['configuracion'], r.data);
+    },
+    onError: (e) => toast.error(e.response?.data?.error || 'No se pudo guardar'),
+  });
+
+  const valido = Number.isFinite(Number(radio)) && Number(radio) >= 0.1 && Number(radio) <= 50;
+  const puedeGuardar = valido && !guardar.isPending;
+
+  return (
+    <div className="card mt-6">
+      <div className="flex items-center gap-2 mb-1">
+        <MapPin size={18} className="text-brand-500" />
+        <h2 className="font-semibold text-gray-900">Radio de cobertura a domicilio</h2>
+      </div>
+      <p className="text-sm text-gray-500 mb-4">
+        Distancia máxima (línea recta desde la sucursal) para aceptar un pedido a domicilio por
+        WhatsApp o desde la tienda en línea. Si la dirección del cliente está fuera de este radio,
+        se le avisa y se le ofrece recoger en tienda. Requiere que la sucursal tenga sus
+        coordenadas cargadas (Pos → Sucursales) y la variable de entorno GOOGLE_MAPS_API_KEY
+        configurada en el servidor; sin alguna de las dos, esta validación se omite y el pedido
+        sigue su curso normal.
+      </p>
+
+      {isLoading ? (
+        <p className="text-sm text-gray-400 py-4">Cargando…</p>
+      ) : (
+        <div className="space-y-4">
+          <label className="block">
+            <span className="text-sm font-medium text-gray-700">Radio de cobertura</span>
+            <div className="flex items-center gap-2 mt-1.5">
+              <input
+                type="number" min="0.1" max="50" step="0.1" value={radio}
+                onChange={(e) => setRadio(e.target.value)}
+                className="input w-24 text-right tabular-nums"
+              />
+              <span className="text-sm text-gray-500">km</span>
+            </div>
+          </label>
+
+          <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
+            <button onClick={() => guardar.mutate()} disabled={!puedeGuardar} className="btn-primary">
+              {guardar.isPending ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+              Guardar
+            </button>
+            <span className="text-xs text-gray-400">Valores permitidos: 0.1 a 50 km.</span>
           </div>
         </div>
       )}

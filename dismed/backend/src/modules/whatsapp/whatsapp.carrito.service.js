@@ -26,6 +26,7 @@ const { pool } = require('../../config/db');
 const ventas = require('../pos/pos.ventas.service');
 const promociones = require('../pos/pos.promociones.service');
 const inv = require('../inventario/movimientos.service');
+const cobertura = require('../../services/cobertura.service');
 
 // Misma lista que pos.ventas.service#CLASIF_LIBRES — si un producto NO está
 // en esta lista, su venta exige receta médica (aquí: FOTO por WhatsApp).
@@ -609,7 +610,22 @@ async function manejarPasoPendiente(empresaId, contacto, texto) {
 
   if (carrito.paso === 'esperando_direccion') {
     if (t.length < 5) return { manejado: true, respuesta: { texto: 'Necesito la dirección completa (calle, número, colonia).', botones: [{ id: 'WA_CANCELARCARRITO', titulo: 'Cancelar pedido' }] } };
-    await pool.query(`UPDATE whatsapp_carritos SET direccion_entrega = ?, paso = 'esperando_nombre' WHERE id = ?`, [t.slice(0, 500), carrito.id]);
+    const direccion = t.slice(0, 500);
+    const chk = await cobertura.verificarCobertura(empresaId, carrito.sucursal_id, direccion);
+    if (!chk.dentro) {
+      await pool.query(`UPDATE whatsapp_carritos SET paso = 'esperando_entrega' WHERE id = ?`, [carrito.id]);
+      return {
+        manejado: true,
+        respuesta: {
+          texto: `Lo sentimos, esa dirección está fuera de nuestra zona de reparto (aprox. ${chk.distancia_km} km; cubrimos hasta ${chk.radio_km} km a la redonda de la farmacia). ¿Prefieres recoger tu pedido en tienda?`,
+          botones: [
+            { id: 'WA_ENTREGA:pickup', titulo: 'Recoger en tienda' },
+            { id: 'WA_CANCELARCARRITO', titulo: 'Cancelar pedido' },
+          ],
+        },
+      };
+    }
+    await pool.query(`UPDATE whatsapp_carritos SET direccion_entrega = ?, paso = 'esperando_nombre' WHERE id = ?`, [direccion, carrito.id]);
     return { manejado: true, respuesta: { texto: '¿A nombre de quién es el pedido?', botones: [{ id: 'WA_CANCELARCARRITO', titulo: 'Cancelar pedido' }] } };
   }
 

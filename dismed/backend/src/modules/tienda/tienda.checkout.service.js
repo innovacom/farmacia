@@ -22,6 +22,7 @@ const inv = require('../inventario/movimientos.service');
 const promociones = require('../pos/pos.promociones.service');
 const branding = require('../../services/branding.service');
 const stripeConfig = require('./tienda.stripe.config');
+const cobertura = require('../../services/cobertura.service');
 const { ultimos10 } = require('../whatsapp/whatsapp.util');
 
 const CLASIF_LIBRES = ['libre', 'venta_farmacia'];
@@ -87,6 +88,13 @@ async function iniciar(empresaId, payload, { ip, clienteFidelidadId } = {}) {
     [sucursal_id, empresaId]
   );
   if (!suc) throw badRequest('Sucursal inválida');
+
+  if (forma_entrega === 'domicilio') {
+    const chk = await cobertura.verificarCobertura(empresaId, suc.id, direccion_entrega);
+    if (!chk.dentro) {
+      throw badRequest(`Tu dirección está fuera de nuestra zona de reparto (aprox. ${chk.distancia_km} km; cubrimos hasta ${chk.radio_km} km a la redonda de la farmacia). Elige "Recoger en tienda" o pide por WhatsApp para más opciones.`);
+    }
+  }
 
   const productoIds = carrito.map((it) => it.producto_id);
   const [prodRows] = await pool.query(
