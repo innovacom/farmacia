@@ -15,8 +15,10 @@
  *     (domicilio, cobertura, controlados, etc.) — el prompt del clasificador
  *     se arma dinámicamente con las filas activas de whatsapp_faqs, así que
  *     agregar/editar una FAQ no requiere tocar este archivo.
- * Cualquier otra intención devuelve null y el llamador no contesta nada
- * (mejor no responder que alucinar).
+ * Intención "otro" (saludo, queja, mensaje ambiguo, etc.) responde con un
+ * mensaje genérico invitando a decir qué medicamento/insumo busca — nunca se
+ * deja la conversación colgada. Solo un fallo TÉCNICO real (Gemini o BD
+ * caídos, ver catch abajo) hace que no se conteste nada.
  *
  * generarRespuesta() nunca lanza: un fallo de Gemini o de la consulta no debe
  * romper el procesamiento del webhook de WhatsApp.
@@ -149,12 +151,18 @@ async function responderMedicoEnTurno(empresaId) {
   return `En este momento no hay médico en turno. El próximo es ${proximo.nombre}${especialidad}, ${cuando}.\n\nHorario de médicos:\n${listado}`;
 }
 
-// Punto de entrada único. Nunca lanza: cualquier error (Gemini, BD) se traga
-// y devuelve null, para que el llamador simplemente no conteste nada en vez
-// de romper el procesamiento del webhook. `contacto` = {id, telefono} — lo
-// necesitan las intenciones de carrito (whatsapp.carrito.service), que son
-// por-contacto; el resto de intenciones lo ignoran. Devuelve siempre
-// { texto, botones?, lista? } o null, nunca un string suelto (ver
+const RESPUESTA_NO_ENTENDIDO = {
+  texto: 'No te entendí, pero si me dices qué medicamento o insumo de la farmacia necesitas, con gusto lo busco por ti.',
+};
+
+// Punto de entrada único. Solo un error TÉCNICO (Gemini, BD) se traga y
+// devuelve null, para que el llamador simplemente no conteste nada en vez de
+// romper el procesamiento del webhook — una intención "otro" (mensaje
+// ambiguo) SÍ contesta, con RESPUESTA_NO_ENTENDIDO, para no dejar la
+// conversación colgada. `contacto` = {id, telefono} — lo necesitan las
+// intenciones de carrito (whatsapp.carrito.service), que son por-contacto;
+// el resto de intenciones lo ignoran. Devuelve siempre { texto, botones?,
+// lista? } o null, nunca un string suelto (ver
 // whatsapp.service#procesarMensajeEntrante, que envía botones/lista si
 // vienen, o texto plano si no).
 async function generarRespuesta(empresaId, contacto, texto) {
@@ -173,7 +181,7 @@ async function generarRespuesta(empresaId, contacto, texto) {
       case 'horario': return { texto: await responderHorarioSucursal(empresaId) };
       case 'medico_turno': return { texto: await responderMedicoEnTurno(empresaId) };
       case 'producto': return await carrito.mostrarProductoConOpcionAgregar(empresaId, contacto, producto_query || texto);
-      default: return null;
+      default: return RESPUESTA_NO_ENTENDIDO;
     }
   } catch (err) {
     console.warn('[whatsapp.chatbot] no se pudo generar respuesta:', err.message);
