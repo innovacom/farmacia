@@ -694,6 +694,74 @@ async function buscarPrecioWebPartida(req, res, next) {
   } catch (err) { next(err); }
 }
 
+/**
+ * Captura manual de proveedor/precio para UNA partida, sin depender de la
+ * búsqueda automática (catálogo o web). Permite elegir un proveedor existente
+ * (proveedor_id) o crear uno nuevo al vuelo por nombre (proveedor_nombre),
+ * igual que hace buscarPrecioWebPartida con las tiendas encontradas.
+ * POST /solicitudes/:id/partidas/:pid/precio-manual
+ */
+async function precioManualPartida(req, res, next) {
+  try {
+    const { proveedor_id, proveedor_nombre, precio, sku_proveedor, observaciones } = req.body;
+    const precioNum = parseFloat(precio);
+    if (!Number.isFinite(precioNum) || precioNum <= 0) {
+      return res.status(400).json({ error: 'Precio inválido' });
+    }
+    if (!proveedor_id && !proveedor_nombre?.trim()) {
+      return res.status(400).json({ error: 'Selecciona un proveedor o escribe uno nuevo' });
+    }
+
+    const [[partida]] = await pool.query(
+      'SELECT * FROM solicitudes_partidas WHERE id = ? AND solicitud_id = ?',
+      [req.params.pid, req.params.id]
+    );
+    if (!partida) return res.status(404).json({ error: 'Partida no encontrada' });
+
+    let provId = proveedor_id ? parseInt(proveedor_id) : null;
+    if (provId) {
+      const [[prov]] = await pool.query('SELECT id FROM proveedores WHERE id = ?', [provId]);
+      if (!prov) return res.status(404).json({ error: 'Proveedor no encontrado' });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      if (!provId) {
+        let [[prov]] = await conn.query(
+          `SELECT id FROM proveedores WHERE LOWER(TRIM(nombre_empresa)) = LOWER(TRIM(?)) LIMIT 1`,
+          [proveedor_nombre]
+        );
+        if (!prov) {
+          const [r] = await conn.query(
+            'INSERT INTO proveedores (nombre_empresa, activo) VALUES (?, 1)',
+            [proveedor_nombre.trim().substring(0, 150)]
+          );
+          prov = { id: r.insertId };
+        }
+        provId = prov.id;
+      }
+
+      const obs = observaciones?.trim() ? observaciones.trim() : 'Captura manual';
+      await registrarPrecioProveedor(conn, {
+        solicitudId: req.params.id, proveedorId: provId, partidaId: partida.id,
+        sku_proveedor, observaciones: obs, precio: precioNum,
+      });
+      await recalcularMejorPrecio(conn, partida.id, req.params.id);
+      await conn.commit();
+
+      const [[provRow]] = await pool.query('SELECT nombre_empresa FROM proveedores WHERE id = ?', [provId]);
+      res.json({ ok: true, partida_id: partida.id, proveedor_id: provId, proveedor: provRow?.nombre_empresa });
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  } catch (err) { next(err); }
+}
+
 async function comparador(req, res, next) {
   try {
     const [rows] = await pool.query(
@@ -817,6 +885,7 @@ module.exports = {
   bulkPartidas, addPartida, updatePartida, deletePartida,
   buscarPrecioCatalogoPartida,
   buscarPrecioWebPartida,
+  precioManualPartida,
   comparador,
   exportarComparador,
 };

@@ -30,6 +30,9 @@ router.post('/:id/partidas/bulk',         c.bulkPartidas);
 router.post('/:id/partidas/:pid/buscar-precio-catalogo', c.buscarPrecioCatalogoPartida);
 router.post('/:id/partidas/:pid/buscar-precio-web', c.buscarPrecioWebPartida);
 
+// Captura manual de proveedor/precio (sin buscar en catálogo ni internet)
+router.post('/:id/partidas/:pid/precio-manual', c.precioManualPartida);
+
 // Vista comparador
 router.get('/:id/comparador',             c.comparador);
 router.get('/:id/comparador/exportar',    c.exportarComparador);

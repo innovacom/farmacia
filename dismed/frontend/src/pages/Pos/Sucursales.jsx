@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Warehouse, Plus, Pencil, Monitor, Receipt, Zap, X, Search, Clock, Globe, MapPin, ShieldCheck } from 'lucide-react';
+import { Warehouse, Plus, Pencil, Monitor, Receipt, Zap, X, Search, Clock, Globe, MapPin, ShieldCheck, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 import Modal from '../../components/ui/Modal';
@@ -452,12 +452,13 @@ function UbicacionSucursal({ latitud, longitud, onChange }) {
       )}
       {error && <p className="text-xs text-red-500">{error}</p>}
       {tieneCoords && (
-        <iframe
-          className="w-full aspect-video rounded-lg border border-gray-200"
-          src={`https://maps.google.com/maps?q=${latitud},${longitud}&z=16&output=embed`}
-          loading="lazy"
-          title="Vista previa de la ubicación"
-        />
+        <a
+          href={`https://www.google.com/maps?q=${latitud},${longitud}`}
+          target="_blank" rel="noopener noreferrer"
+          className="flex items-center gap-1.5 text-xs text-brand-500 hover:underline w-fit"
+        >
+          <ExternalLink size={13} /> Ver ubicación en Google Maps
+        </a>
       )}
     </div>
   );

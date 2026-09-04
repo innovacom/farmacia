@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { ArrowLeft, BarChart2, Send, CheckSquare, Square, Globe, Loader2, Link2, Pencil, X, Check, BookOpen, Zap } from 'lucide-react';
+import { ArrowLeft, BarChart2, Send, CheckSquare, Square, Globe, Loader2, Link2, Pencil, X, Check, BookOpen, Zap, DollarSign } from 'lucide-react';
 import api from '../../services/api';
 import ProductoPicker from '../../components/shared/ProductoPicker';
 
@@ -65,6 +65,9 @@ export default function DetalleSolicitud() {
 
   // ── Vinculación de partida con producto del catálogo ──
   const [picker, setPicker] = useState(null); // partida a vincular
+
+  // ── Captura manual de proveedor/precio (sin depender de búsqueda) ──
+  const [manualModal, setManualModal] = useState(null); // partida a capturar
   const vincularMut = useMutation({
     mutationFn: (body) => api.put(`/solicitudes/${id}/partidas/${body.pid}`, body.data),
     onSuccess: () => { toast.success('Vínculo actualizado'); qc.invalidateQueries(['solicitud', id]); },
@@ -372,15 +375,20 @@ export default function DetalleSolicitud() {
                         className="text-gray-400 hover:text-red-500"><X size={15} /></button>
                     </span>
                   ) : (
-                    <button title="Editar partida (cantidad, descripción, U/M, observaciones)"
-                      onClick={() => setEditRow({
-                        id: p.id,
-                        cantidad: String(p.cantidad ?? ''),
-                        descripcion_original: p.descripcion_original || '',
-                        unidad_medida: p.unidad_medida || '',
-                        observaciones: p.observaciones || '',
-                      })}
-                      className="text-gray-300 hover:text-brand-500"><Pencil size={15} /></button>
+                    <span className="flex items-center gap-1.5">
+                      <button title="Editar partida (cantidad, descripción, U/M, observaciones)"
+                        onClick={() => setEditRow({
+                          id: p.id,
+                          cantidad: String(p.cantidad ?? ''),
+                          descripcion_original: p.descripcion_original || '',
+                          unidad_medida: p.unidad_medida || '',
+                          observaciones: p.observaciones || '',
+                        })}
+                        className="text-gray-300 hover:text-brand-500"><Pencil size={15} /></button>
+                      <button title="Capturar proveedor/precio a mano"
+                        onClick={() => setManualModal(p)}
+                        className="text-gray-300 hover:text-green-600"><DollarSign size={15} /></button>
+                    </span>
                   )}
                 </td>
               </tr>
@@ -679,6 +687,21 @@ export default function DetalleSolicitud() {
         </div>
       )}
 
+      {/* ── Captura manual de proveedor/precio ── */}
+      {manualModal && (
+        <PrecioManualModal
+          solicitudId={id}
+          partida={manualModal}
+          proveedores={proveedores}
+          onClose={() => setManualModal(null)}
+          onSaved={() => {
+            setManualModal(null);
+            qc.invalidateQueries(['cotprov', id]);
+            qc.invalidateQueries(['solicitud', id]);
+          }}
+        />
+      )}
+
       {/* ── Selector de producto del catálogo ── */}
       {picker && (
         <ProductoPicker
@@ -697,6 +720,113 @@ export default function DetalleSolicitud() {
           })}
         />
       )}
+    </div>
+  );
+}
+
+/**
+ * Modal de captura manual de proveedor/precio para una partida. No depende de
+ * la búsqueda en catálogo ni en internet: el usuario elige un proveedor
+ * existente (o escribe uno nuevo) y teclea el precio directamente.
+ */
+function PrecioManualModal({ solicitudId, partida, proveedores, onClose, onSaved }) {
+  const [proveedorId, setProveedorId] = useState('');
+  const [proveedorNuevo, setProveedorNuevo] = useState('');
+  const [sku, setSku] = useState('');
+  const [precio, setPrecio] = useState('');
+  const [observaciones, setObservaciones] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  async function guardar() {
+    const precioNum = parseFloat(String(precio).replace(',', '.'));
+    if (!Number.isFinite(precioNum) || precioNum <= 0) {
+      return toast.error('Precio inválido');
+    }
+    if (!proveedorId && !proveedorNuevo.trim()) {
+      return toast.error('Selecciona un proveedor o escribe uno nuevo');
+    }
+    setSaving(true);
+    try {
+      await api.post(`/solicitudes/${solicitudId}/partidas/${partida.id}/precio-manual`, {
+        proveedor_id:     proveedorId || undefined,
+        proveedor_nombre: proveedorId ? undefined : proveedorNuevo.trim(),
+        precio:            precioNum,
+        sku_proveedor:     sku.trim() || undefined,
+        observaciones:     observaciones.trim() || undefined,
+      });
+      toast.success('Precio registrado');
+      onSaved();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'No se pudo registrar el precio');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center p-4 pt-16">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-5 space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="font-semibold text-gray-800">Capturar precio manual</h3>
+            <p className="text-xs text-gray-400 mt-0.5">
+              #{partida.linea} — {partida.descripcion_original?.substring(0, 70)}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
+        </div>
+
+        <div>
+          <label className="text-xs text-gray-500 mb-1 block">Proveedor</label>
+          <select
+            className="input text-sm"
+            value={proveedorId}
+            onChange={(e) => { setProveedorId(e.target.value); if (e.target.value) setProveedorNuevo(''); }}
+          >
+            <option value="">— Nuevo proveedor —</option>
+            {proveedores.filter((p) => p.activo).map((p) => (
+              <option key={p.id} value={p.id}>{p.nombre_empresa}</option>
+            ))}
+          </select>
+          {!proveedorId && (
+            <input
+              className="input text-sm mt-2"
+              placeholder="Nombre del proveedor nuevo"
+              value={proveedorNuevo}
+              onChange={(e) => setProveedorNuevo(e.target.value)}
+            />
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Precio unit. (MXN, sin IVA)</label>
+            <input type="text" inputMode="decimal" className="input text-sm text-right"
+              value={precio}
+              onChange={(e) => setPrecio(e.target.value.replace(/[^0-9.,]/g, ''))}
+              placeholder="0.00" />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">SKU proveedor</label>
+            <input className="input text-sm" value={sku} onChange={(e) => setSku(e.target.value)}
+              placeholder="Opcional" />
+          </div>
+        </div>
+
+        <div>
+          <label className="text-xs text-gray-500 mb-1 block">Observaciones</label>
+          <input className="input text-sm" value={observaciones}
+            onChange={(e) => setObservaciones(e.target.value)}
+            placeholder="Marca, entrega, especificaciones… (opcional)" />
+        </div>
+
+        <div className="flex gap-2 pt-2">
+          <button onClick={guardar} disabled={saving} className="btn-primary btn-sm disabled:opacity-50">
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Guardar precio
+          </button>
+          <button onClick={onClose} className="btn-secondary btn-sm">Cancelar</button>
+        </div>
+      </div>
     </div>
   );
 }
