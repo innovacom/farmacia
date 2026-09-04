@@ -18,6 +18,8 @@ import TiendaFooter from './TiendaFooter';
 import CarritoBadge from './CarritoBadge';
 import CuentaBadge from './CuentaBadge';
 import useTituloPagina from '../../hooks/useTituloPagina';
+import useTiendaPixel from '../../hooks/useTiendaPixel';
+import { trackAddToCart, trackContact } from '../../utils/tiendaPixel';
 import { useTiendaCarrito } from '../../store/tiendaCarritoStore';
 
 const PAGE_SIZE = 24;
@@ -79,6 +81,7 @@ export default function Catalogo() {
     queryKey: ['tienda-info'],
     queryFn: () => api.get('/tienda/info').then((r) => r.data),
   });
+  useTiendaPixel(info);
 
   const { data: categorias = [] } = useQuery({
     queryKey: ['tienda-categorias'],
@@ -276,6 +279,7 @@ export default function Catalogo() {
                         onClick={(e) => {
                           e.preventDefault(); e.stopPropagation();
                           agregarAlCarrito(p);
+                          trackAddToCart({ id: p.id, nombre: p.descripcion, valor: p.precio_final });
                           toast.success('Agregado al carrito');
                         }}
                         className="absolute bottom-2 right-2 flex items-center justify-center w-8 h-8 rounded-full
@@ -325,6 +329,7 @@ export default function Catalogo() {
         <a
           href={linkWhatsApp(info.whatsapp, 'Hola, quiero hacer un pedido.')}
           target="_blank" rel="noopener noreferrer"
+          onClick={() => trackContact()}
           className="fixed bottom-5 right-5 flex items-center gap-2 bg-green-500 hover:bg-green-600
                      text-white font-tienda-display font-bold text-sm px-4 py-3 rounded-full
                      shadow-[0_10px_24px_rgba(34,197,94,0.35)] transition-transform hover:-translate-y-0.5"

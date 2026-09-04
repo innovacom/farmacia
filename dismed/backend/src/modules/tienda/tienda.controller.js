@@ -55,12 +55,21 @@ async function decorarPrecios(rows, empresaId) {
   });
 }
 
-// Embed sin API key: maps.google.com/maps?q=...&output=embed es la variante
-// pública clásica. La Maps Embed API oficial exige key + cuenta de
-// facturación y no se justifica sólo para pintar un pin fijo.
+// El truco clásico "maps.google.com/maps?q=...&output=embed" (sin API key)
+// dejó de funcionar: Google lo da de baja y ahora responde 404 (confirmado
+// 2026-09-03). Se cambia a la Maps Embed API oficial, que requiere una key
+// PROPIA (GOOGLE_MAPS_EMBED_KEY) — distinta de GOOGLE_MAPS_API_KEY, que es
+// server-side (Geocoding, restringida por IP del VPS) y no admite mezclar
+// restricción por IP con restricción por HTTP referrer, que es lo que
+// necesita una key expuesta al navegador. GOOGLE_MAPS_EMBED_KEY debe estar
+// restringida en Google Cloud Console a los dominios de la tienda (HTTP
+// referrers) y tener habilitada solo la "Maps Embed API" (gratuita, sin
+// costo por carga). Sin la key, se omite el mapa igual que antes — nunca se
+// rompe la página por falta de config.
 function mapaEmbed(lat, lng) {
-  if (lat == null || lng == null) return null;
-  return `https://maps.google.com/maps?q=${lat},${lng}&z=16&output=embed`;
+  const apiKey = process.env.GOOGLE_MAPS_EMBED_KEY;
+  if (lat == null || lng == null || !apiKey) return null;
+  return `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${lat},${lng}&zoom=16`;
 }
 
 /**
@@ -87,6 +96,8 @@ async function info(req, res, next) {
         redes: { facebook: null, instagram: null, email: null },
         pago_habilitado: false,
         envio_domicilio_costo: 0,
+        meta_pixel_id: null,
+        tiktok_pixel_id: null,
         sucursales: [],
       });
     }
@@ -132,6 +143,10 @@ async function info(req, res, next) {
       // mismo criterio que TIENDA_WHATSAPP_NUMERO oculta su botón.
       pago_habilitado: stripeConfig.estaConfigurado(),
       envio_domicilio_costo: Number(b.config.tienda_envio_domicilio_costo || 0),
+      // IDs de Pixel (públicos, no secretos) para inyectar fbq/ttq en el
+      // frontend de /tienda. Vacío -> el frontend no carga ningún script.
+      meta_pixel_id: b.config.meta_pixel_id || null,
+      tiktok_pixel_id: b.config.tiktok_pixel_id || null,
       // Solo booleanos de disponibilidad, no el texto completo — el texto
       // largo (privacidad/términos) se pide aparte vía GET /tienda/legal,
       // que solo llaman las dos páginas legales, no cada carga de /tienda.
@@ -341,4 +356,8 @@ async function suscribir(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { info, legalTexto, categorias, productosList, productoDetalle, sitemap, suscribir };
+module.exports = {
+  info, legalTexto, categorias, productosList, productoDetalle, sitemap, suscribir,
+  // Reusados por tienda.feed.controller.js (feed de catálogo Meta/TikTok):
+  decorarPrecios, CLASIF_LIBRES,
+};

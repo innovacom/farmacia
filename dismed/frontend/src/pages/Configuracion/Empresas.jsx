@@ -377,6 +377,8 @@ const GRUPOS = [
     nota: 'Se muestran en el encabezado y el pie del catálogo público. La dirección, el teléfono, el horario y el mapa de cada sucursal se editan en Punto de venta → Sucursales.' },
   { id: 'legal', titulo: 'Legal y envíos (/tienda)',
     nota: 'El aviso de privacidad ya trae el texto real de la empresa; los términos y condiciones son una plantilla genérica — revísala y personalízala antes de publicar. Los datos de COFEPRIS (responsable sanitario, licencia) se capturan por sucursal en Punto de venta → Sucursales.' },
+  { id: 'marketing', titulo: 'Marketing — Meta Ads y TikTok Ads',
+    nota: 'IDs de Pixel para anuncios en Facebook/Instagram y TikTok. Se obtienen en el Events Manager de cada plataforma. Solo el ID (que es público); los tokens de la Conversions API / Events API los configura el técnico en el servidor. Ver DISEÑO_ADS_META_TIKTOK.md.' },
 ];
 
 function ParametrosEmpresa({ empresaId, valores, onChange }) {

@@ -1,5 +1,6 @@
 // Ficha de producto del catálogo público — misma identidad visual que
 // Catalogo.jsx (paleta `tienda-*` + fuentes `font-tienda*`, ver tailwind.config.js).
+import { useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Package, MessageCircle, ShoppingCart } from 'lucide-react';
@@ -10,6 +11,8 @@ import TiendaFooter from './TiendaFooter';
 import CarritoBadge from './CarritoBadge';
 import CuentaBadge from './CuentaBadge';
 import useTituloPagina from '../../hooks/useTituloPagina';
+import useTiendaPixel from '../../hooks/useTiendaPixel';
+import { trackViewContent, trackAddToCart, trackContact } from '../../utils/tiendaPixel';
 import { useTiendaCarrito } from '../../store/tiendaCarritoStore';
 
 function money(n) {
@@ -29,6 +32,11 @@ export default function DetalleProducto() {
     queryKey: ['tienda-producto', id],
     queryFn: () => api.get(`/tienda/productos/${id}`).then((r) => r.data),
   });
+
+  useTiendaPixel(info);
+  useEffect(() => {
+    if (p) trackViewContent({ id: p.id, nombre: p.descripcion, valor: p.precio_final });
+  }, [p]);
 
   const ficha = p && [
     ['Fabricante', p.fabricante],
@@ -136,7 +144,11 @@ export default function DetalleProducto() {
               {info?.pago_habilitado && !p.requiere_receta && p.disponible && (
                 <button
                   type="button"
-                  onClick={() => { agregarAlCarrito(p); toast.success('Agregado al carrito'); }}
+                  onClick={() => {
+                    agregarAlCarrito(p);
+                    trackAddToCart({ id: p.id, nombre: p.descripcion, valor: p.precio_final });
+                    toast.success('Agregado al carrito');
+                  }}
                   className="mt-6 flex items-center justify-center gap-2 bg-tienda-teal hover:bg-tienda-teal/90
                              text-white font-tienda-display font-bold px-4 py-3.5 rounded-2xl w-full
                              shadow-[0_10px_24px_rgba(14,124,107,0.25)] transition-transform hover:-translate-y-0.5"
@@ -149,6 +161,7 @@ export default function DetalleProducto() {
                 <a
                   href={linkWhatsApp(info.whatsapp, mensajeWa)}
                   target="_blank" rel="noopener noreferrer"
+                  onClick={() => trackContact()}
                   className="mt-6 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600
                              text-white font-tienda-display font-bold px-4 py-3.5 rounded-2xl w-full
                              shadow-[0_10px_24px_rgba(34,197,94,0.3)] transition-transform hover:-translate-y-0.5"

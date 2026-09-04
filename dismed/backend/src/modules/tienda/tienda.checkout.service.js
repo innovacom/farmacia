@@ -23,6 +23,7 @@ const promociones = require('../pos/pos.promociones.service');
 const branding = require('../../services/branding.service');
 const stripeConfig = require('./tienda.stripe.config');
 const cobertura = require('../../services/cobertura.service');
+const adsEventos = require('../../services/adsEventos.service');
 const { ultimos10 } = require('../whatsapp/whatsapp.util');
 
 const CLASIF_LIBRES = ['libre', 'venta_farmacia'];
@@ -306,6 +307,33 @@ async function confirmarPago(session) {
       }
       await conn.query(`UPDATE tienda_checkout_sesiones SET estatus = 'pagado', pedido_id = ? WHERE id = ?`, [pedidoId, checkoutId]);
       await conn.commit();
+
+      // Evento de compra confirmada a Meta (Conversions API) y TikTok
+      // (Events API) — server-side, solo tras pago confirmado. Nunca lanza y
+      // ya no estamos dentro de la transacción; un fallo de medición no
+      // afecta el pedido. Ver DISEÑO_ADS_META_TIKTOK.md.
+      try {
+        await adsEventos.registrarCompra({
+          empresaId: chk.empresa_id,
+          origen: 'stripe',
+          folio,
+          valor: chk.total,
+          moneda: 'MXN',
+          email: chk.correo,
+          telefono: chk.telefono,
+          eventSourceUrl: `${process.env.FRONTEND_URL || ''}/tienda/carrito`,
+          contents: items.map((it) => ({
+            id: String(it.producto_id),
+            content_id: String(it.producto_id),
+            quantity: it.cantidad,
+            item_price: Number(it.precio_unitario),
+            price: Number(it.precio_unitario),
+          })),
+        });
+      } catch (e) {
+        console.error('[tienda-checkout] evento de ads no enviado:', e.message);
+      }
+
       return { pedidoId, folio, cancelado: false };
     }
   } catch (err) {

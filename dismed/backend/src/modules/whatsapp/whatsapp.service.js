@@ -294,6 +294,18 @@ async function procesarMensajeEntrante(msg) {
          VALUES (?, ?, 'entrante', 'entrante', ?, ?, ?, 'entregado', 0)`,
         [empresaId, contactoId, msg.from, extraerTexto(msg), msg.id || null]
       );
+
+      // Anuncio "clic a WhatsApp" de Meta: el primer mensaje trae un
+      // `referral` con el ctwa_clid, que hace falta para atribuir la compra
+      // a la campaña en el evento server-side (ver adsEventos.service.js).
+      // Se guarda el más reciente en el contacto. Ver DISEÑO_ADS_META_TIKTOK.md.
+      const ctwaClid = msg.referral?.ctwa_clid;
+      if (ctwaClid && contactoId) {
+        await pool.query(
+          'UPDATE whatsapp_contactos SET ctwa_clid = ?, ctwa_clid_en = NOW() WHERE id = ?',
+          [String(ctwaClid).slice(0, 512), contactoId]
+        );
+      }
     }
   } catch (err) {
     await logEvento('error_registro_bandeja', { msg, error: err.message });

@@ -13,6 +13,7 @@ const { authClienteOpcional } = require('../../middleware/authCliente');
 const { requirePermiso } = require('../../middleware/permisos');
 const { publicoLecturaLimiter, publicoEscrituraLimiter, loginLimiter } = require('../../middleware/rateLimit');
 const c = require('./tienda.controller');
+const feed = require('./tienda.feed.controller');
 const checkout = require('./tienda.checkout.controller');
 const pedidos = require('./tienda.pedidos.controller');
 const cuenta = require('./tienda.cuenta.controller');
@@ -30,6 +31,12 @@ router.post('/suscriptores', publicoEscrituraLimiter, c.suscribir);
 router.get('/categorias',    publicoLecturaLimiter, c.categorias);
 router.get('/productos',     publicoLecturaLimiter, c.productosList);
 router.get('/productos/:id', publicoLecturaLimiter, c.productoDetalle);
+
+// Feed de catálogo para Meta / TikTok Ads — protegido por FEED_TOKEN en la
+// query string (sin token válido: 404). Meta/TikTok lo descargan por
+// calendario, por eso sin auth de sesión. Ver tienda.feed.controller.js.
+router.get('/feed/meta.csv',   publicoLecturaLimiter, feed.metaCsv);
+router.get('/feed/tiktok.csv', publicoLecturaLimiter, feed.tiktokCsv);
 
 // authClienteOpcional: si viene un token de cliente válido liga el pedido a
 // su cuenta; si no (invitado, como hasta hoy), no bloquea nada.
