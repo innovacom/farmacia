@@ -12,6 +12,8 @@ import { ArrowLeft, Minus, Plus, Trash2, ShoppingBag, Store, Truck, User } from 
 import toast from 'react-hot-toast';
 import api from '../../services/apiTienda';
 import TiendaFooter from './TiendaFooter';
+import useTiendaPixel from '../../hooks/useTiendaPixel';
+import { trackInitiateCheckout } from '../../utils/tiendaPixel';
 import { useTiendaCarrito } from '../../store/tiendaCarritoStore';
 import { useTiendaAuth } from '../../store/tiendaAuthStore';
 
@@ -34,6 +36,7 @@ export default function Carrito() {
     queryKey: ['tienda-info'],
     queryFn: () => api.get('/tienda/info').then((r) => r.data),
   });
+  useTiendaPixel(info);
 
   // Con sesión iniciada, se autollena una sola vez con el perfil guardado
   // (incluye la dirección de entrega, que no viaja en el token) — el
@@ -80,6 +83,7 @@ export default function Carrito() {
     if (!sucursalId) return toast.error('Elige una sucursal');
     if (formaEntrega === 'domicilio' && !direccion.trim()) return toast.error('Escribe la dirección de entrega');
     if (!nombre.trim() || !telefono.trim() || !correo.trim()) return toast.error('Completa tus datos de contacto');
+    trackInitiateCheckout({ valor: totalAprox, numItems: items.reduce((a, it) => a + it.cantidad, 0) });
     pagar.mutate();
   }
 

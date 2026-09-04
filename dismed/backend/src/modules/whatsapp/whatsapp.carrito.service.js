@@ -27,6 +27,7 @@ const ventas = require('../pos/pos.ventas.service');
 const promociones = require('../pos/pos.promociones.service');
 const inv = require('../inventario/movimientos.service');
 const cobertura = require('../../services/cobertura.service');
+const adsEventos = require('../../services/adsEventos.service');
 
 // Misma lista que pos.ventas.service#CLASIF_LIBRES — si un producto NO está
 // en esta lista, su venta exige receta médica (aquí: FOTO por WhatsApp).
@@ -503,6 +504,36 @@ async function confirmarPedidoFinal(empresaId, contacto, carrito) {
     }
     await conn.query(`UPDATE whatsapp_carritos SET estatus = 'confirmado', pedido_id = ? WHERE id = ?`, [pedidoId, carrito.id]);
     await conn.commit();
+
+    // Evento de compra a Meta (Conversions API) y TikTok (Events API) —
+    // ESTE es el canal de venta real hoy, sin este punto las campañas nunca
+    // mostrarían ventas. Fuera de la transacción, nunca lanza. Si el primer
+    // mensaje del cliente venía de un anuncio "clic a WhatsApp", el
+    // ctwa_clid guardado en el contacto liga la compra a la campaña.
+    // Ver DISEÑO_ADS_META_TIKTOK.md.
+    try {
+      const [[ctwa]] = await pool.query(
+        'SELECT ctwa_clid FROM whatsapp_contactos WHERE id = ?', [contacto.id]
+      );
+      await adsEventos.registrarCompra({
+        empresaId,
+        origen: 'whatsapp',
+        folio,
+        valor: total,
+        moneda: 'MXN',
+        telefono: contacto.telefono,
+        ctwaClid: ctwa?.ctwa_clid || null,
+        contents: partidasProcesadas.map((p) => ({
+          id: String(p.producto_id),
+          content_id: String(p.producto_id),
+          quantity: Number(p.cantidad),
+          item_price: Number(p.precio_unitario),
+          price: Number(p.precio_unitario),
+        })),
+      });
+    } catch (e) {
+      console.error('[whatsapp-carrito] evento de ads no enviado:', e.message);
+    }
 
     let texto = `¡Listo! Tu pedido ${folio} quedó registrado. Total: ${money(total)}, pago ${carrito.forma_pago} al momento de la entrega.`;
     if (requiereRecetaPedido) {

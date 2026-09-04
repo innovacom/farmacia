@@ -134,6 +134,16 @@ const CONFIG_META = {
   // le dice al editor de empresa (Configuración → Empresas) que pinte
   // <textarea> en vez de <input> — sin esa marca, el admin no podría
   // capturar más de una línea de texto.
+  // Grupo 'marketing' — IDs de Pixel para anuncios en Meta y TikTok
+  // (DISEÑO_ADS_META_TIKTOK.md). Son PÚBLICOS (van embebidos en el HTML de
+  // /tienda), por eso viven aquí y no en .env. Los tokens de la Conversions
+  // API / Events API son secretos y NO se capturan desde el admin — solo
+  // .env.server (META_CAPI_ACCESS_TOKEN / TIKTOK_EVENTS_ACCESS_TOKEN).
+  meta_pixel_id:   { grupo: 'marketing', label: 'Meta Pixel ID (Facebook / Instagram)', maxLen: 32, default: '',
+                     patron: /^$|^\d{6,20}$/, ayuda: '1234567890123456' },
+  tiktok_pixel_id: { grupo: 'marketing', label: 'TikTok Pixel ID', maxLen: 40, default: '',
+                     patron: /^$|^[A-Za-z0-9]{10,40}$/, ayuda: 'C4XXXXXXXXXXXXXXXXXX' },
+
   tienda_aviso_privacidad:     { grupo: 'legal', label: 'Aviso de privacidad', multilinea: true, maxLen: 6000, default: AVISO_PRIVACIDAD_DEFAULT },
   tienda_terminos:             { grupo: 'legal', label: 'Términos y condiciones', multilinea: true, maxLen: 6000, default: TERMINOS_DEFAULT },
   tienda_politica_envios:      { grupo: 'legal', label: 'Política de envíos', multilinea: true, maxLen: 800, default: '' },

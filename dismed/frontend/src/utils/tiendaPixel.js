@@ -1,0 +1,102 @@
+// tiendaPixel.js — Pixel de Meta (fbq) y TikTok (ttq) para el catálogo
+// público /tienda. Los scripts SOLO se cargan si el ID correspondiente viene
+// en GET /tienda/info (meta_pixel_id / tiktok_pixel_id, capturados por el
+// admin en Configuración → Empresas → Marketing) — igual que el carrito solo
+// aparece si Stripe está configurado. Ver DISEÑO_ADS_META_TIKTOK.md.
+//
+// Todo es defensivo: si un script no cargó (bloqueador, red), las funciones
+// de track no hacen nada en vez de tronar la página.
+
+let iniciado = false;
+
+function cargarMetaPixel(pixelId) {
+  if (window.fbq) return;
+  /* eslint-disable */
+  !(function (f, b, e, v, n, t, s) {
+    if (f.fbq) return;
+    n = f.fbq = function () {
+      n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
+    };
+    if (!f._fbq) f._fbq = n;
+    n.push = n; n.loaded = !0; n.version = '2.0'; n.queue = [];
+    t = b.createElement(e); t.async = !0;
+    t.src = v;
+    s = b.getElementsByTagName(e)[0]; s.parentNode.insertBefore(t, s);
+  })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
+  /* eslint-enable */
+  window.fbq('init', pixelId);
+  window.fbq('track', 'PageView');
+}
+
+function cargarTikTokPixel(pixelId) {
+  if (window.ttq) return;
+  /* eslint-disable */
+  !(function (w, d, t) {
+    w.TiktokAnalyticsObject = t;
+    var ttq = (w[t] = w[t] || []);
+    ttq.methods = ['page', 'track', 'identify', 'instances', 'debug', 'on', 'off', 'once', 'ready', 'alias', 'group', 'enableCookie', 'disableCookie', 'holdConsent', 'revokeConsent', 'grantConsent'];
+    ttq.setAndDefer = function (e, n) {
+      e[n] = function () { e.push([n].concat(Array.prototype.slice.call(arguments, 0))); };
+    };
+    for (var i = 0; i < ttq.methods.length; i++) ttq.setAndDefer(ttq, ttq.methods[i]);
+    ttq.instance = function (e) {
+      var n = ttq._i[e] || [];
+      for (var i = 0; i < ttq.methods.length; i++) ttq.setAndDefer(n, ttq.methods[i]);
+      return n;
+    };
+    ttq.load = function (e, n) {
+      var r = 'https://analytics.tiktok.com/i18n/pixel/events.js';
+      var o = n && n.partner;
+      ttq._i = ttq._i || {}; ttq._i[e] = []; ttq._i[e]._u = r;
+      ttq._t = ttq._t || {}; ttq._t[e] = +new Date();
+      ttq._o = ttq._o || {}; ttq._o[e] = n || {};
+      n = d.createElement('script'); n.type = 'text/javascript'; n.async = !0; n.src = r + '?sdkid=' + e + '&lib=' + t;
+      e = d.getElementsByTagName('script')[0]; e.parentNode.insertBefore(n, e);
+    };
+    ttq.load(pixelId);
+    ttq.page();
+  })(window, document, 'ttq');
+  /* eslint-enable */
+}
+
+// Llamar una sola vez, cuando GET /tienda/info ya resolvió.
+export function initTiendaPixel(info) {
+  if (iniciado || !info) return;
+  iniciado = true;
+  try { if (info.meta_pixel_id) cargarMetaPixel(String(info.meta_pixel_id)); } catch (e) { /* noop */ }
+  try { if (info.tiktok_pixel_id) cargarTikTokPixel(String(info.tiktok_pixel_id)); } catch (e) { /* noop */ }
+}
+
+function fbqTrack(evento, params) {
+  try { if (window.fbq) window.fbq('track', evento, params); } catch (e) { /* noop */ }
+}
+function ttqTrack(evento, params) {
+  try { if (window.ttq && window.ttq.track) window.ttq.track(evento, params); } catch (e) { /* noop */ }
+}
+
+// ── Eventos ────────────────────────────────────────────────────────────────
+// Nombres estándar: Meta y TikTok comparten casi todos salvo el de "compra"
+// (Purchase / CompletePayment), que aquí no se dispara desde el navegador —
+// va server-side (adsEventos.service.js) para no subcontar las ventas por
+// WhatsApp ni depender de que el navegador vuelva del checkout de Stripe.
+
+export function trackViewContent({ id, nombre, valor } = {}) {
+  fbqTrack('ViewContent', { content_ids: id != null ? [String(id)] : undefined, content_name: nombre, content_type: 'product', currency: 'MXN', value: valor });
+  ttqTrack('ViewContent', { contents: id != null ? [{ content_id: String(id), content_name: nombre }] : undefined, currency: 'MXN', value: valor });
+}
+
+export function trackAddToCart({ id, nombre, valor } = {}) {
+  fbqTrack('AddToCart', { content_ids: id != null ? [String(id)] : undefined, content_name: nombre, content_type: 'product', currency: 'MXN', value: valor });
+  ttqTrack('AddToCart', { contents: id != null ? [{ content_id: String(id), content_name: nombre }] : undefined, currency: 'MXN', value: valor });
+}
+
+export function trackInitiateCheckout({ valor, numItems } = {}) {
+  fbqTrack('InitiateCheckout', { currency: 'MXN', value: valor, num_items: numItems });
+  ttqTrack('InitiateCheckout', { currency: 'MXN', value: valor });
+}
+
+// Clic en "Pedir por WhatsApp" — hoy la conversión real, no el checkout.
+export function trackContact() {
+  fbqTrack('Contact');
+  ttqTrack('Contact');
+}
