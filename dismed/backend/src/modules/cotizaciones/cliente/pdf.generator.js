@@ -28,10 +28,20 @@ async function generarPdfCotizacion(cotizacion) {
     // request evita SSRF si un campo de texto lograra inyectar markup pese
     // al escape (ver utils/html.js).
     await page.setRequestInterception(true);
-    page.on('request', (r) => (r.url().startsWith('data:') ? r.continue() : r.abort()));
-    await page.setContent(html, { waitUntil: 'networkidle0' });
+    page.on('request', (r) => {
+      // continue()/abort() devuelven una promesa que rechaza si el request ya
+      // fue resuelto o si el target se cerró (p. ej. al abortar por timeout).
+      // Sin este .catch(), esa rejection queda sin manejar y —con la config por
+      // defecto de Node 20— TUMBA el proceso (PM2 lo reinicia). Ver app.js.
+      Promise.resolve(r.url().startsWith('data:') ? r.continue() : r.abort()).catch(() => {});
+    });
+    // El HTML solo trae imágenes `data:` embebidas: no hay red que esperar, así
+    // que 'load' (recursos listos) es fiable e instantáneo. 'networkidle0' se
+    // colgaba 30 s cuando el detector de red se confundía con los aborts.
+    await page.setContent(html, { waitUntil: 'load', timeout: 20000 });
     await page.pdf({
       path: filePath,
+      timeout: 20000,
       format: 'Letter',
       margin: { top: '5mm', bottom: '18mm', left: '10mm', right: '10mm' },
       printBackground: true,

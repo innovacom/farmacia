@@ -9,6 +9,14 @@ const servirOutputsFirmados = require('./middleware/signedOutputs');
 
 validateEnv();
 
+// Red de seguridad: una promesa rechazada sin manejar (p. ej. un callback de
+// evento de Puppeteer, un socket que se cae a media petición) NO debe tumbar
+// toda la API para todos los usuarios —el default de Node 20 es terminar el
+// proceso—. Se registra en el log para que siga siendo visible y se corrija.
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', reason instanceof Error ? reason.stack : reason);
+});
+
 const app = express();
 
 // Detrás de Apache (reverse proxy) en producción: sin esto, req.ip siempre
