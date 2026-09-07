@@ -80,19 +80,76 @@ function ttqTrack(evento, params) {
 // va server-side (adsEventos.service.js) para no subcontar las ventas por
 // WhatsApp ni depender de que el navegador vuelva del checkout de Stripe.
 
+// content_id = productos.id, el mismo que usa la columna "id" del feed
+// (tienda.feed.controller.js) — es la clave que Meta/TikTok usan para
+// casar un evento del pixel con un renglón del catálogo. Sin content_type +
+// price + content_id consistentes en cada evento, el catálogo no "empareja"
+// eventos con productos y el anuncio dinámico (Dynamic Showcase / Advantage+
+// Catalog) no puede armarse aunque el feed ya esté cargado.
+function ttqContent({ id, nombre, valor, cantidad }) {
+  if (id == null) return undefined;
+  return [{
+    content_id: String(id),
+    content_type: 'product',
+    content_name: nombre,
+    price: valor != null ? Number(valor) : undefined,
+    quantity: cantidad || 1,
+  }];
+}
+
+// InitiateCheckout y AddPaymentInfo van sobre el carrito completo (varios
+// productos, no uno) — TikTok exige content_id en TODOS sus eventos, no solo
+// en ViewContent/AddToCart ("Content ID is missing"), así que aquí se arma
+// un content_id por cada línea del carrito en vez de mandar el evento vacío.
+// items: [{ producto_id, descripcion, precio_final, cantidad }] (forma de
+// tiendaCarritoStore.js).
+function contentsDeCarrito(items) {
+  if (!items || !items.length) return undefined;
+  return items.map((it) => ({
+    content_id: String(it.producto_id),
+    content_type: 'product',
+    content_name: it.descripcion,
+    price: it.precio_final != null ? Number(it.precio_final) : undefined,
+    quantity: it.cantidad || 1,
+  }));
+}
+function contentIdsDeCarrito(items) {
+  return items && items.length ? items.map((it) => String(it.producto_id)) : undefined;
+}
+
 export function trackViewContent({ id, nombre, valor } = {}) {
   fbqTrack('ViewContent', { content_ids: id != null ? [String(id)] : undefined, content_name: nombre, content_type: 'product', currency: 'MXN', value: valor });
-  ttqTrack('ViewContent', { contents: id != null ? [{ content_id: String(id), content_name: nombre }] : undefined, currency: 'MXN', value: valor });
+  ttqTrack('ViewContent', { contents: ttqContent({ id, nombre, valor }), content_type: 'product', currency: 'MXN', value: valor });
 }
 
-export function trackAddToCart({ id, nombre, valor } = {}) {
+export function trackAddToCart({ id, nombre, valor, cantidad } = {}) {
   fbqTrack('AddToCart', { content_ids: id != null ? [String(id)] : undefined, content_name: nombre, content_type: 'product', currency: 'MXN', value: valor });
-  ttqTrack('AddToCart', { contents: id != null ? [{ content_id: String(id), content_name: nombre }] : undefined, currency: 'MXN', value: valor });
+  ttqTrack('AddToCart', { contents: ttqContent({ id, nombre, valor, cantidad }), content_type: 'product', currency: 'MXN', value: valor });
 }
 
-export function trackInitiateCheckout({ valor, numItems } = {}) {
-  fbqTrack('InitiateCheckout', { currency: 'MXN', value: valor, num_items: numItems });
-  ttqTrack('InitiateCheckout', { currency: 'MXN', value: valor });
+export function trackInitiateCheckout({ valor, numItems, items } = {}) {
+  fbqTrack('InitiateCheckout', { currency: 'MXN', value: valor, num_items: numItems, content_ids: contentIdsDeCarrito(items) });
+  ttqTrack('InitiateCheckout', { currency: 'MXN', value: valor, content_type: 'product', contents: contentsDeCarrito(items) });
+}
+
+// Paso previo a entrar a Stripe Checkout (no vemos datos de tarjeta, pero es
+// el punto equivalente a "el cliente va a pagar") — evento estándar que
+// TikTok pide para el embudo completo de catálogo (Video Shopping / Catalog
+// Listing Ads), junto con ViewContent, AddToCart e InitiateCheckout.
+export function trackAddPaymentInfo({ valor, numItems, items } = {}) {
+  fbqTrack('AddPaymentInfo', { currency: 'MXN', value: valor, num_items: numItems, content_ids: contentIdsDeCarrito(items) });
+  ttqTrack('AddPaymentInfo', { currency: 'MXN', value: valor, content_type: 'product', contents: contentsDeCarrito(items) });
+}
+
+// Búsqueda en el catálogo — alimenta remarketing dinámico ("la gente que
+// buscó X") además de completar la lista de eventos estándar que TikTok
+// sugiere para catálogo. Se dispara con la búsqueda ya "debounced" (no en
+// cada tecla) para no inflar el conteo de eventos.
+export function trackSearch(query) {
+  const q = (query || '').trim();
+  if (!q) return;
+  fbqTrack('Search', { search_string: q });
+  ttqTrack('Search', { query: q });
 }
 
 // Clic en "Pedir por WhatsApp" — hoy la conversión real, no el checkout.

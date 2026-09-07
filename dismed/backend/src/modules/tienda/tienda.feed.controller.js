@@ -26,7 +26,7 @@ const { resolverEmpresaUnica } = require('../../config/empresa');
 const adsConfig = require('./tienda.ads.config');
 const { decorarPrecios, CLASIF_LIBRES } = require('./tienda.controller');
 
-const COLUMNAS = ['id', 'title', 'description', 'availability', 'condition', 'price', 'link', 'image_link', 'brand', 'gtin'];
+const COLUMNAS = ['id', 'title', 'description', 'availability', 'condition', 'price', 'link', 'image_link', 'brand', 'gtin', 'product_type'];
 
 function csvCampo(valor) {
   const s = valor == null ? '' : String(valor);
@@ -49,8 +49,12 @@ async function filasFeed() {
   const [rows] = await pool.query(
     `SELECT p.id, p.descripcion, p.descripcion_corta, p.imagen_url, p.precio_lista,
             p.fabricante, p.ean,
+            fam.nombre AS familia_nombre, cat.nombre AS categoria_nombre, sub.nombre AS subcategoria_nombre,
             COALESCE((SELECT SUM(l.cantidad_actual) FROM inventario_lotes l WHERE l.producto_id = p.id), 0) AS existencia
        FROM productos p
+       LEFT JOIN familias fam ON fam.id = p.familia_id
+       LEFT JOIN categorias_prod cat ON cat.id = p.categoria_id
+       LEFT JOIN subcategorias_prod sub ON sub.id = p.subcategoria_id
       WHERE p.activo = 1 AND p.publicar_web = 1
         AND p.excluir_ads = 0
         AND p.clasificacion_cofepris IN (${clasifPlaceholders})
@@ -74,6 +78,11 @@ async function filasFeed() {
       image_link: r.imagen_url ? `${base}/uploads/productos/${r.imagen_url}` : '',
       brand: r.fabricante || '',
       gtin: r.ean || '',
+      // product_type = breadcrumb familia > categoría > subcategoría (texto
+      // libre del comercio, no requiere mapear a la taxonomía oficial de
+      // Google/TikTok). Sin clasificación cargada en el producto, se manda
+      // vacío — mejor eso que forzar una categoría genérica incorrecta.
+      product_type: [r.familia_nombre, r.categoria_nombre, r.subcategoria_nombre].filter(Boolean).join(' > '),
     }));
 }
 

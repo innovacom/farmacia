@@ -5,8 +5,16 @@ const { parseCatalogo } = require('../inventario/import.catalogo');
 const { buscarCandidatos, normalizar } = require('../solicitudes/matcher');
 const { desempatarConIA } = require('../solicitudes/matcher.ia');
 const fs = require('fs');
+const { imageSize } = require('image-size');
 const { normalizarPrecioPublico, validarPrecios, tienePrecioLista } = require('./productos.pricing');
 const { resolverId } = require('./taxonomia.util');
+
+// Mínimo exigido por catálogos de anuncios (Meta/TikTok Catalog piden 500x500
+// px o más; ver DISEÑO_ADS_META_TIKTOK.md). Se valida aquí, al subir, en vez
+// de re-procesar/ampliar la imagen — una foto ampliada artificialmente sale
+// borrosa y de todas formas no cumple el objetivo (que se vea bien en el
+// anuncio), así que es mejor pedir una foto de origen más grande.
+const IMAGEN_MIN_PX = 500;
 
 // Campos editables de producto (alta/edición)
 const PROD_FIELDS = [
@@ -742,6 +750,23 @@ async function removePresentacion(req, res, next) {
 async function subirImagen(req, res, next) {
   try {
     if (!req.file) return res.status(400).json({ error: 'archivo requerido (png, jpg o webp)' });
+
+    // Mínimo 500x500 px — si no cumple, se rechaza aquí (no en TikTok/Meta al
+    // subir el feed). Se lee solo el encabezado del archivo, sin decodificarlo.
+    let dimensiones;
+    try {
+      dimensiones = imageSize(fs.readFileSync(req.file.path));
+    } catch {
+      fs.unlink(req.file.path, () => {});
+      return res.status(400).json({ error: 'No se pudo leer la imagen; intenta con otro archivo' });
+    }
+    if (dimensiones.width < IMAGEN_MIN_PX || dimensiones.height < IMAGEN_MIN_PX) {
+      fs.unlink(req.file.path, () => {});
+      return res.status(400).json({
+        error: `La imagen debe medir al menos ${IMAGEN_MIN_PX}x${IMAGEN_MIN_PX} px (esta es de ${dimensiones.width}x${dimensiones.height} px). Meta y TikTok la rechazan para catálogo si es más chica.`,
+      });
+    }
+
     const [[producto]] = await pool.query('SELECT id, imagen_url FROM productos WHERE id = ?', [req.params.id]);
     if (!producto) {
       fs.unlink(req.file.path, () => {});

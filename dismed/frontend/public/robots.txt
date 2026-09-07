@@ -1,5 +1,7 @@
 User-agent: *
 Allow: /tienda
+Allow: /uploads
+Allow: /api/tienda/feed
 Disallow: /
 
 Sitemap: https://sistema.innovacom.mx/api/tienda/sitemap.xml

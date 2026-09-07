@@ -13,7 +13,7 @@ import toast from 'react-hot-toast';
 import api from '../../services/apiTienda';
 import TiendaFooter from './TiendaFooter';
 import useTiendaPixel from '../../hooks/useTiendaPixel';
-import { trackInitiateCheckout } from '../../utils/tiendaPixel';
+import { trackInitiateCheckout, trackAddPaymentInfo } from '../../utils/tiendaPixel';
 import { useTiendaCarrito } from '../../store/tiendaCarritoStore';
 import { useTiendaAuth } from '../../store/tiendaAuthStore';
 
@@ -74,7 +74,10 @@ export default function Carrito() {
       telefono: telefono.trim(),
       correo: correo.trim(),
     }).then((r) => r.data),
-    onSuccess: ({ url }) => { window.location.href = url; },
+    onSuccess: ({ url }) => {
+      trackAddPaymentInfo({ valor: totalAprox, numItems: items.reduce((a, it) => a + it.cantidad, 0), items });
+      window.location.href = url;
+    },
     onError: (e) => toast.error(e.response?.data?.error || 'No se pudo iniciar el pago'),
   });
 
@@ -83,7 +86,7 @@ export default function Carrito() {
     if (!sucursalId) return toast.error('Elige una sucursal');
     if (formaEntrega === 'domicilio' && !direccion.trim()) return toast.error('Escribe la dirección de entrega');
     if (!nombre.trim() || !telefono.trim() || !correo.trim()) return toast.error('Completa tus datos de contacto');
-    trackInitiateCheckout({ valor: totalAprox, numItems: items.reduce((a, it) => a + it.cantidad, 0) });
+    trackInitiateCheckout({ valor: totalAprox, numItems: items.reduce((a, it) => a + it.cantidad, 0), items });
     pagar.mutate();
   }
 

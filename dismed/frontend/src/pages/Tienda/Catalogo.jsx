@@ -19,7 +19,7 @@ import CarritoBadge from './CarritoBadge';
 import CuentaBadge from './CuentaBadge';
 import useTituloPagina from '../../hooks/useTituloPagina';
 import useTiendaPixel from '../../hooks/useTiendaPixel';
-import { trackAddToCart, trackContact } from '../../utils/tiendaPixel';
+import { trackAddToCart, trackContact, trackSearch } from '../../utils/tiendaPixel';
 import { useTiendaCarrito } from '../../store/tiendaCarritoStore';
 
 const PAGE_SIZE = 24;
@@ -53,7 +53,11 @@ export default function Catalogo() {
   const agregarAlCarrito = useTiendaCarrito((s) => s.agregar);
 
   useEffect(() => {
-    const t = setTimeout(() => { setBusquedaDeb(busqueda); setOffset(0); }, 300);
+    const t = setTimeout(() => {
+      setBusquedaDeb(busqueda);
+      setOffset(0);
+      trackSearch(busqueda);
+    }, 300);
     return () => clearTimeout(t);
   }, [busqueda]);
 
