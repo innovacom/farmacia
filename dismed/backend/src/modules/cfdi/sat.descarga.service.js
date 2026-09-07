@@ -177,10 +177,21 @@ async function procesarDescarga(jobId) {
   try {
     v = await client.verificar(job.sat_id_solicitud);
   } catch (e) {
-    // No se marca como terminal: puede ser una falla transitoria del SAT y el
-    // cron horario debe seguir reintentando. Se persiste el mensaje para que
-    // sea visible en la bitácora en vez de perderse en el catch silencioso de
-    // procesarPendientes().
+    // El SAT conserva una solicitud ~72 h. Si ya lleva más de 3 días sin poder
+    // verificarse, se da por perdida y se marca terminal para que el cron horario
+    // deje de reintentarla indefinidamente (hay que volver a solicitar el periodo).
+    const creada = job.created_at ? new Date(job.created_at).getTime() : Date.now();
+    const dias = Math.floor((Date.now() - creada) / 86400000);
+    if (dias >= 3) {
+      await actualizar(jobId, {
+        estado: 'error',
+        mensaje: `No se pudo verificar con el SAT tras ${dias} día(s): ${e.message}. Vuelve a solicitar la descarga de este periodo.`,
+      });
+      return { id: jobId, estado: 'error', mensaje: e.message };
+    }
+    // Falla posiblemente transitoria del SAT: no se marca terminal, el cron
+    // horario sigue reintentando. Se persiste el mensaje para que sea visible en
+    // la bitácora en vez de perderse en el catch silencioso de procesarPendientes().
     await actualizar(jobId, { mensaje: `Error verificando con el SAT: ${e.message}` });
     throw e;
   }
@@ -233,8 +244,12 @@ async function crearJobReconciliacion({ tipo, desde, hasta, origen = 'estatus', 
   return job;
 }
 
-/** Reanuda un job (poll) hasta terminar o agotar el tiempo. Para el disparo manual. */
-async function procesarConEspera(jobId, { maxWaitMs = 300000, intervalMs = 20000 } = {}) {
+/**
+ * Reanuda un job (poll cada 20 s) hasta terminar o agotar el tiempo (~15 min).
+ * Es el seguimiento en segundo plano del disparo manual; si el SAT tarda más, el
+ * cron horario (procesarPendientes) lo completa.
+ */
+async function procesarConEspera(jobId, { maxWaitMs = 900000, intervalMs = 20000 } = {}) {
   const t0 = Date.now();
   let last = await procesarDescarga(jobId);
   while (!TERMINALES.includes(last.estado) && Date.now() - t0 < maxWaitMs) {

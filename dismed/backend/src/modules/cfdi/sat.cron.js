@@ -11,10 +11,15 @@
  */
 const cron = require('node-cron');
 const svc = require('./sat.descarga.service');
+const { esInstanciaPrincipalDeCron } = require('../../config/cluster');
 
 const TZ = 'America/Mexico_City';
 
 function initCfdiCron() {
+  if (!esInstanciaPrincipalDeCron()) {
+    console.log(`[cfdi] cron omitido en esta instancia PM2 (NODE_APP_INSTANCE=${process.env.NODE_APP_INSTANCE})`);
+    return;
+  }
   if (String(process.env.SAT_CRON_ENABLED).toLowerCase() !== 'true') {
     console.log('[cfdi] cron de descarga SAT deshabilitado (SAT_CRON_ENABLED!=true)');
     return;

@@ -15,6 +15,7 @@
  */
 const cron = require('node-cron');
 const { pool } = require('../../config/db');
+const { esInstanciaPrincipalDeCron } = require('../../config/cluster');
 const pedidoSvc = require('./nadro.pedido.service');
 const automationSvc = require('./nadro.automation.service');
 const configSvc = require('./nadro.config.service');
@@ -96,6 +97,10 @@ async function correrParaEmpresa(empresaId) {
 }
 
 function initNadroCron() {
+  if (!esInstanciaPrincipalDeCron()) {
+    console.log(`[nadro] cron omitido en esta instancia PM2 (NODE_APP_INSTANCE=${process.env.NODE_APP_INSTANCE})`);
+    return;
+  }
   if (String(process.env.NADRO_AUTOPEDIDO_ENABLED).toLowerCase() !== 'true') {
     console.log('[nadro] cron de pedido automático deshabilitado (NADRO_AUTOPEDIDO_ENABLED!=true)');
     return;

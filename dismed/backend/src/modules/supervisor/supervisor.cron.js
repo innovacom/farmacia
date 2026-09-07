@@ -10,6 +10,7 @@
  */
 const cron = require('node-cron');
 const { pool } = require('../../config/db');
+const { esInstanciaPrincipalDeCron } = require('../../config/cluster');
 const umbralesSvc = require('./supervisor.umbrales.service');
 const alertasSvc = require('./supervisor.alertas.service');
 
@@ -25,6 +26,10 @@ async function dentroDeHorario(empresaId) {
 }
 
 function initSupervisorCron() {
+  if (!esInstanciaPrincipalDeCron()) {
+    console.log(`[supervisor] cron omitido en esta instancia PM2 (NODE_APP_INSTANCE=${process.env.NODE_APP_INSTANCE})`);
+    return;
+  }
   if (String(process.env.SUPERVISOR_ALERTAS_ENABLED).toLowerCase() !== 'true') {
     console.log('[supervisor] cron de alertas deshabilitado (SUPERVISOR_ALERTAS_ENABLED!=true)');
     return;

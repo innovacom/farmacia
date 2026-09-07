@@ -31,7 +31,12 @@ async function getService() {
   if (!fiel.isValid()) {
     throw new Error('La e.firma (FIEL) no es válida o está vencida. Verifica los archivos y la contraseña.');
   }
-  const service = new Service(new FielRequestBuilder(fiel), new HttpsWebClient());
+  // El WS del SAT —sobre todo VerificaSolicitudDescarga— tarda 15-25 s en
+  // responder. Sin timeout explícito, @nodecfdi corta el socket antes de tiempo
+  // y su manejo de ese error está roto ("webError.getResponse is not a function"),
+  // lo que dejaba los jobs reintentándose para siempre en el cron horario. 5 min
+  // cubre de sobra un verify lento y la descarga de paquetes grandes.
+  const service = new Service(new FielRequestBuilder(fiel), new HttpsWebClient(undefined, undefined, 300000));
   _serviceCache = { service, fiel };
   return _serviceCache;
 }
