@@ -1,3 +1,4 @@
+const XLSX = require('xlsx');
 const { pool } = require('../../../config/db');
 const { generarPdfCotizacion } = require('./pdf.generator');
 const { urlFirmada } = require('../../../services/outputUrl.service');
@@ -282,4 +283,135 @@ async function convertirPedido(req, res, next) {
   }
 }
 
-module.exports = { list, getById, create, update, cambiarEstatus, generarPdf, convertirPedido };
+/**
+ * GET /cotizaciones-cliente/:id/exportar-excel
+ * Genera un xlsx con el mismo layout que el Excel de carga de solicitudes
+ * (ver parser.excel.js: filas 1-4 metadatos + proveedores desde col Q,
+ * fila 5 encabezados, fila 6+ partidas), pero a nivel partida agrega las
+ * columnas de análisis de la cotización ya generada:
+ *   G precio de compra ganador · H total de compra (cant × compra)
+ *   I ganancia estimada (venta − compra) · J proveedor ganador
+ *   K precio unitario de venta · L subtotal (venta × cant)
+ *   M IVA del subtotal · N total (L + M)
+ * Sirve para reenviar/archivar la cotización con el detalle de proveedores.
+ */
+async function exportarExcel(req, res, next) {
+  try {
+    const [[cot]] = await pool.query(
+      `SELECT cc.*,
+              c.razon_social AS cliente_nombre,
+              s.folio AS folio_solicitud, s.referencia_cliente, s.factor_ganancia,
+              u.nombre AS elaboro_nombre, j.nombre AS autoriza_nombre
+       FROM cotizaciones_cliente cc
+       JOIN clientes c        ON c.id = cc.cliente_id
+       JOIN solicitudes s     ON s.id = cc.solicitud_id
+       LEFT JOIN usuarios u   ON u.id = cc.elaborado_por_id
+       LEFT JOIN usuarios j   ON j.id = u.jefe_id
+       WHERE cc.id = ?`,
+      [req.params.id]
+    );
+    if (!cot) return res.status(404).json({ error: 'Cotización no encontrada' });
+
+    const [partidas] = await pool.query(
+      `SELECT ccp.*, COALESCE(ccp.iva_exento, p.iva_exento, 0) AS iva_exento
+       FROM cotizaciones_cliente_partidas ccp
+       LEFT JOIN productos p ON p.id = ccp.producto_id
+       WHERE ccp.cotizacion_id = ?
+       ORDER BY ccp.linea`,
+      [req.params.id]
+    );
+
+    // Precios de proveedores registrados para la solicitud de origen
+    const [compRows] = await pool.query(
+      'SELECT * FROM v_comparador_precios WHERE solicitud_id = ?',
+      [cot.solicitud_id]
+    );
+    const proveedores = [...new Set(compRows.map((r) => r.proveedor).filter(Boolean))].sort();
+    const preciosPorPartida = new Map();   // partida_solicitud_id -> { proveedor -> {precio, comentario, es_mejor} }
+    for (const r of compRows) {
+      if (!r.proveedor) continue;
+      if (!preciosPorPartida.has(r.partida_id)) preciosPorPartida.set(r.partida_id, {});
+      preciosPorPartida.get(r.partida_id)[r.proveedor] = {
+        precio: r.precio_unitario,
+        comentario: r.observaciones_proveedor,
+        es_mejor: r.es_mejor_precio && r.disponible,
+      };
+    }
+
+    const filaBase = () => new Array(16).fill('');
+    const aoa = [];
+
+    const f1 = filaBase();
+    f1[1] = 'CLIENTE'; f1[2] = 'DIRIGIR A'; f1[4] = 'ELABORO'; f1[5] = 'AUTORIZO'; f1[6] = 'DESCRIPCION';
+    aoa.push(f1);
+
+    const f2 = filaBase();
+    f2[1] = cot.cliente_nombre; f2[2] = cot.atencion || '';
+    f2[4] = cot.elaboro_nombre || req.user?.nombre || '';
+    f2[5] = cot.autoriza_nombre || req.user?.jefe_nombre || '';
+    f2[6] = cot.concepto || '';
+    aoa.push(f2);
+
+    const f3 = filaBase();
+    f3[0] = 'COC'; f3[1] = cot.referencia_cliente || '';
+    aoa.push(f3);
+
+    const f4 = filaBase();
+    f4[5] = cot.factor_ganancia != null ? Number(cot.factor_ganancia) : '';
+    proveedores.forEach((prov, i) => { f4[16 + i * 2] = prov; });
+    aoa.push(f4);
+
+    const f5 = filaBase();
+    f5[0] = 'PARTIDA'; f5[1] = 'CODIGO'; f5[2] = 'CODIGO GOBIERNO'; f5[3] = 'CANTIDAD';
+    f5[4] = 'UNIDAD'; f5[5] = 'DESCRIPCION';
+    f5[6] = 'PRECIO COMPRA'; f5[7] = 'TOTAL COMPRA'; f5[8] = 'GANANCIA ESTIMADA';
+    f5[9] = 'PROVEEDOR'; f5[10] = 'PRECIO VENTA'; f5[11] = 'SUBTOTAL'; f5[12] = 'IVA'; f5[13] = 'TOTAL';
+    f5[14] = 'OBSERVACION INNOVACOM';
+    proveedores.forEach((prov, i) => { f5[16 + i * 2] = prov; f5[17 + i * 2] = 'COMENTARIO'; });
+    aoa.push(f5);
+
+    for (const p of partidas) {
+      const cantidad     = Number(p.cantidad) || 0;
+      const precioCompra = Number(p.precio_compra) || 0;
+      const precioVenta  = Number(p.precio_unitario_venta) || 0;
+      const totalCompra  = precioCompra * cantidad;
+      const subtotal     = Number(p.importe) || precioVenta * cantidad;
+      const iva          = p.iva_exento ? 0 : subtotal * 0.16;
+      const preciosProv  = preciosPorPartida.get(p.partida_solicitud_id) || {};
+      const ganador      = Object.entries(preciosProv).find(([, v]) => v.es_mejor);
+
+      const fila = filaBase();
+      fila[0]  = p.linea;
+      fila[1]  = p.codigo_cliente || '';
+      fila[3]  = cantidad;
+      fila[4]  = p.unidad_medida || '';
+      fila[5]  = p.descripcion;
+      fila[6]  = precioCompra;
+      fila[7]  = totalCompra;
+      fila[8]  = subtotal - totalCompra;
+      fila[9]  = ganador ? ganador[0] : '';
+      fila[10] = precioVenta;
+      fila[11] = subtotal;
+      fila[12] = iva;
+      fila[13] = subtotal + iva;
+      fila[14] = p.observaciones || '';
+      proveedores.forEach((prov, i) => {
+        const pr = preciosProv[prov];
+        fila[16 + i * 2] = pr?.precio ?? '';
+        fila[17 + i * 2] = pr?.comentario ?? '';
+      });
+      aoa.push(fila);
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Cotización');
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="cotizacion_${cot.folio}.xlsx"`);
+    res.send(buf);
+  } catch (err) { next(err); }
+}
+
+module.exports = { list, getById, create, update, cambiarEstatus, generarPdf, convertirPedido, exportarExcel };

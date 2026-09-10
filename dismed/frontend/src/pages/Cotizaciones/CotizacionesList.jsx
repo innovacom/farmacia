@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Search, Download } from 'lucide-react';
+import { Search, Download, FileSpreadsheet } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 import { usePagination } from '../../hooks/usePagination';
 import Pagination from '../../components/ui/Pagination';
 import { exportarExcel, hoyISO } from '../../services/exportarExcel';
+import { descargarArchivo } from '../../services/descargas';
 
 const ESTATUS_BADGE = {
   borrador:  'badge-gray',
@@ -37,6 +38,21 @@ export default function CotizacionesList() {
   }, [data, q, fEstatus]);
 
   const { pageItems, page, setPage, totalPages, total, from, to } = usePagination(filtradas);
+
+  const [excelId, setExcelId] = useState(null);
+  async function descargarExcel(c) {
+    setExcelId(c.id);
+    try {
+      await descargarArchivo(
+        `/cotizaciones-cliente/${c.id}/exportar-excel`,
+        `cotizacion_${c.folio}.xlsx`,
+      );
+    } catch {
+      toast.error('Error al generar el Excel');
+    } finally {
+      setExcelId(null);
+    }
+  }
 
   async function exportar() {
     if (!filtradas.length) return toast.error('No hay renglones para exportar');
@@ -113,9 +129,20 @@ export default function CotizacionesList() {
                     {new Date(c.created_at).toLocaleDateString('es-MX')}
                   </td>
                   <td>
-                    <Link to={`/cotizaciones/${c.id}`} className="text-xs text-brand-500 hover:underline">
-                      Abrir
-                    </Link>
+                    <div className="flex items-center gap-3">
+                      <Link to={`/cotizaciones/${c.id}`} className="text-xs text-brand-500 hover:underline">
+                        Abrir
+                      </Link>
+                      <button
+                        onClick={() => descargarExcel(c)}
+                        disabled={excelId === c.id}
+                        title="Descargar Excel (formato de carga + análisis compra/venta y precios de proveedores)"
+                        className="text-xs text-gray-500 hover:text-brand-500 inline-flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <FileSpreadsheet size={14} />
+                        {excelId === c.id ? 'Generando…' : 'Excel'}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

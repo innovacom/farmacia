@@ -14,6 +14,7 @@ router.post('/',                       c.create);
 router.put('/:id',                     c.update);
 router.put('/:id/estatus',             c.cambiarEstatus);
 router.get('/:id/pdf',                 c.generarPdf);
+router.get('/:id/exportar-excel',      c.exportarExcel);
 router.post('/:id/convertir-pedido',   c.convertirPedido);
 
 module.exports = router;

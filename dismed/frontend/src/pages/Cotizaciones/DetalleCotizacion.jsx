@@ -2,8 +2,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Download, Send, CheckCircle, XCircle, Loader2, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, Download, Send, CheckCircle, XCircle, Loader2, ShoppingCart, FileSpreadsheet } from 'lucide-react';
 import api from '../../services/api';
+import { descargarArchivo } from '../../services/descargas';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { usePagination } from '../../hooks/usePagination';
 import Pagination from '../../components/ui/Pagination';
@@ -32,6 +33,7 @@ export default function DetalleCotizacion() {
 
   const [generandoPdf, setGenerandoPdf] = useState(false);
   const [pdfUrl, setPdfUrl] = useState(null);
+  const [generandoExcel, setGenerandoExcel] = useState(false);
 
   const estatusMut = useMutation({
     mutationFn: (estatus) => api.put(`/cotizaciones-cliente/${id}/estatus`, { estatus }),
@@ -57,6 +59,20 @@ export default function DetalleCotizacion() {
     }
   }
 
+  async function generarExcel() {
+    setGenerandoExcel(true);
+    try {
+      await descargarArchivo(
+        `/cotizaciones-cliente/${id}/exportar-excel`,
+        `cotizacion_${cot.folio}.xlsx`,
+      );
+    } catch {
+      toast.error('Error al generar el Excel');
+    } finally {
+      setGenerandoExcel(false);
+    }
+  }
+
   const { pageItems, page, setPage, totalPages, total, from, to } = usePagination(cot?.partidas || []);
 
   if (isLoading) return <p className="text-gray-400 text-center py-10">Cargando…</p>;
@@ -74,6 +90,13 @@ export default function DetalleCotizacion() {
           <p className="text-sm text-gray-500">{cot.cliente_razon_social}</p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          {/* Excel: formato de carga + análisis compra/venta y precios de proveedores */}
+          <button onClick={generarExcel} disabled={generandoExcel} className="btn-secondary">
+            {generandoExcel
+              ? <><Loader2 size={14} className="animate-spin" /> Generando…</>
+              : <><FileSpreadsheet size={14} /> Generar Excel</>
+            }
+          </button>
           {/* PDF */}
           <button onClick={generarPdf} disabled={generandoPdf} className="btn-secondary">
             {generandoPdf
