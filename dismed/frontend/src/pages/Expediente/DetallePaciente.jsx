@@ -558,7 +558,18 @@ function RecetaCard({ receta }) {
 
   const pdfMut = useMutation({
     mutationFn: () => api.post(`/expediente/recetas/${receta.id}/pdf`),
-    onSuccess: (r) => window.open(r.data.url, '_blank'),
+    onSuccess: (r) => {
+      const win = window.open(r.data.url, '_blank');
+      // El visor de PDF integrado del navegador dispara 'load' cuando ya
+      // renderizó el archivo — se abre el diálogo de impresión de una vez,
+      // en vez de que el usuario tenga que buscar el ícono de imprimir
+      // dentro del visor y darle clic. El diálogo del sistema en sí no se
+      // puede saltar desde una página web (lo bloquean los navegadores por
+      // seguridad); si la PC de mostrador imprime siempre a la misma
+      // impresora, Chrome en modo kiosko (--kiosk-printing, igual que el
+      // ticket del POS — ver TicketPrint.jsx) lo hace sin diálogo alguno.
+      if (win) win.addEventListener('load', () => win.print());
+    },
     onError: (e) => toast.error(e.response?.data?.error || 'No se pudo generar el PDF'),
   });
 
