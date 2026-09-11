@@ -45,7 +45,11 @@ export const MENU = {
     {
       label: 'Expediente Médico', icon: HeartPulse, items: [
         { key: 'expediente-medico', to: '/expediente', label: 'Pacientes', icon: HeartPulse },
-        { key: 'expediente-medico', to: '/expediente/medicos', label: 'Médicos', icon: Stethoscope },
+        // Clave separada a propósito (no 'expediente-medico'): dar de alta o
+        // editar médicos es administración del catálogo, no atención a
+        // pacientes — un operador con solo acceso a Pacientes no debe poder
+        // registrar médicos por su cuenta.
+        { key: 'expediente-medicos-admin', to: '/expediente/medicos', label: 'Médicos', icon: Stethoscope },
       ],
     },
     {

@@ -93,19 +93,28 @@ router.post('/facturas-globales',             requirePermiso('pos-admin'), c.cre
 router.post('/facturas-globales/:id/timbrar', requirePermiso('pos-admin'), c.timbrarFacturaGlobal);
 router.post('/facturas-globales/:id/liberar', requirePermiso('pos-admin'), c.liberarFacturaGlobal);
 
-// Médicos (catálogo compartido: modal de receta en la venta + admin de
-// Expediente Médico). ?admin=1 en GET devuelve el listado completo (activos
-// e inactivos, sin límite) para la pantalla de alta/baja/modificación.
-router.get('/medicos',     requireAnyPermiso(['pos-venta', 'expediente-medico']), c.listMedicos);
-router.post('/medicos',    requireAnyPermiso(['pos-venta', 'expediente-medico']), c.createMedico);
-router.put('/medicos/:id', requireAnyPermiso(['pos-venta', 'expediente-medico']), c.updateMedico);
+// Médicos (catálogo compartido: modal de receta en la venta + Expediente
+// Médico). ?admin=1 en GET devuelve el listado completo (activos e
+// inactivos, sin límite) para la pantalla de alta/baja/modificación.
+// LEER el catálogo (elegir médico para una receta/consulta) se otorga con
+// 'expediente-medico' (Pacientes) — no hace falta administrar médicos para
+// solo consultarlos. ADMINISTRAR el catálogo (alta/edición/horarios/logo)
+// exige la clave aparte 'expediente-medicos-admin': un operador con acceso
+// solo a Pacientes NO debe poder registrar o editar médicos por su cuenta
+// (evita que un doctor se dé de alta a sí mismo o a otro colega). El alta
+// inline de médico durante una venta de controlados (ModalReceta.jsx) NO
+// pasa por aquí: se inserta dentro de crearVenta (pos.ventas.service.js),
+// gatekeeper 'pos-venta' únicamente.
+router.get('/medicos',     requireAnyPermiso(['pos-venta', 'expediente-medico', 'expediente-medicos-admin']), c.listMedicos);
+router.post('/medicos',    requirePermiso('expediente-medicos-admin'), c.createMedico);
+router.put('/medicos/:id', requirePermiso('expediente-medicos-admin'), c.updateMedico);
 // Turnos semanales del médico (lo consulta el chatbot de WhatsApp para decir
 // quién está en turno ahora mismo); no liga con pos_citas (ver comentario abajo).
-router.get('/medicos/:id/horarios', requireAnyPermiso(['pos-venta', 'expediente-medico']), c.listHorariosMedico);
-router.put('/medicos/:id/horarios', requireAnyPermiso(['pos-venta', 'expediente-medico']), c.setHorariosMedico);
+router.get('/medicos/:id/horarios', requirePermiso('expediente-medicos-admin'), c.listHorariosMedico);
+router.put('/medicos/:id/horarios', requirePermiso('expediente-medicos-admin'), c.setHorariosMedico);
 // Logo de institución (se imprime en el cuerpo de la receta). validarIdNumerico
 // va antes que multer: el storage usa req.params.id para el nombre de carpeta.
-router.post('/medicos/:id/logo', requireAnyPermiso(['pos-venta', 'expediente-medico']), validarIdNumerico,
+router.post('/medicos/:id/logo', requirePermiso('expediente-medicos-admin'), validarIdNumerico,
   uploadLogoMedico.single('archivo'), c.subirLogoMedico);
 
 // Citas médicas (agenda del mostrador, no importa el médico de guardia).

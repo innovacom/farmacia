@@ -14,7 +14,7 @@ const PERMISSIONABLE_KEYS = [
   'herramientas-importar', 'herramientas-exportar',
   'pos-venta', 'pos-turnos', 'pos-citas', 'pos-bitacora', 'pos-admin',
   'pos-reportes', 'pos-reportes-ganancias', 'pos-clientes-fidelidad',
-  'expediente-medico',
+  'expediente-medico', 'expediente-medicos-admin',
   'whatsapp-bandeja', 'pos-pedidos-whatsapp', 'pos-pedidos-tienda',
 ];
 
