@@ -363,6 +363,7 @@ async function generarRecetaPdf(req, res, next) {
               p.apellido_materno AS paciente_apellido_materno, p.fecha_nacimiento AS paciente_fecha_nacimiento,
               m.cedula_profesional AS medico_cedula, m.registro_ssa AS medico_registro_ssa,
               m.especialidad AS medico_especialidad, m.institucion AS medico_institucion,
+              m.institucion_logo AS medico_institucion_logo,
               m.telefono AS medico_telefono,
               s.direccion AS sucursal_direccion, c.signos_vitales
        FROM recetas_medicas r

@@ -1,8 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
+import { useDropzone } from 'react-dropzone';
 import toast from 'react-hot-toast';
-import { Plus, Loader2, Stethoscope, Search, Clock, X } from 'lucide-react';
+import { Plus, Loader2, Stethoscope, Search, Clock, X, UploadCloud } from 'lucide-react';
 import api from '../../services/api';
 import Modal from '../../components/ui/Modal';
 
@@ -155,6 +156,13 @@ export default function Medicos() {
             </div>
 
             {editando && (
+              <LogoInstitucionMedico
+                medico={editando}
+                onUploaded={(url) => setEditando((m) => ({ ...m, institucion_logo_url: url }))}
+              />
+            )}
+
+            {editando && (
               <div className="border-t border-gray-100 pt-3">
                 <HorarioMedico medicoId={editando.id} />
               </div>
@@ -170,6 +178,59 @@ export default function Medicos() {
           </form>
         </Modal>
       )}
+    </div>
+  );
+}
+
+// Logo de la institución emisora de la cédula: se imprime en el cuerpo de la
+// receta (receta.pdf.generator.js) en vez del caduceo genérico cuando existe.
+function LogoInstitucionMedico({ medico, onUploaded }) {
+  const qc = useQueryClient();
+  const subir = useMutation({
+    mutationFn: (file) => {
+      const fd = new FormData();
+      fd.append('archivo', file);
+      return api.post(`/pos/medicos/${medico.id}/logo`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    },
+    onSuccess: (res) => {
+      toast.success('Logo actualizado');
+      onUploaded(res.data.url);
+      qc.invalidateQueries(['medicos-admin']);
+      qc.invalidateQueries(['medicos']);
+    },
+    onError: (e) => toast.error(e.response?.data?.error || 'Error al subir el logo'),
+  });
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    accept: { 'image/png': [], 'image/jpeg': [], 'image/webp': [] },
+    maxFiles: 1,
+    maxSize: 2 * 1024 * 1024,
+    onDrop: (files) => files[0] && subir.mutate(files[0]),
+  });
+
+  return (
+    <div>
+      <label className="label">Logo de institución (se imprime en el cuerpo de la receta)</label>
+      <div className="flex items-center gap-3">
+        {medico.institucion_logo_url && (
+          <img src={medico.institucion_logo_url} alt="Logo institución"
+            className="w-14 h-14 object-contain rounded-lg border border-gray-200" />
+        )}
+        <div
+          {...getRootProps()}
+          className={`flex-1 border-2 border-dashed rounded-lg p-3 text-center cursor-pointer transition-colors
+            ${isDragActive ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-gray-300'}`}
+        >
+          <input {...getInputProps()} />
+          <UploadCloud size={16} className="mx-auto text-gray-400 mb-1" />
+          <p className="text-xs text-gray-600">
+            {subir.isPending ? 'Subiendo…' : medico.institucion_logo_url ? 'Reemplazar logo' : 'Subir logo'}
+          </p>
+          <p className="text-[10px] text-gray-400">PNG/JPG/WEBP · máx 2 MB</p>
+        </div>
+      </div>
     </div>
   );
 }

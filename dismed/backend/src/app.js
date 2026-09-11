@@ -51,6 +51,10 @@ app.use('/uploads/branding', express.static(path.resolve(uploadDir, 'branding'))
 // Fotos de producto para el catálogo público (subidas vía /api/productos/:id/imagen)
 app.use('/uploads/productos', express.static(path.resolve(uploadDir, 'productos')));
 
+// Logo de institución por médico (subido vía /api/pos/medicos/:id/logo,
+// impreso en el cuerpo de la receta — ver receta.pdf.generator.js)
+app.use('/uploads/medicos', express.static(path.resolve(uploadDir, 'medicos')));
+
 // Rutas
 app.use('/api/auth',                   require('./modules/auth/auth.routes'));
 app.use('/api/clientes',               require('./modules/clientes/clientes.routes'));

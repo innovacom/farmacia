@@ -3,6 +3,8 @@
  * Toda query lleva empresa_id = req.empresaId (resuelto por middleware/tenant.js);
  * las lecturas por id pasan por getScoped (id ajeno ≡ 404).
  */
+const fs = require('fs');
+const path = require('path');
 const { pool } = require('../../config/db');
 const { getScoped } = require('./pos.tenant.helpers');
 const turnos = require('./pos.turnos.service');
@@ -465,12 +467,15 @@ async function listMedicos(req, res, next) {
       params.push(`${q}%`, `%${q}%`);
     }
     const [rows] = await pool.query(
-      `SELECT id, nombre, cedula_profesional, registro_ssa, especialidad, institucion, telefono, activo
+      `SELECT id, nombre, cedula_profesional, registro_ssa, especialidad, institucion, institucion_logo, telefono, activo
        FROM medicos WHERE empresa_id = ? ${filtro} ${admin ? '' : 'AND activo = 1'}
        ORDER BY nombre ${admin ? '' : 'LIMIT 10'}`,
       params
     );
-    res.json(rows);
+    res.json(rows.map((r) => ({
+      ...r,
+      institucion_logo_url: r.institucion_logo ? `/uploads/medicos/${r.institucion_logo}` : null,
+    })));
   } catch (err) { next(err); }
 }
 
@@ -511,6 +516,30 @@ async function updateMedico(req, res, next) {
     if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Ya existe un médico con esa cédula' });
     next(err);
   }
+}
+
+/**
+ * POST /pos/medicos/:id/logo — multipart 'archivo'. Logo de la institución
+ * emisora de la cédula, impreso en el cuerpo de la receta (ver
+ * receta.pdf.generator.js) en vez del caduceo genérico. El nombre del
+ * archivo lo genera multer (nunca el original); solo png/jpg/webp.
+ */
+async function subirLogoMedico(req, res, next) {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'archivo requerido (png, jpg o webp)' });
+    const medico = await getScoped(pool, 'medicos', req.params.id, req.empresaId);
+
+    // Ruta relativa a uploads/medicos (la sirve app.js como estático)
+    const rel = `medico_${medico.id}/${req.file.filename}`;
+    await pool.query('UPDATE medicos SET institucion_logo = ? WHERE id = ? AND empresa_id = ?',
+      [rel, medico.id, req.empresaId]);
+
+    // Limpieza best-effort del logo anterior
+    if (medico.institucion_logo && medico.institucion_logo !== rel) {
+      fs.unlink(path.join(req.file.destination, '..', medico.institucion_logo), () => {});
+    }
+    res.status(201).json({ url: `/uploads/medicos/${rel}` });
+  } catch (err) { next(err); }
 }
 
 // ── Horarios de médico (consulta del chatbot de WhatsApp: "quién está en
@@ -771,7 +800,7 @@ module.exports = {
   turnoActual, abrirTurno, crearMovimiento, corteTurno, cerrarTurno, listTurnos,
   autorizarSupervisorCierre, desgloseTurno,
   buscarProductos, favoritosProductos, registrarExistencia, crearVenta, listarVentas, detalleVenta, cancelarVenta,
-  listMedicos, createMedico, updateMedico, bitacora,
+  listMedicos, createMedico, updateMedico, subirLogoMedico, bitacora,
   listHorariosMedico, setHorariosMedico,
   listServiciosCitas, listCitas, detalleCita, crearCita, updateCita, cancelarCita, pagarCita,
   citasPendientesConfirmar, confirmarCita, recordatorioWhatsappCita,

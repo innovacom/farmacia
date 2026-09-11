@@ -1,10 +1,38 @@
 const router = require('express').Router();
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const auth = require('../../middleware/auth');
 const tenant = require('../../middleware/tenant');
+const validarIdNumerico = require('../../middleware/validarIdNumerico');
 const { requirePermiso, requireAnyPermiso } = require('../../middleware/permisos');
 const c = require('./pos.controller');
 const promos = require('./pos.promociones.controller');
 const fidelidad = require('./pos.clientesfidelidad.controller');
+
+// Multer propio para el logo de institución del médico: mismo patrón que el
+// logo de empresa (empresas.routes.js) — solo imágenes raster (SVG excluido:
+// puede llevar scripts), 2 MB, nombre generado por el server.
+const medicosDir = path.join(process.env.UPLOAD_DIR || './uploads', 'medicos');
+const logoMedicoStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(medicosDir, `medico_${req.params.id}`);
+    fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const ext = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/webp': '.webp' }[file.mimetype];
+    cb(null, `logo-${Date.now()}${ext}`);
+  },
+});
+const uploadLogoMedico = multer({
+  storage: logoMedicoStorage,
+  fileFilter: (req, file, cb) => {
+    if (['image/png', 'image/jpeg', 'image/webp'].includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Solo se permiten imágenes PNG, JPG o WEBP'), false);
+  },
+  limits: { fileSize: 2 * 1024 * 1024 },
+});
 
 // Deny-by-default: nada del POS es alcanzable sin usuario autenticado
 // con empresa resuelta (tenant.js) y el permiso de menú correspondiente.
@@ -75,6 +103,10 @@ router.put('/medicos/:id', requireAnyPermiso(['pos-venta', 'expediente-medico'])
 // quién está en turno ahora mismo); no liga con pos_citas (ver comentario abajo).
 router.get('/medicos/:id/horarios', requireAnyPermiso(['pos-venta', 'expediente-medico']), c.listHorariosMedico);
 router.put('/medicos/:id/horarios', requireAnyPermiso(['pos-venta', 'expediente-medico']), c.setHorariosMedico);
+// Logo de institución (se imprime en el cuerpo de la receta). validarIdNumerico
+// va antes que multer: el storage usa req.params.id para el nombre de carpeta.
+router.post('/medicos/:id/logo', requireAnyPermiso(['pos-venta', 'expediente-medico']), validarIdNumerico,
+  uploadLogoMedico.single('archivo'), c.subirLogoMedico);
 
 // Citas médicas (agenda del mostrador, no importa el médico de guardia).
 // Cobrar una cita agendada es una venta normal (pos-venta) que luego se liga

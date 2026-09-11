@@ -52,6 +52,25 @@ function getCaduceoBase64() {
   return null;
 }
 
+const EXT_MIME = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' };
+
+// Logo de la institución del médico (subido en Médicos > logo), embebido como
+// data: URI por el mismo motivo que el caduceo: page.setRequestInterception
+// en generarPdfReceta bloquea cualquier request que no sea data: (SSRF).
+function getInstitucionLogoBase64(rutaRelativa) {
+  if (!rutaRelativa) return null;
+  try {
+    const uploadDir = path.resolve(process.env.UPLOAD_DIR || './uploads');
+    const p = path.join(uploadDir, 'medicos', rutaRelativa);
+    // path.join ya normaliza "..", pero se verifica que el resultado siga
+    // dentro de uploads/medicos antes de leer el archivo.
+    if (!p.startsWith(path.join(uploadDir, 'medicos') + path.sep)) return null;
+    const mime = EXT_MIME[path.extname(p).toLowerCase()];
+    if (!mime || !fs.existsSync(p)) return null;
+    return `data:${mime};base64,${fs.readFileSync(p).toString('base64')}`;
+  } catch (_) { return null; }
+}
+
 function edad(fechaNacimiento) {
   if (!fechaNacimiento) return '';
   const hoy = new Date();
@@ -63,7 +82,7 @@ function edad(fechaNacimiento) {
 }
 
 function buildHtml(r) {
-  const caduceoSrc = getCaduceoBase64();
+  const logoSrc = getInstitucionLogoBase64(r.medico_institucion_logo) || getCaduceoBase64();
   const pacienteNombre = [r.paciente_nombre, r.paciente_apellido_paterno, r.paciente_apellido_materno]
     .filter(Boolean).join(' ');
   const edadStr = edad(r.paciente_fecha_nacimiento);
@@ -90,7 +109,7 @@ function buildHtml(r) {
       <div class="encabezado">
         <div class="folio">FOLIO:${esc(r.folio)}</div>
         <div class="titulo">
-          ${caduceoSrc ? `<img src="${caduceoSrc}" class="caduceo"/>` : ''}
+          ${logoSrc ? `<img src="${logoSrc}" class="caduceo"/>` : ''}
           ${r.medico_institucion ? `<div class="institucion">${esc(r.medico_institucion)}</div>` : ''}
           ${r.medico_especialidad ? `<div class="especialidad">${esc(r.medico_especialidad)}</div>` : ''}
           <div class="medico-nombre">Dr. ${esc(r.medico_nombre)}</div>
