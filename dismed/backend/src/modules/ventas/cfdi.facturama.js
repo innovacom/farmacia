@@ -17,6 +17,7 @@ const fs = require('fs');
 const QRCode = require('qrcode');
 const { validarFactura, cargarFactura, empresaCfdi } = require('./cfdi.txt.generator');
 const { generarFacturaCfdiPdf } = require('./ventas.pdf');
+const { LOTE_GENERICO } = require('../inventario/movimientos.service');
 
 const IVA_TASA = 0.16;
 const n2 = (n) => Number(n || 0).toFixed(2);
@@ -327,18 +328,41 @@ async function cancelarCfdi(entregaId, { motivo, uuidSustituye } = {}) {
 // ── Carga de la entrega para el PDF (mismo shape que cargarEntrega del controller) ─
 async function cargarEntregaCfdi(id) {
   const [[ent]] = await pool.query(
-    `SELECT e.*, c.razon_social AS cliente_nombre, c.rfc AS cliente_rfc, p.folio AS pedido_folio
+    `SELECT e.*, c.razon_social AS cliente_nombre, c.rfc AS cliente_rfc,
+            c.regimen_fiscal AS cliente_regimen_fiscal, c.codigo_postal AS cliente_codigo_postal,
+            c.direccion_fiscal AS cliente_direccion_fiscal,
+            p.folio AS pedido_folio
      FROM entregas e
      JOIN clientes c ON c.id = e.cliente_id
      JOIN pedidos_cliente p ON p.id = e.pedido_id
      WHERE e.id = ?`, [id]
   );
   if (!ent) return null;
-  const [partidas] = await pool.query('SELECT * FROM entregas_partidas WHERE entrega_id = ? ORDER BY id', [id]);
+  const [partidas] = await pool.query(
+    `SELECT ep.*, pr.clave_sat, pr.clave_unidad_sat
+     FROM entregas_partidas ep
+     LEFT JOIN productos pr ON pr.id = ep.producto_id
+     WHERE ep.entrega_id = ? ORDER BY ep.id`, [id]
+  );
+  // Lotes consumidos (FEFO) por producto, tomados de las salidas de inventario de esta entrega.
+  const [movs] = await pool.query(
+    `SELECT m.producto_id, l.numero_lote AS lote, l.fecha_caducidad AS caducidad
+     FROM inventario_movimientos m
+     JOIN inventario_lotes l ON l.id = m.lote_id
+     WHERE m.tipo = 'salida' AND m.referencia = ? AND l.numero_lote <> ?
+     ORDER BY m.id`, [ent.folio, LOTE_GENERICO]
+  );
+  const lotesPorProducto = new Map();
+  for (const m of movs) {
+    const lista = lotesPorProducto.get(m.producto_id) || [];
+    if (!lista.some((x) => x.lote === m.lote)) lista.push({ lote: m.lote, caducidad: m.caducidad });
+    lotesPorProducto.set(m.producto_id, lista);
+  }
+  for (const p of partidas) p.lotes = lotesPorProducto.get(p.producto_id) || [];
   return { ...ent, partidas };
 }
 
 module.exports = {
   timbrarEntrega, cancelarCfdi, descargarXmlFacturama,
-  timbrarComprobante, insertarComprobante,
+  timbrarComprobante, insertarComprobante, cargarEntregaCfdi,
 };

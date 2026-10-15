@@ -3,7 +3,7 @@ const svc = require('../inventario/movimientos.service');
 const { ejecutarRecepcion } = require('./recepcion.service');
 const { generarOcPdf, generarEntregaPdf } = require('./ventas.pdf');
 const { validarFactura, generarCfdiTxt } = require('./cfdi.txt.generator');
-const { timbrarEntrega, cancelarCfdi: cancelarCfdiSvc } = require('./cfdi.facturama');
+const { timbrarEntrega, cancelarCfdi: cancelarCfdiSvc, cargarEntregaCfdi: cargarEntrega } = require('./cfdi.facturama');
 const { urlFirmada } = require('../../services/outputUrl.service');
 
 async function genFolio(conn, serie) {
@@ -325,16 +325,6 @@ async function cfdiTxt(req, res, next) {
     if (err.status) return res.status(err.status).json({ error: err.message });
     next(err);
   }
-}
-
-async function cargarEntrega(id) {
-  const [[ent]] = await pool.query(
-    `SELECT e.*, c.razon_social AS cliente_nombre, p.folio AS pedido_folio
-     FROM entregas e JOIN clientes c ON c.id = e.cliente_id JOIN pedidos_cliente p ON p.id = e.pedido_id WHERE e.id = ?`, [id]
-  );
-  if (!ent) return null;
-  const [partidas] = await pool.query('SELECT * FROM entregas_partidas WHERE entrega_id = ? ORDER BY id', [id]);
-  return { ...ent, partidas };
 }
 
 async function entregaPdf(req, res, next) {

@@ -2,19 +2,51 @@ const puppeteer = require('puppeteer');
 const path = require('path');
 const fs = require('fs');
 const { esc } = require('../../utils/html');
+const { importeEnLetra } = require('../../utils/importeLetra');
 
 const TEAL = '#00ACC1';
 const fmt = (n) => Number(n || 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
 
 function empresa() {
   return {
-    nombre:    process.env.EMPRESA_NOMBRE    || 'INNOVACOM',
-    rfc:       process.env.EMPRESA_RFC       || '',
-    telefono:  process.env.EMPRESA_TELEFONO  || '',
-    email:     process.env.EMPRESA_EMAIL     || '',
-    direccion: process.env.EMPRESA_DIRECCION || '',
+    nombre:      process.env.EMPRESA_NOMBRE        || 'INNOVACOM',
+    razonSocial: process.env.EMPRESA_RAZON_SOCIAL  || process.env.EMPRESA_NOMBRE || '',
+    rfc:         process.env.EMPRESA_RFC           || '',
+    regimen:     process.env.EMPRESA_REGIMEN_FISCAL || '',
+    cp:          process.env.EMPRESA_CP            || '',
+    telefono:    process.env.EMPRESA_TELEFONO      || '',
+    email:       process.env.EMPRESA_EMAIL         || '',
+    direccion:   process.env.EMPRESA_DIRECCION     || '',
   };
 }
+
+// Catálogos SAT (sólo las etiquetas que se usan en la representación impresa).
+const FORMAS_PAGO_SAT = {
+  '01': 'Efectivo', '02': 'Cheque nominativo', '03': 'Transferencia electrónica',
+  '04': 'Tarjeta de crédito', '05': 'Monedero electrónico', '06': 'Dinero electrónico',
+  '08': 'Vales de despensa', '28': 'Tarjeta de débito', '29': 'Tarjeta de servicios',
+  '99': 'Por definir',
+};
+const METODOS_PAGO_SAT = { PUE: 'Pago en una sola exhibición', PPD: 'Pago en parcialidades o diferido' };
+const USOS_CFDI_SAT = {
+  G01: 'Adquisición de mercancías', G03: 'Gastos en general', I01: 'Construcciones',
+  P01: 'Por definir', CP01: 'Pagos', S01: 'Sin efectos fiscales',
+};
+const REGIMENES_SAT = {
+  601: 'General de Ley Personas Morales', 603: 'Personas Morales con Fines no Lucrativos',
+  605: 'Sueldos y Salarios e Ingresos Asimilados a Salarios', 606: 'Arrendamiento',
+  607: 'Régimen de Enajenación o Adquisición de Bienes', 608: 'Demás ingresos',
+  610: 'Residentes en el Extranjero sin Establecimiento Permanente en México',
+  611: 'Ingresos por Dividendos (socios y accionistas)',
+  612: 'Personas Físicas con Actividades Empresariales y Profesionales',
+  614: 'Ingresos por intereses', 615: 'Régimen de los ingresos por obtención de premios',
+  616: 'Sin obligaciones fiscales', 620: 'Sociedades Cooperativas de Producción que optan por diferir sus ingresos',
+  621: 'Incorporación Fiscal', 622: 'Actividades Agrícolas, Ganaderas, Silvícolas y Pesqueras',
+  623: 'Opcional para Grupos de Sociedades', 624: 'Coordinados',
+  625: 'Régimen de las Actividades Empresariales con ingresos a través de Plataformas Tecnológicas',
+  626: 'Régimen Simplificado de Confianza',
+};
+const conCatalogo = (cat, c) => (c ? `${c}${cat[c] ? ' - ' + cat[c] : ''}` : '');
 function logoBase64() {
   try {
     const p = path.join(__dirname, '../../assets/logo_innovacom.jpg');
@@ -23,7 +55,7 @@ function logoBase64() {
   return null;
 }
 
-async function renderPdf(html, folio) {
+async function renderPdf(html, folio, footerTemplate = null) {
   const outputDir = path.resolve(process.env.OUTPUT_DIR || './outputs');
   if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
   const filename = `${folio}-${Date.now()}.pdf`;
@@ -43,7 +75,8 @@ async function renderPdf(html, folio) {
     page.on('request', (r) => (r.url().startsWith('data:') ? r.continue() : r.abort()));
     await page.setContent(html, { waitUntil: 'networkidle0' });
     await page.pdf({ path: filePath, format: 'Letter', printBackground: true,
-      margin: { top: '6mm', bottom: '14mm', left: '10mm', right: '10mm' } });
+      margin: { top: '6mm', bottom: '14mm', left: '10mm', right: '10mm' },
+      ...(footerTemplate ? { displayHeaderFooter: true, headerTemplate: '<span></span>', footerTemplate } : {}) });
   } finally { await browser.close(); }
   return { filePath, filename, relativePath: `/outputs/${filename}` };
 }
@@ -108,10 +141,10 @@ function buildOcHtml(oc) {
   </body></html>`;
 }
 
-// ── Remisión / Factura ────────────────────────────────────────────────────────
+// ── Remisión ──────────────────────────────────────────────────────────────────
 function buildEntregaHtml(ent) {
+  if (ent.tipo === 'factura') return buildFacturaHtml(ent, null);
   const e = empresa(); const logo = logoBase64();
-  const titulo = ent.tipo === 'factura' ? 'FACTURA' : 'REMISIÓN';
   let subtotal = 0, iva = 0;
   const filas = (ent.partidas || []).map((p) => {
     const imp = Number(p.precio_unitario) * Number(p.cantidad);
@@ -127,7 +160,7 @@ function buildEntregaHtml(ent) {
   }).join('');
   const total = subtotal + iva;
   return `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;color:#222;margin:0}</style></head><body>
-    ${encabezado(e, logo, titulo, ent.folio)}
+    ${encabezado(e, logo, 'REMISIÓN', ent.folio)}
     <div style="background:#f6f9fa;border-radius:6px;padding:8px 10px;margin-bottom:10px;font-size:10px">
       <strong>Cliente:</strong> ${esc(ent.cliente_nombre)} &nbsp;&nbsp; ${ent.pedido_folio ? `<strong>Pedido:</strong> ${esc(ent.pedido_folio)}` : ''}
     </div>
@@ -142,60 +175,154 @@ function buildEntregaHtml(ent) {
         <tr style="font-weight:bold;color:${TEAL};font-size:13px"><td style="padding:4px 12px">TOTAL</td><td style="padding:4px 12px;text-align:right">${fmt(total)}</td></tr>
       </table>
     </div>
-    ${ent.tipo !== 'factura' ? '<p style="font-size:8.5px;color:#999;margin-top:14px">Documento de remisión sin validez fiscal.</p>' : ''}
+    <p style="font-size:8.5px;color:#999;margin-top:14px">Documento de remisión sin validez fiscal.</p>
   </body></html>`;
 }
 
-// ── Bloque fiscal CFDI (representación impresa de un CFDI 4.0 timbrado) ─────────
-function buildCfdiBlock(cfdi) {
-  const sello = `font-family:'Courier New',monospace;font-size:7px;color:#333;word-break:break-all;line-height:1.25`;
-  const lbl = `font-size:7.5px;color:#777;margin-top:4px`;
-  const val = `font-size:8px;color:#222`;
-  const fechaTimbrado = cfdi.fecha_timbrado
-    ? new Date(cfdi.fecha_timbrado).toLocaleString('es-MX')
-    : '';
-  return `
-    <div style="margin-top:16px;border-top:1px solid #ccc;padding-top:8px">
-      <div style="font-size:8.5px;font-weight:bold;color:${TEAL};margin-bottom:4px">
-        Este documento es una representación impresa de un CFDI 4.0
-      </div>
-      <div style="font-size:8px;color:#444;margin-bottom:6px">
-        <strong>Emisor:</strong> ${esc(cfdi.emisor_nombre)} ${cfdi.emisor_rfc ? '· RFC ' + esc(cfdi.emisor_rfc) : ''}
-      </div>
-      <div style="display:flex;gap:12px;align-items:flex-start">
-        <div style="flex:0 0 90px;text-align:center">
-          ${cfdi.qr_dataurl ? `<img src="${cfdi.qr_dataurl}" style="width:90px;height:90px">` : ''}
-        </div>
-        <div style="flex:1">
-          <div style="display:flex;gap:16px;flex-wrap:wrap">
-            <div><div style="${lbl}">Folio Fiscal (UUID)</div><div style="${val}">${esc(cfdi.uuid)}</div></div>
-            <div><div style="${lbl}">No. Serie Cert. Emisor</div><div style="${val}">${esc(cfdi.cert_emisor)}</div></div>
-            <div><div style="${lbl}">No. Serie Cert. SAT</div><div style="${val}">${esc(cfdi.cert_sat)}</div></div>
-            <div><div style="${lbl}">Fecha y hora de certificación</div><div style="${val}">${esc(fechaTimbrado)}</div></div>
-            <div><div style="${lbl}">RFC del PAC</div><div style="${val}">${esc(cfdi.rfc_prov_certif)}</div></div>
-          </div>
-          <div style="${lbl}">Sello Digital del CFDI</div>
-          <div style="${sello}">${esc(cfdi.sello_cfdi)}</div>
-          <div style="${lbl}">Sello del SAT</div>
-          <div style="${sello}">${esc(cfdi.sello_sat)}</div>
-          <div style="${lbl}">Cadena Original del Complemento de Certificación del SAT</div>
-          <div style="${sello}">${esc(cfdi.cadena_original_tfd)}</div>
-        </div>
-      </div>
-    </div>`;
+// ── Factura (representación impresa CFDI 4.0; cfdi = null antes del timbrado) ──
+const num = (n) => Number(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const cantFmt = (n) => Number(n || 0).toLocaleString('es-MX', { maximumFractionDigits: 2 });
+const MESES = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+
+function caducidadFmt(f) {
+  const d = f ? new Date(f) : null;
+  return d && !isNaN(d) ? `${MESES[d.getUTCMonth()]}-${d.getUTCFullYear()}` : '';
+}
+function fechaIso(v) {
+  if (!v) return '';
+  if (typeof v === 'string') return v.replace(' ', 'T').slice(0, 19);
+  const d = new Date(v);
+  return isNaN(d) ? '' : d.toLocaleString('sv-SE', { timeZone: 'America/Mexico_City' }).replace(' ', 'T');
 }
 
-// Inserta el bloque fiscal antes de cerrar el body de la remisión/factura.
-function buildFacturaCfdiHtml(ent, cfdi) {
-  const html = buildEntregaHtml(ent);
-  return html.replace('</body></html>', `${buildCfdiBlock(cfdi)}</body></html>`);
+function buildFacturaHtml(ent, cfdi) {
+  const e = empresa(); const logo = logoBase64();
+  const moneda = ent.moneda || 'MXN';
+  let subtotal = 0, iva = 0;
+  const filas = (ent.partidas || []).map((p) => {
+    const cant = Number(p.cantidad || 0);
+    const pu = Number(p.precio_unitario || 0);
+    const imp = cant * pu;
+    const tasa = p.iva_exento ? 0 : 0.16;
+    const ivaImp = imp * tasa;
+    subtotal += imp; iva += ivaImp;
+    const lotes = (p.lotes || [])
+      .map((l) => `LOTE ${esc(l.lote)}${l.caducidad ? ' CADUCIDAD ' + caducidadFmt(l.caducidad) : ''}`)
+      .join(' &nbsp; ');
+    return `<tr>
+      <td>${esc(p.sku_interno)}</td>
+      <td>${cantFmt(cant)} ${esc(String(p.unidad_medida || '').toUpperCase())}</td>
+      <td>${esc(p.descripcion)}${lotes ? `<br>${lotes}` : ''}
+        <br><b>ClaveProdServ:</b> ${esc(p.clave_sat)} <b>ClaveUnidad:</b> ${esc(p.clave_unidad_sat)}
+        <div class="imp"><b>Impuesto:</b> IVA Trasladado. <b>Base:</b> ${imp.toFixed(2)} <b>Factor:</b> Tasa ${tasa.toFixed(6)} <b>Importe:</b> ${ivaImp.toFixed(2)}</div></td>
+      <td class="r">${num(pu)}</td><td class="r">0.00</td><td class="r">${num(imp)}</td></tr>`;
+  }).join('');
+  const total = subtotal + iva;
+
+  const dirCliente = String(ent.cliente_direccion_fiscal || '');
+  const cp = String(ent.cliente_codigo_postal || '');
+  const direccionReceptor = `${dirCliente}${cp && !dirCliente.includes(cp) ? ` CP. ${cp}` : ''}`;
+
+  const celda = (lbl, val) => `<div><div><b>${lbl}</b></div><div>${esc(val)}</div></div>`;
+  const sello = (titulo, v) => `<div style="flex:1;min-width:0"><div class="bar">${titulo}</div><div class="sello">${esc(v)}</div></div>`;
+
+  return `<!doctype html><html><head><meta charset="utf-8"><style>
+    body{font-family:Arial,sans-serif;color:#222;margin:0;font-size:9px}
+    .bar{background:${TEAL};color:#fff;font-weight:bold;text-align:center;padding:6px;font-size:9px;border-radius:8px 8px 0 0}
+    .box{background:#eee;padding:8px 10px;line-height:1.8}
+    .cell{background:#eee;text-align:center;font-weight:bold;padding:7px;font-size:9px}
+    .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px 14px;background:#eee;padding:8px 10px;margin-top:4px;line-height:1.7}
+    table.p{width:100%;border-collapse:collapse;margin-top:6px}
+    table.p th{background:${TEAL};color:#fff;padding:7px 6px;text-align:left;font-size:9px}
+    table.p td{border:1px solid #ddd;padding:6px;vertical-align:top;font-size:9px;line-height:1.35}
+    table.p thead{display:table-header-group}
+    table.p tr{page-break-inside:avoid}
+    .r{text-align:right}
+    .imp{font-size:6.5px;color:#444;margin-top:2px}
+    .sello{background:#eee;padding:6px 8px;font-size:5.5px;line-height:1.3;word-break:break-all;border-radius:0 0 8px 8px;min-height:40px}
+  </style></head><body>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+      <div>${logo ? `<img src="${logo}" style="height:60px">` : `<b style="font-size:16px;color:${TEAL}">${esc(e.nombre)}</b>`}</div>
+      <div style="width:52%">
+        <div style="text-align:right;font-weight:bold;font-size:8px;color:#555;margin-bottom:3px">Versión: 4.0</div>
+        <div style="display:flex;gap:4px">
+          <div style="flex:2"><div class="bar">No. Certificado:</div><div class="cell">${esc(cfdi?.cert_emisor) || '&nbsp;'}</div></div>
+          <div style="flex:1"><div class="bar">FACTURA:</div><div class="cell">${esc(ent.folio)}</div></div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:4px">
+      <div style="flex:1"><div class="bar">EMISOR:</div><div class="box">
+        <div style="font-size:11px;font-weight:bold">${esc(e.nombre)}</div>
+        <div><b>Razón Social:</b> ${esc(e.razonSocial)}</div>
+        <div><b>RFC:</b> ${esc(e.rfc)}</div>
+        <div><b>Régimen Fiscal:</b> ${esc(conCatalogo(REGIMENES_SAT, e.regimen))}</div>
+        <div><b>Dirección:</b> ${esc(e.direccion)}</div>
+      </div></div>
+      <div style="flex:1"><div class="bar">RECEPTOR:</div><div class="box">
+        <div><b>Razón Social:</b> ${esc(ent.cliente_nombre)}</div>
+        <div><b>RFC:</b> ${esc(ent.cliente_rfc)}</div>
+        <div><b>Régimen Fiscal:</b> ${esc(conCatalogo(REGIMENES_SAT, ent.cliente_regimen_fiscal))}</div>
+        <div><b>Uso CFDI:</b> ${esc(conCatalogo(USOS_CFDI_SAT, ent.uso_cfdi))}</div>
+        <div><b>Dirección:</b> ${esc(direccionReceptor)}</div>
+      </div></div>
+    </div>
+    <div class="grid3">
+      ${celda('Fecha:', fechaIso(ent.created_at))}
+      ${celda('Lugar de Expedición:', e.cp)}
+      ${celda('Tipo de Comprobante:', 'I')}
+      ${celda('Moneda:', moneda)}
+      ${celda('Tipo de Cambio:', '1.000000')}
+      ${celda('Forma de Pago:', conCatalogo(FORMAS_PAGO_SAT, ent.forma_pago))}
+      ${celda('Método de Pago:', conCatalogo(METODOS_PAGO_SAT, ent.metodo_pago))}
+    </div>
+    <table class="p">
+      <thead><tr><th>Código:</th><th>Cant-Unid:</th><th>Descripción:</th><th class="r">P Unitario:</th><th class="r">Descuento:</th><th class="r">Importe:</th></tr></thead>
+      <tbody>${filas}</tbody>
+    </table>
+    ${ent.notas ? `<div style="border:1px solid #ddd;padding:8px 10px;margin-top:8px;white-space:pre-line;break-inside:avoid"><b>Observaciones:</b> ${esc(ent.notas)}</div>` : ''}
+    <div style="display:flex;gap:8px;margin-top:8px;align-items:stretch;break-inside:avoid">
+      ${cfdi?.qr_dataurl ? `<img src="${cfdi.qr_dataurl}" style="width:120px;height:120px">` : ''}
+      <div class="box" style="flex:1">
+        <div><b>Importe en letra:</b> ${esc(importeEnLetra(total, moneda))}</div>
+        ${cfdi ? `
+        <div><b>Folio Fiscal UUID:</b>${esc(cfdi.uuid)}</div>
+        <div><b>Fecha de Timbrado:</b> ${esc(fechaIso(cfdi.fecha_timbrado))}</div>
+        <div><b>RFC Proveedor de Certificación:</b> ${esc(cfdi.rfc_prov_certif)}</div>
+        <div><b>No. Certificado SAT:</b> ${esc(cfdi.cert_sat)}</div>` : '<div style="color:#777">Pendiente de timbrado.</div>'}
+      </div>
+      <div style="width:210px;border:1px solid #ddd;border-radius:0 0 10px 0;padding:6px 10px;line-height:2">
+        <div style="display:flex;justify-content:space-between"><b>SubTotal:</b><b>${num(subtotal)}</b></div>
+        <div style="display:flex;justify-content:space-between"><b>IVA:</b><b>${num(iva)}</b></div>
+        <div style="display:flex;justify-content:space-between;color:${TEAL}"><b>Total:</b><b>${num(total)}</b></div>
+      </div>
+    </div>
+    ${cfdi ? `<div style="display:flex;gap:6px;margin-top:8px;break-inside:avoid">
+      ${sello('Sello SAT:', cfdi.sello_sat)}${sello('Sello CFD:', cfdi.sello_cfdi)}${sello('Cadena original SAT:', cfdi.cadena_original_tfd)}
+    </div>` : ''}
+  </body></html>`;
 }
 
-async function generarOcPdf(oc)      { return renderPdf(buildOcHtml(oc), oc.folio); }
-async function generarEntregaPdf(ent) { return renderPdf(buildEntregaHtml(ent), ent.folio); }
-// PDF de la factura timbrada (CFDI). Usa un folio distinto para no pisar la remisión.
+function footerFactura(timbrado) {
+  const web = process.env.EMPRESA_WEB || '';
+  const ley = timbrado
+    ? 'Este documento es una representación impresa de un CFDI.'
+    : 'Documento previo al timbrado, sin validez fiscal.';
+  return `<div style="font-size:8px;font-style:italic;color:#555;width:100%;padding:0 10mm;box-sizing:border-box;display:flex;justify-content:space-between">
+    <span>${esc(web)}${web ? ' | ' : ''}${ley}</span>
+    <span>Pág. <span class="pageNumber"></span>/<span class="totalPages"></span></span></div>`;
+}
+
+// Compatibilidad con capturar_factura.js (mismo nombre y firma).
+function buildFacturaCfdiHtml(ent, cfdi) { return buildFacturaHtml(ent, cfdi); }
+
+async function generarOcPdf(oc) { return renderPdf(buildOcHtml(oc), oc.folio); }
+async function generarEntregaPdf(ent) {
+  return renderPdf(buildEntregaHtml(ent), ent.folio, ent.tipo === 'factura' ? footerFactura(false) : null);
+}
+// PDF de la factura timbrada (CFDI). Usa un folio distinto para no pisar el PDF previo al timbrado.
 async function generarFacturaCfdiPdf(ent, cfdi) {
-  return renderPdf(buildFacturaCfdiHtml(ent, cfdi), `${ent.folio}-CFDI`);
+  return renderPdf(buildFacturaHtml(ent, cfdi), `${ent.folio}-CFDI`, footerFactura(true));
 }
 
 module.exports = { generarOcPdf, generarEntregaPdf, generarFacturaCfdiPdf, buildFacturaCfdiHtml };
