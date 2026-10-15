@@ -209,12 +209,18 @@ async function importConfirm(req, res, next) {
     let importados = 0, omitidos = 0;
     const errores = [];
     for (const r of renglones) {
-      const [[prod]] = await conn.query('SELECT id FROM productos WHERE sku_interno = ?', [r.sku_interno]);
-      if (!prod || !(parseFloat(r.cantidad) > 0)) { omitidos++; continue; }
+      // Si el SKU del archivo no está en catálogo, la pantalla permite vincularlo a mano a
+      // un producto ya existente (r.producto_id) en vez de omitir el renglón en silencio.
+      let prodId = r.producto_id || null;
+      if (!prodId) {
+        const [[prod]] = await conn.query('SELECT id FROM productos WHERE sku_interno = ?', [r.sku_interno]);
+        prodId = prod ? prod.id : null;
+      }
+      if (!prodId || !(parseFloat(r.cantidad) > 0)) { omitidos++; continue; }
       const ubId = await ubicacionId(r.ubicacion);
       try {
         await svc.registrarEntrada(conn, {
-          producto_id: prod.id, almacen_id, ubicacion_id: ubId,
+          producto_id: prodId, almacen_id, ubicacion_id: ubId,
           cantidad: r.cantidad, costo_unitario: r.costo_unitario || 0,
           numero_lote: r.numero_lote, fecha_caducidad: r.fecha_caducidad,
           motivo: 'Carga inicial de inventario', referencia: 'IMPORT',

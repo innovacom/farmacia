@@ -2,10 +2,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Loader2, FileText, Truck, PackageCheck, Download, Stamp, Ban } from 'lucide-react';
+import { ArrowLeft, Loader2, FileText, Truck, PackageCheck, Download, Stamp, Ban, Link2 } from 'lucide-react';
 import api from '../../services/api';
 import Modal from '../../components/ui/Modal';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import ProductoPicker from '../../components/shared/ProductoPicker';
 
 const fmt = (n) => Number(n || 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
 const OC_BADGE = { abierta: 'badge-blue', parcial: 'badge-yellow', recibida: 'badge-green', cancelada: 'badge-red' };
@@ -21,6 +22,8 @@ function RecepcionModal({ ocId, onClose, onDone }) {
   const [almacen, setAlmacen] = useState('');
   const [ubicacion, setUbicacion] = useState('');
   const [lineas, setLineas] = useState({});   // ocpId -> { cantidad, numero_lote, fecha_caducidad }
+  const [vinculos, setVinculos] = useState({}); // ocpId -> producto (partida sin producto_id, vinculada aquí)
+  const [picker, setPicker] = useState(null);   // partida que se está vinculando
 
   const { data: oc } = useQuery({ queryKey: ['oc', ocId], queryFn: () => api.get(`/ventas/ordenes-compra/${ocId}`).then((r) => r.data) });
   const { data: almacenes = [] } = useQuery({ queryKey: ['almacenes'], queryFn: () => api.get('/almacenes').then((r) => r.data) });
@@ -36,11 +39,13 @@ function RecepcionModal({ ocId, onClose, onDone }) {
     if (!almacen || !ubicacion) return toast.error('Selecciona almacén y ubicación');
     const noEntero = Object.values(lineas).some((l) => l?.cantidad !== undefined && l.cantidad !== '' && !Number.isInteger(Number(l.cantidad)));
     if (noEntero) return toast.error('La cantidad recibida debe ser un número entero');
-    const partidas = (oc?.partidas || [])
-      .filter((p) => Number(lineas[p.id]?.cantidad) > 0)
-      .map((p) => ({ oc_partida_id: p.id, cantidad: Number(lineas[p.id].cantidad),
-        numero_lote: lineas[p.id].numero_lote || null, fecha_caducidad: lineas[p.id].fecha_caducidad || null,
-        ubicacion_id: Number(ubicacion), costo_unitario: p.precio_compra }));
+    const aRecibir = (oc?.partidas || []).filter((p) => Number(lineas[p.id]?.cantidad) > 0);
+    const sinVincular = aRecibir.filter((p) => !p.producto_id && !vinculos[p.id]);
+    if (sinVincular.length) return toast.error(`Vincula un producto del catálogo para ${sinVincular.length} partida(s) antes de recibir`);
+    const partidas = aRecibir.map((p) => ({ oc_partida_id: p.id, cantidad: Number(lineas[p.id].cantidad),
+      numero_lote: lineas[p.id].numero_lote || null, fecha_caducidad: lineas[p.id].fecha_caducidad || null,
+      ubicacion_id: Number(ubicacion), costo_unitario: p.precio_compra,
+      producto_id: vinculos[p.id]?.id || null }));
     if (!partidas.length) return toast.error('Captura al menos una cantidad recibida');
     mut.mutate({ almacen_id: Number(almacen), partidas });
   }
@@ -70,13 +75,26 @@ function RecepcionModal({ ocId, onClose, onDone }) {
               {(oc?.partidas || []).map((p) => {
                 const pend = Number(p.cantidad) - Number(p.cantidad_recibida);
                 const l = lineas[p.id] || {};
+                const vinculo = vinculos[p.id];
+                const sinProducto = !p.producto_id && !vinculo;
                 return (
                   <tr key={p.id} className="border-t border-gray-100">
-                    <td className="px-2 py-1"><span className="font-mono text-brand-500">{p.sku_interno}</span> <span className="text-gray-500">{p.descripcion?.substring(0, 40)}</span></td>
+                    <td className="px-2 py-1">
+                      {sinProducto ? (
+                        <span className="text-gray-500">{p.descripcion?.substring(0, 40)}</span>
+                      ) : (
+                        <><span className="font-mono text-brand-500">{vinculo?.sku_interno || p.sku_interno}</span> <span className="text-gray-500">{(vinculo?.descripcion || p.descripcion)?.substring(0, 40)}</span></>
+                      )}
+                      {sinProducto && (
+                        <button type="button" onClick={() => setPicker(p)} className="block text-[11px] text-brand-500 hover:underline mt-0.5">
+                          <Link2 size={11} className="inline -mt-0.5 mr-0.5" /> Vincular a producto del catálogo
+                        </button>
+                      )}
+                    </td>
                     <td className="px-2 py-1 text-right">{pend}</td>
-                    <td className="px-2 py-1"><input type="number" min="0" max={pend} step="1" className="input w-20 text-xs" value={l.cantidad || ''} onChange={(e) => setLineas((x) => ({ ...x, [p.id]: { ...l, cantidad: e.target.value } }))} /></td>
-                    <td className="px-2 py-1"><input className="input w-24 text-xs font-mono" value={l.numero_lote || ''} onChange={(e) => setLineas((x) => ({ ...x, [p.id]: { ...l, numero_lote: e.target.value } }))} placeholder="opcional" /></td>
-                    <td className="px-2 py-1"><input type="date" className="input w-32 text-xs" value={l.fecha_caducidad || ''} onChange={(e) => setLineas((x) => ({ ...x, [p.id]: { ...l, fecha_caducidad: e.target.value } }))} /></td>
+                    <td className="px-2 py-1"><input type="number" min="0" max={pend} step="1" className="input w-20 text-xs" value={l.cantidad || ''} disabled={sinProducto} title={sinProducto ? 'Vincula un producto del catálogo primero' : undefined} onChange={(e) => setLineas((x) => ({ ...x, [p.id]: { ...l, cantidad: e.target.value } }))} /></td>
+                    <td className="px-2 py-1"><input className="input w-24 text-xs font-mono" disabled={sinProducto} value={l.numero_lote || ''} onChange={(e) => setLineas((x) => ({ ...x, [p.id]: { ...l, numero_lote: e.target.value } }))} placeholder="opcional" /></td>
+                    <td className="px-2 py-1"><input type="date" className="input w-32 text-xs" disabled={sinProducto} value={l.fecha_caducidad || ''} onChange={(e) => setLineas((x) => ({ ...x, [p.id]: { ...l, fecha_caducidad: e.target.value } }))} /></td>
                   </tr>
                 );
               })}
@@ -88,6 +106,16 @@ function RecepcionModal({ ocId, onClose, onDone }) {
           <button onClick={onClose} className="btn-secondary">Cancelar</button>
         </div>
       </div>
+
+      {picker && (
+        <ProductoPicker
+          open={!!picker}
+          onClose={() => setPicker(null)}
+          incluirNoVendibles
+          partida={{ descripcion_original: picker.descripcion, codigo_cliente: picker.sku_interno }}
+          onSelect={(prod) => { setVinculos((v) => ({ ...v, [picker.id]: prod })); setPicker(null); }}
+        />
+      )}
     </Modal>
   );
 }

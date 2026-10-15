@@ -1,16 +1,19 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useDropzone } from 'react-dropzone';
 import toast from 'react-hot-toast';
-import { X, Upload, Loader2, AlertTriangle, CheckCircle, Download } from 'lucide-react';
+import { X, Upload, Loader2, AlertTriangle, CheckCircle, Download, Link2, Check } from 'lucide-react';
 import api from '../../services/api';
 import { descargarArchivo } from '../../services/descargas';
+import ProductoPicker from '../../components/shared/ProductoPicker';
 
 export default function ImportExistenciasModal({ onClose, onDone }) {
   const [parsing, setParsing] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
   const [resultado, setResultado] = useState(null);
   const [almacenId, setAlmacenId] = useState('');
+  const [vinculos, setVinculos] = useState({}); // sku_interno (del archivo) -> producto elegido
+  const [picker, setPicker] = useState(null);   // renglón sin catálogo que se está vinculando
 
   const { data: almacenes = [] } = useQuery({
     queryKey: ['almacenes'], queryFn: () => api.get('/almacenes').then((r) => r.data),
@@ -18,7 +21,7 @@ export default function ImportExistenciasModal({ onClose, onDone }) {
 
   const onDrop = async (files) => {
     const file = files[0]; if (!file) return;
-    setParsing(true); setResultado(null);
+    setParsing(true); setResultado(null); setVinculos({});
     try {
       const form = new FormData(); form.append('archivo', file);
       const { data } = await api.post('/inventario/import-existencias', form, {
@@ -48,9 +51,16 @@ export default function ImportExistenciasModal({ onClose, onDone }) {
     }
   }
 
+  // Resuelto = ya estaba en catálogo, o el usuario vinculó su SKU a un producto existente.
+  function estaResuelto(x) {
+    return (x._en_catalogo || !!vinculos[x.sku_interno]) && Number(x.cantidad) > 0;
+  }
+
   async function confirmar() {
     if (!almacenId) return toast.error('Selecciona el almacén destino');
-    const renglones = resultado.renglones.filter((r) => r._ok);
+    const renglones = resultado.renglones
+      .filter(estaResuelto)
+      .map((r) => ({ ...r, producto_id: r._producto_id || vinculos[r.sku_interno]?.id || null }));
     if (!renglones.length) return toast.error('No hay renglones válidos');
     setConfirmando(true);
     try {
@@ -64,8 +74,16 @@ export default function ImportExistenciasModal({ onClose, onDone }) {
   }
 
   const r = resultado?.resumen;
-  const validos = resultado ? resultado.renglones.filter((x) => x._ok).length : 0;
+  const validos = resultado ? resultado.renglones.filter(estaResuelto).length : 0;
   const sinCatalogo = resultado ? resultado.renglones.filter((x) => !x._en_catalogo) : [];
+  const sinCatalogoUnicos = useMemo(() => {
+    const vistos = new Set();
+    return sinCatalogo.filter((x) => {
+      if (vistos.has(x.sku_interno)) return false;
+      vistos.add(x.sku_interno);
+      return true;
+    });
+  }, [sinCatalogo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
@@ -115,10 +133,38 @@ export default function ImportExistenciasModal({ onClose, onDone }) {
                 <div className="bg-gray-50 rounded-lg px-3 py-2"><p className="text-xs text-gray-400">Ubicaciones</p><p className="font-bold">{r.ubicaciones?.length}</p></div>
               </div>
 
-              {sinCatalogo.length > 0 && (
-                <div className="text-xs text-amber-700">
-                  <div className="flex items-center gap-2 mb-1"><AlertTriangle size={14} /><span>{sinCatalogo.length} SKU no están en el catálogo y se omitirán:</span></div>
-                  <p className="text-gray-500">{sinCatalogo.slice(0, 15).map((x) => x.sku_interno).join(', ')}{sinCatalogo.length > 15 ? '…' : ''}</p>
+              {sinCatalogoUnicos.length > 0 && (
+                <div className="text-xs">
+                  <div className="flex items-center gap-2 mb-1.5 text-amber-700">
+                    <AlertTriangle size={14} />
+                    <span>{sinCatalogoUnicos.length} SKU no están en el catálogo — vincúlalos a un producto existente o se omitirán:</span>
+                  </div>
+                  <ul className="space-y-1 max-h-48 overflow-y-auto border border-amber-100 rounded-lg p-2 bg-amber-50/50">
+                    {sinCatalogoUnicos.map((x) => {
+                      const v = vinculos[x.sku_interno];
+                      return (
+                        <li key={x.sku_interno} className="flex items-center justify-between gap-2">
+                          <span className="min-w-0 truncate">
+                            <span className="font-mono text-gray-700">{x.sku_interno}</span>
+                            {x.descripcion && <span className="text-gray-400"> — {x.descripcion.substring(0, 50)}</span>}
+                          </span>
+                          {v ? (
+                            <span className="shrink-0 inline-flex items-center gap-1 text-green-700">
+                              <Check size={13} /> <span className="font-mono">{v.sku_interno}</span>
+                              <button onClick={() => setPicker(x)} className="text-brand-500 hover:underline ml-1">cambiar</button>
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => setPicker(x)}
+                              className="shrink-0 inline-flex items-center gap-1 text-brand-500 hover:underline"
+                            >
+                              <Link2 size={13} /> Vincular
+                            </button>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
               )}
 
@@ -135,6 +181,16 @@ export default function ImportExistenciasModal({ onClose, onDone }) {
           )}
         </div>
       </div>
+
+      {picker && (
+        <ProductoPicker
+          open={!!picker}
+          onClose={() => setPicker(null)}
+          incluirNoVendibles
+          partida={{ descripcion_original: picker.descripcion, codigo_cliente: picker.sku_interno }}
+          onSelect={(prod) => { setVinculos((v) => ({ ...v, [picker.sku_interno]: prod })); setPicker(null); }}
+        />
+      )}
     </div>
   );
 }

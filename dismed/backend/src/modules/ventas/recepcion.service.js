@@ -31,13 +31,34 @@ async function ejecutarRecepcion(conn, { oc_id, almacen_id, partidas, usuario_id
     if (cant > pend + 0.0001) {
       throw Object.assign(new Error(`La cantidad recibida (${cant}) excede lo pendiente (${pend}) en ${ocp.sku_interno}`), { status: 400 });
     }
-    if (!ocp.producto_id) {
-      throw Object.assign(new Error(`La partida ${ocp.sku_interno} no tiene producto de catálogo y no puede entrar a inventario`), { status: 400 });
+
+    // Esta partida venía desde la solicitud/cotización sin producto de catálogo
+    // (producto_id null es válido ahí hasta este punto) — el usuario la vinculó en
+    // la propia pantalla de recepción. Se persiste el vínculo en toda la cadena
+    // (OC, pedido y la cotización original) para que quede resuelto de forma
+    // permanente, no solo para esta recepción.
+    let productoId = ocp.producto_id;
+    if (!productoId) {
+      if (!it.producto_id) {
+        throw Object.assign(new Error(`La partida ${ocp.sku_interno || ocp.descripcion} no tiene producto de catálogo — vincúlala antes de recibir`), { status: 400 });
+      }
+      productoId = it.producto_id;
+      const [[prod]] = await conn.query('SELECT sku_interno FROM productos WHERE id = ?', [productoId]);
+      if (!prod) throw Object.assign(new Error('El producto seleccionado ya no existe'), { status: 400 });
+      await conn.query('UPDATE ordenes_compra_partidas SET producto_id = ?, sku_interno = ? WHERE id = ?', [productoId, prod.sku_interno, ocp.id]);
+      await conn.query('UPDATE pedidos_cliente_partidas SET producto_id = ?, sku_interno = ? WHERE id = ?', [productoId, prod.sku_interno, ocp.pedido_partida_id]);
+      await conn.query(
+        `UPDATE cotizaciones_cliente_partidas ccp
+         JOIN pedidos_cliente_partidas pp ON pp.cotizacion_partida_id = ccp.id
+         SET ccp.producto_id = ?
+         WHERE pp.id = ?`,
+        [productoId, ocp.pedido_partida_id]
+      );
     }
 
     const costoUnitario = it.costo_unitario != null ? parseFloat(it.costo_unitario) : ocp.precio_compra;
     const ent = await svc.registrarEntrada(conn, {
-      producto_id: ocp.producto_id, almacen_id, ubicacion_id: it.ubicacion_id || null,
+      producto_id: productoId, almacen_id, ubicacion_id: it.ubicacion_id || null,
       cantidad: cant, costo_unitario: costoUnitario,
       proveedor_id: oc.proveedor_id, numero_lote: it.numero_lote, fecha_caducidad: it.fecha_caducidad || null,
       motivo: `Recepción ${folio}`, referencia: oc.folio, usuario_id, permitir_sin_lote: true,
@@ -45,7 +66,7 @@ async function ejecutarRecepcion(conn, { oc_id, almacen_id, partidas, usuario_id
     await conn.query(
       `INSERT INTO recepciones_partidas (recepcion_id, oc_partida_id, producto_id, cantidad, numero_lote, fecha_caducidad, ubicacion_id, costo_unitario, movimiento_id)
        VALUES (?,?,?,?,?,?,?,?,?)`,
-      [recId, ocp.id, ocp.producto_id, cant, it.numero_lote || null, it.fecha_caducidad || null, it.ubicacion_id || null,
+      [recId, ocp.id, productoId, cant, it.numero_lote || null, it.fecha_caducidad || null, it.ubicacion_id || null,
        costoUnitario, ent.lote_id || null]
     );
     await conn.query('UPDATE ordenes_compra_partidas SET cantidad_recibida = cantidad_recibida + ? WHERE id = ?', [cant, ocp.id]);
