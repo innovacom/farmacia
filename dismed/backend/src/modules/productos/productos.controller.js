@@ -154,13 +154,14 @@ async function getById(req, res, next) {
 // GET /productos/match?q=&descripcion=&cliente_id=&codigo_cliente=&codigo_gobierno=
 async function match(req, res, next) {
   try {
-    const { q, descripcion, cliente_id, codigo_cliente, codigo_gobierno } = req.query;
+    const { q, descripcion, cliente_id, codigo_cliente, codigo_gobierno, incluir_no_vendibles } = req.query;
     const candidatos = await buscarCandidatos({
       q,
       descripcion,
       cliente_id: cliente_id || null,
       codigo_cliente: codigo_cliente || null,
       codigo_gobierno: codigo_gobierno || null,
+      soloVendibles: !(incluir_no_vendibles === '1' || incluir_no_vendibles === 'true'),
     });
     res.json({ candidatos });
   } catch (err) { next(err); }
@@ -170,7 +171,7 @@ async function match(req, res, next) {
 // POST /productos/match-ia  Body: { descripcion, codigo_cliente?, codigo_gobierno?, cliente_id? }
 async function matchIa(req, res, next) {
   try {
-    const { descripcion, codigo_cliente, codigo_gobierno, cliente_id } = req.body;
+    const { descripcion, codigo_cliente, codigo_gobierno, cliente_id, incluir_no_vendibles } = req.body;
     if (!descripcion || !String(descripcion).trim()) {
       return res.status(400).json({ error: 'descripcion requerida' });
     }
@@ -182,6 +183,7 @@ async function matchIa(req, res, next) {
       cliente_id: cliente_id || null,
       codigo_cliente: codigo_cliente || null,
       codigo_gobierno: codigo_gobierno || null,
+      soloVendibles: !incluir_no_vendibles,
     });
     if (!candidatos.length) {
       return res.json({ candidatos: [], eleccion: null });

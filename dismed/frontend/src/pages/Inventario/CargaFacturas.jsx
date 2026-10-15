@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useDropzone } from 'react-dropzone';
 import toast from 'react-hot-toast';
-import { Loader2, CheckCircle, FileUp } from 'lucide-react';
+import { Loader2, CheckCircle, FileUp, Link2 } from 'lucide-react';
 import api from '../../services/api';
 import { usePagination } from '../../hooks/usePagination';
 import Pagination from '../../components/ui/Pagination';
+import ProductoPicker from '../../components/shared/ProductoPicker';
 
 export default function CargaFacturas() {
   const qc = useQueryClient();
@@ -15,6 +16,7 @@ export default function CargaFacturas() {
   const [renglones, setRenglones] = useState([]);
   const [confirmando, setConfirmando] = useState(false);
   const [resultado, setResultado] = useState(null);
+  const [picker, setPicker] = useState(null); // renglón cuyo producto se está vinculando
 
   const { data: almacenes = [] } = useQuery({
     queryKey: ['almacenes'], queryFn: () => api.get('/almacenes').then((r) => r.data),
@@ -38,7 +40,10 @@ export default function CargaFacturas() {
         headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000,
       });
       setPreview(data);
-      setRenglones(data.renglones);
+      // Conserva un snapshot de los renglones "nuevos" (producto dado de alta
+      // automáticamente) para poder deshacer el vínculo si el usuario los liga
+      // a un producto existente y luego se arrepiente.
+      setRenglones(data.renglones.map((r) => (r.producto_nuevo ? { ...r, _nuevoOriginal: { ...r } } : r)));
       toast.success(`${data.renglones.length} productos leídos del CFDI`);
       if (data.resumen.sin_clasificar_ia > 0) {
         toast(`${data.resumen.sin_clasificar_ia} producto(s) nuevo(s) no se pudieron clasificar automáticamente — revisa familia/categoría y la clasificación COFEPRIS a mano.`, { icon: '⚠️', duration: 6000 });
@@ -61,6 +66,29 @@ export default function CargaFacturas() {
     setRenglones((rs) => rs.map((r) => (r.linea === linea
       ? { ...r, control_lote_caducidad: checked, ...(checked ? {} : { numero_lote: '', fecha_caducidad: '' }) }
       : r)));
+  }
+
+  // El usuario decidió que esta línea en realidad corresponde a un producto YA
+  // existente del catálogo (no uno nuevo): se refleja su info real y se manda
+  // producto_id_generado sin tocar, para que confirmar() repunte el aprendizaje
+  // proveedor→producto y borre el duplicado que se había dado de alta de más.
+  function vincularProducto(linea, prod) {
+    setRenglones((rs) => rs.map((r) => (r.linea === linea ? {
+      ...r,
+      producto_id: prod.id,
+      sku_interno: prod.sku_interno,
+      descripcion: prod.descripcion,
+      control_lote_caducidad: !!prod.control_lote_caducidad,
+      vendible: !!prod.vendible,
+      precio_lista: prod.vendible && prod.precio_lista != null ? String(prod.precio_lista) : '',
+      precio_publico: prod.vendible && prod.precio_publico != null ? String(prod.precio_publico) : '',
+      clasificacion_cofepris: null,
+      producto_nuevo: false,
+    } : r)));
+  }
+
+  function deshacerVinculo(linea) {
+    setRenglones((rs) => rs.map((r) => (r.linea === linea && r._nuevoOriginal ? { ...r._nuevoOriginal } : r)));
   }
 
   const { pageItems, page, setPage, totalPages, total, from, to } = usePagination(renglones);
@@ -200,6 +228,27 @@ export default function CargaFacturas() {
                       <td className="max-w-[220px] whitespace-normal break-words align-top pt-2.5">
                         {r.descripcion}
                         {r.producto_nuevo && <span className="badge-yellow ml-1">nuevo</span>}
+                        {r.producto_id_generado != null && (
+                          <div className="mt-0.5 text-[11px] space-x-2">
+                            <button
+                              type="button"
+                              onClick={() => setPicker(r)}
+                              className="text-brand-500 hover:underline inline-flex items-center gap-0.5"
+                            >
+                              <Link2 size={11} />
+                              {r.producto_nuevo ? 'Vincular a producto existente' : 'cambiar vínculo'}
+                            </button>
+                            {!r.producto_nuevo && (
+                              <button
+                                type="button"
+                                onClick={() => deshacerVinculo(r.linea)}
+                                className="text-gray-400 hover:text-red-500 hover:underline"
+                              >
+                                deshacer
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="text-right">
                         <input
@@ -326,6 +375,19 @@ export default function CargaFacturas() {
               </button>
             )}
           </div>
+
+          {picker && (
+            <ProductoPicker
+              open={!!picker}
+              onClose={() => setPicker(null)}
+              incluirNoVendibles
+              partida={{
+                descripcion_original: (picker._nuevoOriginal || picker).descripcion,
+                codigo_cliente: picker.codigo_proveedor,
+              }}
+              onSelect={(prod) => { vincularProducto(picker.linea, prod); setPicker(null); }}
+            />
+          )}
         </div>
       )}
     </div>

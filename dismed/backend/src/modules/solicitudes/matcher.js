@@ -97,11 +97,15 @@ function score(qTokens, prodNorm) {
 
 /**
  * Busca candidatos del catálogo para una descripción/código.
+ * @param soloVendibles  Default true (uso normal: cotizar solo lo vendible). Pásalo en
+ *   false para contextos de inventario (p.ej. vincular una línea de factura a un producto
+ *   ya existente aunque todavía no tenga precio capturado y por tanto no sea vendible).
  * @returns [{ id, sku_interno, descripcion, fabricante, unidad_medida,
- *             precio_lista, ean, score (0-100), match_reason }]
+ *             precio_lista, precio_publico, ean, vendible, control_lote_caducidad,
+ *             clasificacion_cofepris, score (0-100), match_reason }]
  */
 async function buscarCandidatos({
-  q, descripcion, cliente_id, codigo_cliente, codigo_gobierno, limit = 10,
+  q, descripcion, cliente_id, codigo_cliente, codigo_gobierno, limit = 10, soloVendibles = true,
 }) {
   const resultados = [];
   const vistos = new Set();
@@ -115,18 +119,24 @@ async function buscarCandidatos({
       fabricante: row.fabricante || null,
       unidad_medida: row.unidad_medida,
       precio_lista: row.precio_lista,
+      precio_publico: row.precio_publico,
       ean: row.ean || null,
+      vendible: !!row.vendible,
+      control_lote_caducidad: !!row.control_lote_caducidad,
+      clasificacion_cofepris: row.clasificacion_cofepris || null,
       score: Math.max(0, Math.round(sc01 * 100)),
       match_reason: reason,
     });
   };
+  const condVendible = soloVendibles ? ' AND vendible = 1' : '';
+  const condVendibleP = soloVendibles ? ' AND p.vendible = 1' : '';
 
   // ── C1: codigo_cliente exacto en el diccionario del cliente ──
   if (cliente_id && codigo_cliente) {
     const [rows] = await pool.query(
       `SELECT p.*, cs.confirmado FROM clientes_skus cs
        JOIN productos p ON p.id = cs.producto_id
-       WHERE cs.cliente_id = ? AND cs.sku_cliente = ? AND p.activo = 1 AND p.vendible = 1`,
+       WHERE cs.cliente_id = ? AND cs.sku_cliente = ? AND p.activo = 1${condVendibleP}`,
       [cliente_id, codigo_cliente]
     );
     for (const r of rows) {
@@ -139,7 +149,7 @@ async function buscarCandidatos({
   const eans = [...new Set(blob.match(/\b\d{8,14}\b/g) || [])];
   if (eans.length) {
     const [rows] = await pool.query(
-      'SELECT * FROM productos WHERE activo = 1 AND vendible = 1 AND ean IN (?)', [eans]
+      `SELECT * FROM productos WHERE activo = 1${condVendible} AND ean IN (?)`, [eans]
     );
     for (const r of rows) push(r, 1, 'ean');
   }
@@ -149,7 +159,7 @@ async function buscarCandidatos({
     try {
       const clave = String(codigo_gobierno).trim();
       const [rows] = await pool.query(
-        'SELECT * FROM productos WHERE activo = 1 AND vendible = 1 AND clave_cuadro_basico = ?', [clave]
+        `SELECT * FROM productos WHERE activo = 1${condVendible} AND clave_cuadro_basico = ?`, [clave]
       );
       for (const r of rows) push(r, 1, 'codigo_gobierno');
     } catch (_) { /* columna aún no existe (migración pendiente) */ }
@@ -170,7 +180,7 @@ async function buscarCandidatos({
       try {
         [rows] = await pool.query(
           `SELECT * FROM productos p
-           WHERE p.activo = 1 AND p.vendible = 1
+           WHERE p.activo = 1${condVendibleP}
              AND MATCH(p.descripcion_norm) AGAINST (? IN NATURAL LANGUAGE MODE)
            LIMIT 80`,
           [ftQuery]
@@ -184,7 +194,7 @@ async function buscarCandidatos({
       const vals = [`%${texto.trim()}%`, `%${texto.trim()}%`];
       for (const tk of tokensBusqueda) { conds.push('p.descripcion LIKE ?'); vals.push(`%${tk}%`); }
       [rows] = await pool.query(
-        `SELECT * FROM productos p WHERE p.activo = 1 AND p.vendible = 1 AND (${conds.join(' OR ')}) LIMIT 80`,
+        `SELECT * FROM productos p WHERE p.activo = 1${condVendibleP} AND (${conds.join(' OR ')}) LIMIT 80`,
         vals
       );
     }

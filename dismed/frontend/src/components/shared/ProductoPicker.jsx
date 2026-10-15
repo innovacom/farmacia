@@ -12,9 +12,12 @@ import api from '../../services/api';
  *   open, onClose
  *   partida   { descripcion_original, codigo_cliente }
  *   clienteId (para el diccionario codigo_cliente → producto)
- *   onSelect(producto)  producto = { id, sku_interno, descripcion, ... }
+ *   incluirNoVendibles  Default false. Actívalo en contextos de inventario, donde se
+ *     debe poder vincular con un producto que aún no tiene precio capturado (vendible=0).
+ *   onSelect(producto)  producto = { id, sku_interno, descripcion, vendible,
+ *     control_lote_caducidad, precio_lista, precio_publico, clasificacion_cofepris, ... }
  */
-export default function ProductoPicker({ open, onClose, partida, clienteId, onSelect }) {
+export default function ProductoPicker({ open, onClose, partida, clienteId, incluirNoVendibles = false, onSelect }) {
   const [q, setQ] = useState('');
   const [cands, setCands] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -46,6 +49,7 @@ export default function ProductoPicker({ open, onClose, partida, clienteId, onSe
         if (partida?.codigo_cliente)       params.codigo_cliente = partida.codigo_cliente;
         if (clienteId)                     params.cliente_id = clienteId;
       }
+      if (incluirNoVendibles) params.incluir_no_vendibles = '1';
       const { data } = await api.get('/productos/match', { params });
       setCands(data.candidatos || []);
     } catch {
@@ -66,6 +70,7 @@ export default function ProductoPicker({ open, onClose, partida, clienteId, onSe
         codigo_cliente: partida.codigo_cliente || undefined,
         codigo_gobierno: partida.codigo_gobierno || undefined,
         cliente_id: clienteId || undefined,
+        incluir_no_vendibles: incluirNoVendibles || undefined,
       });
       if (Array.isArray(data.candidatos) && data.candidatos.length) setCands(data.candidatos);
       setIa(data.eleccion || { producto_id: null, confianza: 'baja', justificacion: 'Sin elección.' });

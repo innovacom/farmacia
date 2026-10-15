@@ -38,10 +38,11 @@ async function ubicacionSugerida(conn, producto_id, almacen_id) {
 }
 
 const PROD_COLS = 'id, sku_interno, control_lote_caducidad, vendible, clasificacion_cofepris, precio_lista, precio_publico';
+const PROD_COLS_P = PROD_COLS.split(', ').map((c) => `p.${c}`).join(', ');
 
 // Resuelve TODOS los códigos de la factura en dos consultas (no 1-2 por
-// renglón): prioridad sku_interno sobre ean, igual que la versión por-código.
-async function buscarProductosPorCodigos(conn, codigos) {
+// renglón): prioridad sku_interno/ean sobre el mapeo aprendido del proveedor.
+async function buscarProductosPorCodigos(conn, codigos, proveedorId) {
   const porCodigo = new Map();
   if (!codigos.length) return porCodigo;
   const [rows] = await conn.query(
@@ -52,6 +53,22 @@ async function buscarProductosPorCodigos(conn, codigos) {
   const porEan = new Map(rows.filter((r) => r.ean && codigos.includes(r.ean)).map((r) => [r.ean, r]));
   for (const codigo of codigos) {
     porCodigo.set(codigo, porSku.get(codigo) || porEan.get(codigo) || null);
+  }
+
+  // Códigos del proveedor ya vinculados a un producto — el mismo aprendizaje
+  // SKU proveedor→producto que usan Comparador de precios/Catálogo de proveedores
+  // (ver proveedores_catalogo), para que una factura recurrente del mismo proveedor
+  // ya no dé de alta un producto duplicado cuando su código no matchea sku/ean.
+  const sinMatch = codigos.filter((c) => !porCodigo.get(c));
+  if (sinMatch.length && proveedorId) {
+    const [rows2] = await conn.query(
+      `SELECT pc.sku_proveedor, ${PROD_COLS_P}
+       FROM proveedores_catalogo pc
+       JOIN productos p ON p.id = pc.producto_id
+       WHERE pc.proveedor_id = ? AND pc.sku_proveedor IN (?)`,
+      [proveedorId, sinMatch]
+    );
+    for (const r of rows2) porCodigo.set(r.sku_proveedor, r);
   }
   return porCodigo;
 }
@@ -115,7 +132,7 @@ async function preview(req, res, next) {
     // llamada a Gemini por renglón, que sería mucho más lento y pegaría contra el
     // rate limit del free tier en facturas con muchos conceptos).
     const codigosPorConcepto = conceptos.map((c) => (c.no_identificacion || '').trim());
-    const prodsPorCodigo = await buscarProductosPorCodigos(conn, [...new Set(codigosPorConcepto.filter(Boolean))]);
+    const prodsPorCodigo = await buscarProductosPorCodigos(conn, [...new Set(codigosPorConcepto.filter(Boolean))], proveedor.id);
     const prodsExistentes = codigosPorConcepto.map((codigo) => prodsPorCodigo.get(codigo) || null);
     const idxNuevos = conceptos.map((_, i) => i).filter((i) => !prodsExistentes[i]);
     const clasifPorIndice = new Map();
@@ -213,6 +230,11 @@ async function preview(req, res, next) {
       renglones.push({
         linea: c.linea,
         producto_id: prod.id,
+        // Si el producto se acaba de crear en ESTE preview (no matcheó por sku/ean ni por
+        // el aprendizaje proveedor→producto), se guarda aquí su id para que la pantalla
+        // ofrezca vincular la línea a un producto YA existente en vez de quedarse con el
+        // duplicado recién creado; confirmar() usa este campo para repuntar y limpiarlo.
+        producto_id_generado: productoNuevo ? prod.id : null,
         sku_interno: prod.sku_interno,
         descripcion: c.descripcion,
         codigo_proveedor: codigo || null,
@@ -288,6 +310,23 @@ async function confirmar(req, res, next) {
     const avisos = [];
     for (const r of renglones) {
       if (!r.producto_id || !(parseFloat(r.cantidad) > 0)) { omitidos++; continue; }
+
+      // El usuario vinculó esta línea (originalmente "nueva") a un producto YA existente
+      // del catálogo en la pantalla de revisión — se repunta el aprendizaje proveedor→producto
+      // al elegido y se borra el producto que el preview había dado de alta automáticamente
+      // (recién creado en esta misma factura, sin existencias ni otro uso todavía).
+      if (r.producto_id_generado && Number(r.producto_id_generado) !== Number(r.producto_id)) {
+        if (r.codigo_proveedor) {
+          await conn.query(
+            `UPDATE proveedores_catalogo SET producto_id = ?, match_estado = 'confirmado'
+             WHERE proveedor_id = ? AND sku_proveedor = ?`,
+            [r.producto_id, proveedor_id, r.codigo_proveedor.toString().slice(0, 40)]
+          );
+        }
+        try {
+          await conn.query('DELETE FROM productos WHERE id = ?', [r.producto_id_generado]);
+        } catch (_) { /* si algo más ya lo referenció, se deja — no bloquea la entrada */ }
+      }
 
       // Precio/clasificación capturados en esta misma pantalla — se guardan ANTES de la
       // entrada para que el producto quede vendible de una vez, sin visitar el catálogo aparte.
