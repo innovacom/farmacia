@@ -38,8 +38,8 @@ function apiKey() {
   return k.trim();
 }
 
-async function llamar(metodo, ruta, form) {
-  const headers = { 'X-Api-Key': apiKey() };
+async function llamar(metodo, ruta, form, extraHeaders = {}) {
+  const headers = { 'X-Api-Key': apiKey(), ...extraHeaders };
   const opts = { method: metodo, headers };
   if (form) {
     headers['Content-Type'] = 'application/x-www-form-urlencoded';
@@ -85,7 +85,7 @@ function traducirBody(b) {
       Descripcion: it.Description,
       ValorUnitario: String(it.UnitPrice),
       Importe: n2(it.Subtotal),
-      Descuento: n2(it.Discount),
+      Descuento: Number(it.Discount) > 0 ? n2(it.Discount) : undefined,
       ObjetoImp: it.TaxObject || '02',
     };
     if (c.ObjetoImp !== '01') c.Impuestos = impuestos;
@@ -109,7 +109,7 @@ function traducirBody(b) {
   });
 
   const subtotal = conceptos.reduce((s, c) => s + Number(c.Importe), 0);
-  const descuento = conceptos.reduce((s, c) => s + Number(c.Descuento), 0);
+  const descuento = conceptos.reduce((s, c) => s + Number(c.Descuento || 0), 0);
   const total = subtotal - descuento + totalTras;
 
   const out = {
@@ -190,9 +190,10 @@ async function timbrar(body) {
 
 /** Cancela por UUID. motivo 01 requiere uuidSustituye. */
 async function cancelar(uuid, motivo, uuidSustituye) {
-  const form = { uuid, motivo };
-  if (motivo === '01') form.foliosustitucion = uuidSustituye;
-  return llamar('POST', '/api/v5/invoice/cancel', form);
+  // La API recibe uuid/motivo/foliosustitucion como HEADERS, no en el cuerpo.
+  const h = { uuid, motivo };
+  if (motivo === '01') h.foliosustitucion = uuidSustituye;
+  return llamar('POST', '/api/v5/invoice/cancel', null, h);
 }
 
 /** Verifica credenciales/ambiente: devuelve los créditos (timbres) disponibles. */
