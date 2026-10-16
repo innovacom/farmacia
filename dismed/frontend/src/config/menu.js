@@ -6,6 +6,7 @@ import {
   FileSpreadsheet, BarChart3, Store, Clock, Pill, Building2, FileUp, Tags,
   HeartPulse, Stethoscope, PiggyBank, CalendarClock, MessageCircle, Megaphone,
   FileQuestion, Percent, Heart, ShoppingBag, Gauge, Mail, CreditCard, ShieldAlert, Rows3,
+  PackageCheck, Wallet,
 } from 'lucide-react';
 
 // Catálogo canónico del menú. Debe mantenerse en sincronía con el backend
@@ -27,6 +28,8 @@ export const MENU = {
         { key: 'solicitudes',  to: '/solicitudes',    label: 'Solicitudes',       icon: ClipboardList },
         { key: 'cotizaciones', to: '/cotizaciones',   label: 'Cotizaciones',      icon: FileText },
         { key: 'pedidos',      to: '/ventas/pedidos', label: 'Pedidos / Surtido', icon: ShoppingCart },
+        { key: 'pedidos',      to: '/ventas/ordenes-compra', label: 'Órdenes de compra', icon: PackageCheck },
+        { key: 'cobranza',     to: '/cobranza',       label: 'Cobranza',          icon: Wallet },
       ],
     },
     {

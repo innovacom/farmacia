@@ -4,7 +4,7 @@
 // (usuarios, descargas-sat): esos no se otorgan/quitan a operadores.
 const PERMISSIONABLE_KEYS = [
   'dashboard',
-  'clientes', 'solicitudes', 'cotizaciones', 'pedidos',
+  'clientes', 'solicitudes', 'cotizaciones', 'pedidos', 'cobranza',
   'existencias', 'movimientos', 'almacenes', 'productos', 'proveedores',
   'catalogo-proveedor', 'catalogos-apoyo', 'carga-facturas',
   'consultas', 'cfdi',

@@ -64,6 +64,7 @@ app.use('/api/catalogos',              require('./modules/inventario/catalogos.r
 app.use('/api/almacenes',              require('./modules/inventario/almacenes.routes'));
 app.use('/api/inventario',             require('./modules/inventario/inventario.routes'));
 app.use('/api/ventas',                 require('./modules/ventas/ventas.routes'));
+app.use('/api/cobranza',               require('./modules/cobranza/cobranza.routes'));
 app.use('/api/solicitudes',            require('./modules/solicitudes/solicitudes.routes'));
 app.use('/api/cotizaciones-proveedor', require('./modules/cotizaciones/proveedor/cotprov.routes'));
 app.use('/api/cotizaciones-cliente',   require('./modules/cotizaciones/cliente/cotcli.routes'));

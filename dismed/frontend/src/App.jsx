@@ -26,6 +26,8 @@ import CargaFacturas from './pages/Inventario/CargaFacturas';
 import PedidosList from './pages/Ventas/PedidosList';
 import CrearPedido from './pages/Ventas/CrearPedido';
 import DetallePedido from './pages/Ventas/DetallePedido';
+import OrdenesCompraList from './pages/Ventas/OrdenesCompraList';
+import Cobranza from './pages/Cobranza/Cobranza';
 import UsuariosList from './pages/Usuarios/UsuariosList';
 import ConsultasHistoricas from './pages/Consultas/ConsultasHistoricas';
 import ConsultaCfdi from './pages/Cfdi/ConsultaCfdi';
@@ -149,6 +151,9 @@ export default function App() {
         <Route path="ventas/pedidos"                       element={<PedidosList />} />
         <Route path="ventas/pedidos/nuevo/:cotizacionId"   element={<CrearPedido />} />
         <Route path="ventas/pedidos/:id"                   element={<DetallePedido />} />
+        <Route path="ventas/ordenes-compra"                element={<OrdenesCompraList />} />
+        <Route path="cobranza"                             element={<Cobranza />} />
+        <Route path="cobranza/:clienteId"                  element={<Cobranza />} />
         <Route path="expediente"                          element={<PacientesList />} />
         <Route path="expediente/medicos"                  element={<Medicos />} />
         <Route path="expediente/:id"                      element={<DetallePaciente />} />

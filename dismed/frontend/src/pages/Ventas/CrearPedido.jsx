@@ -27,8 +27,21 @@ export default function CrearPedido() {
 
   const mut = useMutation({
     mutationFn: (body) => api.post('/ventas/pedidos', body),
-    onSuccess: (res) => { toast.success(`Pedido ${res.data.folio} creado`); navigate(`/ventas/pedidos/${res.data.id}`); },
-    onError: (e) => toast.error(e.response?.data?.error || 'Error'),
+    onSuccess: (res) => {
+      toast.success(`Pedido ${res.data.folio} creado`);
+      if (res.data.aviso_credito) toast(res.data.aviso_credito, { icon: '⚠️', duration: 9000 });
+      navigate(`/ventas/pedidos/${res.data.id}`);
+    },
+    onError: (e, body) => {
+      const d = e.response?.data;
+      // Modo bloqueo de crédito: un admin puede autorizar el pedido
+      if (e.response?.status === 409 && d?.requiere_autorizacion
+          && window.confirm(`${d.error}\n\n¿Autorizar el pedido de todos modos?`)) {
+        mut.mutate({ ...body, autorizar_credito: true });
+        return;
+      }
+      toast.error(d?.sin_permiso_credito ? `${d.error} Pide a un administrador que lo autorice.` : (d?.error || 'Error'));
+    },
   });
 
   function crear() {
@@ -36,10 +49,6 @@ export default function CrearPedido() {
     const noEntero = incluidas.filter((p) => !Number.isInteger(Number(sel[p.id].cantidad)));
     if (noEntero.length) {
       return toast.error(`La cantidad debe ser un número entero en: ${noEntero.map((p) => `#${p.linea}`).join(', ')}`);
-    }
-    const excedidas = incluidas.filter((p) => Number(sel[p.id].cantidad) > Number(p.cantidad));
-    if (excedidas.length) {
-      return toast.error(`La cantidad asignada excede lo cotizado en: ${excedidas.map((p) => `#${p.linea}`).join(', ')}`);
     }
     const partidas = incluidas.map((p) => ({ cotizacion_partida_id: p.id, cantidad_asignada: Number(sel[p.id].cantidad) }));
     if (!partidas.length) return toast.error('Selecciona al menos una partida con cantidad');
@@ -66,7 +75,7 @@ export default function CrearPedido() {
       </div>
 
       <div className="card overflow-x-auto">
-        <p className="text-xs text-gray-400 mb-3">Marca las partidas que el cliente asignó y ajusta la cantidad a comprar.</p>
+        <p className="text-xs text-gray-400 mb-3">Marca las partidas que el cliente asignó y ajusta la cantidad a comprar (puede ser mayor a lo cotizado; el precio unitario se mantiene).</p>
         <table className="table-auto w-full text-sm">
           <thead>
             <tr>
@@ -94,7 +103,7 @@ export default function CrearPedido() {
                   </td>
                   <td className="text-center">{Number(p.cantidad).toLocaleString('es-MX')} {p.unidad_medida}</td>
                   <td className="text-center">
-                    <input type="number" min="0" max={Number(p.cantidad)} step="1" className="input w-24 text-center text-sm"
+                    <input type="number" min="0" step="1" className="input w-24 text-center text-sm"
                       value={s.cantidad} disabled={!s.incluir}
                       onChange={(e) => setSel((x) => ({ ...x, [p.id]: { ...s, cantidad: e.target.value } }))} />
                   </td>

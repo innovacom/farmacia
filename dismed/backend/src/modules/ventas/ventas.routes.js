@@ -11,6 +11,7 @@ router.post('/pedidos',           c.crearPedido);
 router.get('/pedidos/:id',        c.getPedido);
 
 // Órdenes de compra (desde el pedido)
+router.get('/ordenes-compra',              c.listOrdenesCompra);
 router.post('/pedidos/:id/ordenes-compra', c.generarOC);
 router.get('/ordenes-compra/:id',          c.getOC);
 router.get('/ordenes-compra/:id/pdf',      c.ocPdf);

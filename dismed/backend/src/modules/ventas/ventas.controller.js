@@ -3,6 +3,7 @@ const svc = require('../inventario/movimientos.service');
 const { ejecutarRecepcion } = require('./recepcion.service');
 const { generarOcPdf, generarEntregaPdf } = require('./ventas.pdf');
 const { validarFactura, generarCfdiTxt } = require('./cfdi.txt.generator');
+const cobranza = require('../cobranza/cobranza.service');
 const { timbrarEntrega, cancelarCfdi: cancelarCfdiSvc, cargarEntregaCfdi: cargarEntrega } = require('./cfdi.facturama');
 const { urlFirmada } = require('../../services/outputUrl.service');
 
@@ -16,20 +17,21 @@ async function genFolio(conn, serie) {
 async function crearPedido(req, res, next) {
   const conn = await pool.getConnection();
   try {
-    const { cotizacion_id, partidas, notas } = req.body;
+    const { cotizacion_id, partidas, notas, autorizar_credito } = req.body;
     if (!cotizacion_id || !Array.isArray(partidas) || !partidas.length) {
       return res.status(400).json({ error: 'cotizacion_id y partidas[] requeridos' });
     }
     await conn.beginTransaction();
-    const [[cot]] = await conn.query('SELECT id, cliente_id FROM cotizaciones_cliente WHERE id = ?', [cotizacion_id]);
+    const [[cot]] = await conn.query('SELECT id, cliente_id, sucursal_id FROM cotizaciones_cliente WHERE id = ?', [cotizacion_id]);
     if (!cot) { await conn.rollback(); return res.status(404).json({ error: 'Cotización no encontrada' }); }
 
     const folio = await genFolio(conn, 'PED');
     const [r] = await conn.query(
-      'INSERT INTO pedidos_cliente (folio, cotizacion_id, cliente_id, notas, usuario_id) VALUES (?, ?, ?, ?, ?)',
-      [folio, cotizacion_id, cot.cliente_id, notas || null, req.user?.id || null]
+      'INSERT INTO pedidos_cliente (folio, cotizacion_id, cliente_id, sucursal_id, notas, usuario_id) VALUES (?, ?, ?, ?, ?, ?)',
+      [folio, cotizacion_id, cot.cliente_id, cot.sucursal_id || null, notas || null, req.user?.id || null]
     );
     const pedidoId = r.insertId;
+    let montoPedido = 0;
 
     for (const it of partidas) {
       const cant = parseFloat(it.cantidad_asignada);
@@ -59,21 +61,35 @@ async function crearPedido(req, res, next) {
         [pedidoId, ccp.id, ccp.producto_id, ccp.sku_interno, ccp.codigo_cliente, ccp.descripcion,
          ccp.unidad_medida, cant, ccp.precio_unitario_venta, ccp.iva_exento ? 1 : 0, proveedorId, precioCompra]
       );
+      montoPedido += cant * Number(ccp.precio_unitario_venta || 0) * (ccp.iva_exento ? 1 : 1.16);
+    }
+
+    // Control de crédito (por sucursal y consolidado del cliente). Modo aviso: solo advierte;
+    // modo bloqueo: rechaza salvo que un admin lo autorice explícitamente.
+    const cred = await cobranza.verificarCredito(conn, cot.cliente_id, cot.sucursal_id, montoPedido);
+    if (cred.excede && (await cobranza.getModo(conn)) === 'bloqueo' && !(autorizar_credito && req.user?.rol === 'admin')) {
+      await conn.rollback();
+      return res.status(409).json({
+        error: cred.avisos.join(' '),
+        requiere_autorizacion: req.user?.rol === 'admin',
+        sin_permiso_credito: req.user?.rol !== 'admin',
+      });
     }
     await conn.query("UPDATE cotizaciones_cliente SET estatus = 'aceptada' WHERE id = ? AND estatus <> 'aceptada'", [cotizacion_id]);
     await conn.commit();
-    res.status(201).json({ id: pedidoId, folio });
+    res.status(201).json({ id: pedidoId, folio, aviso_credito: cred.avisos.length ? cred.avisos.join(' ') : null });
   } catch (err) { await conn.rollback(); next(err); } finally { conn.release(); }
 }
 
 async function listPedidos(req, res, next) {
   try {
     const [rows] = await pool.query(
-      `SELECT p.id, p.folio, p.estatus, p.created_at, c.razon_social AS cliente,
+      `SELECT p.id, p.folio, p.estatus, p.created_at, c.razon_social AS cliente, su.nombre AS sucursal,
               cot.folio AS cotizacion_folio,
               (SELECT COUNT(*) FROM pedidos_cliente_partidas pp WHERE pp.pedido_id = p.id) AS partidas
        FROM pedidos_cliente p
        JOIN clientes c ON c.id = p.cliente_id
+       LEFT JOIN clientes_sucursales su ON su.id = p.sucursal_id
        JOIN cotizaciones_cliente cot ON cot.id = p.cotizacion_id
        ORDER BY p.id DESC LIMIT 200`
     );
@@ -84,8 +100,9 @@ async function listPedidos(req, res, next) {
 async function getPedido(req, res, next) {
   try {
     const [[ped]] = await pool.query(
-      `SELECT p.*, c.razon_social AS cliente, cot.folio AS cotizacion_folio
+      `SELECT p.*, c.razon_social AS cliente, su.nombre AS sucursal, cot.folio AS cotizacion_folio
        FROM pedidos_cliente p JOIN clientes c ON c.id = p.cliente_id
+       LEFT JOIN clientes_sucursales su ON su.id = p.sucursal_id
        JOIN cotizaciones_cliente cot ON cot.id = p.cotizacion_id WHERE p.id = ?`, [req.params.id]
     );
     if (!ped) return res.status(404).json({ error: 'Pedido no encontrado' });
@@ -108,6 +125,22 @@ async function getPedido(req, res, next) {
 }
 
 // ── ÓRDENES DE COMPRA ─────────────────────────────────────────────────────────
+async function listOrdenesCompra(req, res, next) {
+  try {
+    const [rows] = await pool.query(
+      `SELECT oc.id, oc.folio, oc.estatus, oc.total, oc.created_at,
+              pr.id AS proveedor_id, pr.nombre_empresa AS proveedor,
+              p.id AS pedido_id, p.folio AS pedido_folio,
+              (SELECT COUNT(*) FROM ordenes_compra_partidas ocp WHERE ocp.oc_id = oc.id) AS partidas
+       FROM ordenes_compra oc
+       JOIN proveedores pr ON pr.id = oc.proveedor_id
+       JOIN pedidos_cliente p ON p.id = oc.pedido_id
+       ORDER BY oc.id DESC LIMIT 500`
+    );
+    res.json(rows);
+  } catch (err) { next(err); }
+}
+
 async function generarOC(req, res, next) {
   const conn = await pool.getConnection();
   try {
@@ -242,9 +275,9 @@ async function crearEntrega(req, res, next) {
 
     const folio = await genFolio(conn, tipoFinal === 'factura' ? 'FAC' : 'REM');
     const [r] = await conn.query(
-      `INSERT INTO entregas (folio, tipo, pedido_id, cliente_id, usuario_id, notas, forma_pago, metodo_pago, moneda, uso_cfdi)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [folio, tipoFinal, ped.id, ped.cliente_id, req.user?.id || null, String(notas || '').trim().slice(0, 300) || null,
+      `INSERT INTO entregas (folio, tipo, pedido_id, cliente_id, sucursal_id, usuario_id, notas, forma_pago, metodo_pago, moneda, uso_cfdi)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [folio, tipoFinal, ped.id, ped.cliente_id, ped.sucursal_id || null, req.user?.id || null, String(notas || '').trim().slice(0, 300) || null,
        cfdiHeader.forma_pago, cfdiHeader.metodo_pago, cfdiHeader.moneda, cfdiHeader.uso_cfdi]
     );
     const entId = r.insertId;
@@ -379,7 +412,7 @@ async function cfdiInfo(req, res, next) {
 
 module.exports = {
   crearPedido, listPedidos, getPedido,
-  generarOC, getOC, ocPdf, recepcion,
+  listOrdenesCompra, generarOC, getOC, ocPdf, recepcion,
   crearEntrega, entregaPdf, cfdiTxt,
   timbrarCfdi, cancelarCfdi, cfdiInfo,
 };
