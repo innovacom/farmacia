@@ -244,7 +244,7 @@ async function crearEntrega(req, res, next) {
     const [r] = await conn.query(
       `INSERT INTO entregas (folio, tipo, pedido_id, cliente_id, usuario_id, notas, forma_pago, metodo_pago, moneda, uso_cfdi)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [folio, tipoFinal, ped.id, ped.cliente_id, req.user?.id || null, notas || null,
+      [folio, tipoFinal, ped.id, ped.cliente_id, req.user?.id || null, String(notas || '').trim().slice(0, 300) || null,
        cfdiHeader.forma_pago, cfdiHeader.metodo_pago, cfdiHeader.moneda, cfdiHeader.uso_cfdi]
     );
     const entId = r.insertId;

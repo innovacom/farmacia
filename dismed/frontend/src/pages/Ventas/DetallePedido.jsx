@@ -126,6 +126,7 @@ function EntregaModal({ pedido, onClose, onDone }) {
   const [lineas, setLineas] = useState({});
   const [cfdi, setCfdi] = useState({ forma_pago: '03', metodo_pago: 'PUE', uso_cfdi: 'G03' });
   const [faltantes, setFaltantes] = useState([]);
+  const [notas, setNotas] = useState('');
 
   const mut = useMutation({
     mutationFn: (body) => api.post(`/ventas/pedidos/${pedido.id}/entregas`, body),
@@ -150,7 +151,7 @@ function EntregaModal({ pedido, onClose, onDone }) {
       .filter((p) => Number(lineas[p.id]) > 0)
       .map((p) => ({ pedido_partida_id: p.id, cantidad: Number(lineas[p.id]) }));
     if (!partidas.length) return toast.error('Captura cantidades a entregar');
-    mut.mutate({ tipo, partidas, ...(tipo === 'factura' ? cfdi : {}) });
+    mut.mutate({ tipo, partidas, ...(tipo === 'factura' ? { ...cfdi, notas: notas.trim() || undefined } : {}) });
   }
 
   return (
@@ -181,6 +182,13 @@ function EntregaModal({ pedido, onClose, onDone }) {
                 {USOS_CFDI.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </div>
+          </div>
+        )}
+        {tipo === 'factura' && (
+          <div>
+            <label className="label">Observaciones (solo en el PDF, no van en el XML)</label>
+            <textarea className="input text-sm" rows={3} maxLength={300} value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Ej. No. de proveedor, no. de contrato u orden de compra del cliente" />
+            <p className="text-xs text-gray-400 text-right">{notas.length}/300</p>
           </div>
         )}
         {faltantes.length > 0 && (

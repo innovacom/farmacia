@@ -211,7 +211,8 @@ function buildFacturaHtml(ent, cfdi) {
       .join(' &nbsp; ');
     return `<tr>
       <td>${esc(p.sku_interno)}</td>
-      <td>${cantFmt(cant)} ${esc(String(p.unidad_medida || '').toUpperCase())}</td>
+      <td class="r">${cantFmt(cant)}</td>
+      <td>${esc(String(p.unidad_medida || '').toUpperCase())}</td>
       <td>${esc(p.descripcion)}${lotes ? `<br>${lotes}` : ''}
         <br><b>ClaveProdServ:</b> ${esc(p.clave_sat)} <b>ClaveUnidad:</b> ${esc(p.clave_unidad_sat)}
         <div class="imp"><b>Impuesto:</b> IVA Trasladado. <b>Base:</b> ${imp.toFixed(2)} <b>Factor:</b> Tasa ${tasa.toFixed(6)} <b>Importe:</b> ${ivaImp.toFixed(2)}</div></td>
@@ -232,7 +233,8 @@ function buildFacturaHtml(ent, cfdi) {
     .box{background:#eee;padding:8px 10px;line-height:1.8}
     .cell{background:#eee;text-align:center;font-weight:bold;padding:7px;font-size:9px}
     .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px 14px;background:#eee;padding:8px 10px;margin-top:4px;line-height:1.7}
-    table.p{width:100%;border-collapse:collapse;margin-top:6px}
+    table.p{width:100%;border-collapse:collapse;margin-top:6px;table-layout:fixed}
+    table.p td{overflow-wrap:anywhere}
     table.p th{background:${TEAL};color:#fff;padding:7px 6px;text-align:left;font-size:9px}
     table.p td{border:1px solid #ddd;padding:6px;vertical-align:top;font-size:9px;line-height:1.35}
     table.p thead{display:table-header-group}
@@ -277,14 +279,15 @@ function buildFacturaHtml(ent, cfdi) {
       ${celda('Método de Pago:', conCatalogo(METODOS_PAGO_SAT, ent.metodo_pago))}
     </div>
     <table class="p">
-      <thead><tr><th>Código:</th><th>Cant-Unid:</th><th>Descripción:</th><th class="r">P Unitario:</th><th class="r">Descuento:</th><th class="r">Importe:</th></tr></thead>
+      <colgroup><col style="width:11%"><col style="width:6%"><col style="width:8%"><col><col style="width:11%"><col style="width:7%"><col style="width:12%"></colgroup>
+      <thead><tr><th>Código:</th><th class="r">Cant.</th><th>Unidad:</th><th>Descripción:</th><th class="r">P Unitario:</th><th class="r">Desc.:</th><th class="r">Importe:</th></tr></thead>
       <tbody>${filas}</tbody>
     </table>
-    ${ent.notas ? `<div style="border:1px solid #ddd;padding:8px 10px;margin-top:8px;white-space:pre-line;break-inside:avoid"><b>Observaciones:</b> ${esc(ent.notas)}</div>` : ''}
     <div style="display:flex;gap:8px;margin-top:8px;align-items:stretch;break-inside:avoid">
       ${cfdi?.qr_dataurl ? `<img src="${cfdi.qr_dataurl}" style="width:120px;height:120px">` : ''}
       <div class="box" style="flex:1">
         <div><b>Importe en letra:</b> ${esc(importeEnLetra(total, moneda))}</div>
+        ${ent.notas ? `<div style="white-space:pre-line"><b>Observaciones:</b> ${esc(ent.notas)}</div>` : ''}
         ${cfdi ? `
         <div><b>Folio Fiscal UUID:</b>${esc(cfdi.uuid)}</div>
         <div><b>Fecha de Timbrado:</b> ${esc(fechaIso(cfdi.fecha_timbrado))}</div>
