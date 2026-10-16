@@ -6,7 +6,9 @@ async function list(req, res, next) {
     const [rows] = await pool.query(
       `SELECT id, razon_social, nombre_comercial, rfc, regimen_fiscal, uso_cfdi,
               codigo_postal, email, tipo_cliente, limite_credito, dias_credito,
-              direccion_fiscal, cuenta_cobrar_codigo, activo
+              direccion_fiscal, cuenta_cobrar_codigo, activo,
+              (SELECT COUNT(*) FROM clientes_sucursales s
+                WHERE s.cliente_id = clientes.id AND s.activo = 1) AS num_sucursales
        FROM clientes
        ${soloActivos ? 'WHERE activo = 1' : ''}
        ORDER BY razon_social`
@@ -26,7 +28,11 @@ async function getById(req, res, next) {
       'SELECT * FROM clientes_contactos WHERE cliente_id = ? AND activo = 1 ORDER BY es_principal DESC',
       [req.params.id]
     );
-    res.json({ ...cliente, contactos });
+    const [sucursales] = await pool.query(
+      'SELECT * FROM clientes_sucursales WHERE cliente_id = ? ORDER BY es_matriz DESC, nombre',
+      [req.params.id]
+    );
+    res.json({ ...cliente, contactos, sucursales });
   } catch (err) { next(err); }
 }
 
@@ -49,6 +55,11 @@ async function create(req, res, next) {
       [razon_social, nombre_comercial || null, rfc, regimen_fiscal || null,
        uso_cfdi || null, codigo_postal || null, email || null, tipo_cliente || 'otro', limite_credito || 0,
        dias_credito || 0, direccion_fiscal || null, notas || null, cuenta_cobrar_codigo || null]
+    );
+    await pool.query(
+      `INSERT INTO clientes_sucursales (cliente_id, nombre, es_matriz, direccion_entrega, codigo_postal)
+       VALUES (?, ?, 1, ?, ?)`,
+      [result.insertId, nombre_comercial || razon_social, direccion_fiscal || null, codigo_postal || null]
     );
     res.status(201).json({ id: result.insertId, razon_social });
   } catch (err) { next(err); }
@@ -92,7 +103,7 @@ async function listContactos(req, res, next) {
 
 async function createContacto(req, res, next) {
   try {
-    const { nombre, puesto, email, telefono, es_principal } = req.body;
+    const { nombre, puesto, email, telefono, es_principal, sucursal_id, area } = req.body;
     if (!nombre) return res.status(400).json({ error: 'nombre requerido' });
     if (es_principal) {
       await pool.query(
@@ -101,9 +112,10 @@ async function createContacto(req, res, next) {
       );
     }
     const [r] = await pool.query(
-      `INSERT INTO clientes_contactos (cliente_id, nombre, puesto, email, telefono, es_principal)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [req.params.id, nombre, puesto || null, email || null, telefono || null, es_principal ? 1 : 0]
+      `INSERT INTO clientes_contactos (cliente_id, sucursal_id, area, nombre, puesto, email, telefono, es_principal)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.params.id, sucursal_id || null, area || null, nombre, puesto || null, email || null,
+       telefono || null, es_principal ? 1 : 0]
     );
     res.status(201).json({ id: r.insertId });
   } catch (err) { next(err); }
@@ -111,7 +123,7 @@ async function createContacto(req, res, next) {
 
 async function updateContacto(req, res, next) {
   try {
-    const { nombre, puesto, email, telefono, es_principal, activo } = req.body;
+    const { nombre, puesto, email, telefono, es_principal, activo, sucursal_id, area } = req.body;
     if (es_principal) {
       await pool.query(
         'UPDATE clientes_contactos SET es_principal = 0 WHERE cliente_id = ?',
@@ -119,10 +131,12 @@ async function updateContacto(req, res, next) {
       );
     }
     await pool.query(
-      `UPDATE clientes_contactos SET nombre=?, puesto=?, email=?, telefono=?, es_principal=?, activo=?
+      `UPDATE clientes_contactos SET nombre=?, puesto=?, email=?, telefono=?, es_principal=?, activo=?,
+              sucursal_id=?, area=?
        WHERE id = ? AND cliente_id = ?`,
       [nombre, puesto || null, email || null, telefono || null,
        es_principal ? 1 : 0, activo !== undefined ? activo : 1,
+       sucursal_id || null, area || null,
        req.params.cid, req.params.id]
     );
     res.json({ ok: true });
@@ -143,8 +157,126 @@ async function listSkus(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// ── Sucursales ───────────────────────────────────────────────────────────────
+const SUC_CAMPOS = ['nombre', 'clave', 'direccion_entrega', 'codigo_postal', 'telefono',
+  'latitud', 'longitud', 'limite_credito', 'dias_credito', 'notas', 'activo'];
+const SUC_NULLABLE = ['clave', 'direccion_entrega', 'codigo_postal', 'telefono', 'latitud',
+  'longitud', 'limite_credito', 'dias_credito', 'notas'];
+
+function valSuc(f, v) {
+  if (SUC_NULLABLE.includes(f) && (v === '' || v === undefined)) return null;
+  return v;
+}
+
+async function listSucursales(req, res, next) {
+  try {
+    const soloActivas = req.query.activas === '1';
+    const [rows] = await pool.query(
+      `SELECT * FROM clientes_sucursales WHERE cliente_id = ? ${soloActivas ? 'AND activo = 1' : ''}
+       ORDER BY es_matriz DESC, nombre`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) { next(err); }
+}
+
+async function createSucursal(req, res, next) {
+  try {
+    if (!req.body.nombre) return res.status(400).json({ error: 'nombre requerido' });
+    const campos = SUC_CAMPOS.filter((f) => f !== 'activo' && req.body[f] !== undefined);
+    const [r] = await pool.query(
+      `INSERT INTO clientes_sucursales (cliente_id, ${campos.join(', ')})
+       VALUES (?${', ?'.repeat(campos.length)})`,
+      [req.params.id, ...campos.map((f) => valSuc(f, req.body[f]))]
+    );
+    res.status(201).json({ id: r.insertId });
+  } catch (err) { next(err); }
+}
+
+async function updateSucursal(req, res, next) {
+  try {
+    const sets = []; const vals = [];
+    SUC_CAMPOS.forEach((f) => {
+      if (req.body[f] !== undefined) { sets.push(`${f} = ?`); vals.push(valSuc(f, req.body[f])); }
+    });
+    if (!sets.length) return res.status(400).json({ error: 'Sin campos para actualizar' });
+    vals.push(req.params.sid, req.params.id);
+    const [r] = await pool.query(
+      `UPDATE clientes_sucursales SET ${sets.join(', ')} WHERE id = ? AND cliente_id = ?`, vals);
+    if (!r.affectedRows) return res.status(404).json({ error: 'Sucursal no encontrada' });
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+}
+
+/**
+ * Convierte el cliente :id (hoy "cliente suelto", p. ej. "Pemex Central Norte")
+ * en una sucursal del cliente destino_id (p. ej. "Petróleos Mexicanos").
+ * Todo su historial (solicitudes, cotizaciones, pedidos, entregas, contactos,
+ * SKUs) pasa al destino conservando la sucursal. El cliente origen queda inactivo.
+ */
+async function fusionar(req, res, next) {
+  const origenId = Number(req.params.id);
+  const destinoId = Number(req.body.destino_id);
+  if (!destinoId || destinoId === origenId) {
+    return res.status(400).json({ error: 'destino_id inválido' });
+  }
+  const conn = await pool.getConnection();
+  try {
+    const [[origen]] = await conn.query('SELECT * FROM clientes WHERE id = ?', [origenId]);
+    const [[destino]] = await conn.query('SELECT * FROM clientes WHERE id = ?', [destinoId]);
+    if (!origen || !destino) return res.status(404).json({ error: 'Cliente no encontrado' });
+    if (String(origen.rfc).toUpperCase() !== String(destino.rfc).toUpperCase() && !req.body.forzar) {
+      return res.status(409).json({
+        error: `Los RFC no coinciden (${origen.rfc} vs ${destino.rfc}). Confirma para fusionar de todos modos.`,
+        requiere_forzar: true,
+      });
+    }
+
+    await conn.beginTransaction();
+
+    // Asegurar que el origen tenga al menos una sucursal (clientes previos a v73)
+    const [[{ n }]] = await conn.query(
+      'SELECT COUNT(*) AS n FROM clientes_sucursales WHERE cliente_id = ?', [origenId]);
+    if (!n) {
+      await conn.query(
+        `INSERT INTO clientes_sucursales (cliente_id, nombre, es_matriz, direccion_entrega, codigo_postal)
+         VALUES (?, ?, 1, ?, ?)`,
+        [origenId, origen.nombre_comercial || origen.razon_social, origen.direccion_fiscal, origen.codigo_postal]);
+    }
+    // Sus sucursales pasan al destino (ya no son matriz)
+    await conn.query(
+      'UPDATE clientes_sucursales SET cliente_id = ?, es_matriz = 0 WHERE cliente_id = ?',
+      [destinoId, origenId]);
+
+    // Reapuntar todas las tablas con FK a clientes (menos clientes_sucursales)
+    const [fks] = await conn.query(
+      `SELECT DISTINCT TABLE_NAME AS t, COLUMN_NAME AS c FROM information_schema.KEY_COLUMN_USAGE
+        WHERE TABLE_SCHEMA = DATABASE() AND REFERENCED_TABLE_NAME = 'clientes'
+          AND REFERENCED_COLUMN_NAME = 'id' AND TABLE_NAME <> 'clientes_sucursales'`);
+    const movidos = {};
+    for (const { t, c } of fks) {
+      // IGNORE: clientes_skus tiene UNIQUE(cliente_id, sku_cliente); los repetidos se quedan en el origen
+      const [r] = await conn.query(`UPDATE IGNORE \`${t}\` SET \`${c}\` = ? WHERE \`${c}\` = ?`, [destinoId, origenId]);
+      if (r.affectedRows) movidos[t] = r.affectedRows;
+    }
+
+    await conn.query(
+      `UPDATE clientes SET activo = 0, notas = CONCAT(COALESCE(notas, ''), ?) WHERE id = ?`,
+      [`\n[Fusionado como sucursal del cliente #${destinoId} el ${new Date().toISOString().slice(0, 10)}]`, origenId]);
+
+    await conn.commit();
+    res.json({ ok: true, movidos });
+  } catch (err) {
+    await conn.rollback();
+    next(err);
+  } finally {
+    conn.release();
+  }
+}
+
 module.exports = {
   list, getById, create, update, remove,
   listContactos, createContacto, updateContacto,
   listSkus,
+  listSucursales, createSucursal, updateSucursal, fusionar,
 };

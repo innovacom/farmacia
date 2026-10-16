@@ -18,6 +18,24 @@ export default function NuevaSolicitud() {
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm();
 
   const clienteIdSel = watch('cliente_id');
+
+  // Sucursales del cliente elegido (si solo tiene una, se preselecciona)
+  const { data: sucursales = [] } = useQuery({
+    queryKey: ['sucursales', clienteIdSel, 'activas'],
+    queryFn: () => api.get(`/clientes/${clienteIdSel}/sucursales?activas=1`).then((r) => r.data),
+    enabled: !!clienteIdSel,
+  });
+  // Sucursal detectada en el Excel (ID en la celda CLIENTE): se aplica cuando cargan las sucursales
+  const sucursalExcelRef = useRef(null);
+  useEffect(() => {
+    const pend = sucursalExcelRef.current;
+    if (pend && sucursales.some((x) => String(x.id) === String(pend))) {
+      setValue('sucursal_id', String(pend));
+      sucursalExcelRef.current = null;
+      return;
+    }
+    setValue('sucursal_id', sucursales.length === 1 ? String(sucursales[0].id) : '');
+  }, [sucursales, setValue]);
   const [picker, setPicker]               = useState(null); // { idx }
   const [modo, setModo]                   = useState('excel');
   const [parsedPartidas, setParsedPartidas] = useState([]);
@@ -45,6 +63,15 @@ export default function NuevaSolicitud() {
     if (parseMeta.concepto)        setValue('concepto', String(parseMeta.concepto));
     if (parseMeta.factor_ganancia) setValue('factor_ganancia', parseMeta.factor_ganancia);
 
+    if (parseMeta.sucursal_aviso) toast(parseMeta.sucursal_aviso, { id: 'sucursal-aviso', icon: '⚠️', duration: 7000 });
+    if (parseMeta.cliente_id && parseMeta.sucursal_id) {
+      // El Excel trae el ID de la sucursal: cliente y sucursal quedan determinados
+      sucursalExcelRef.current = parseMeta.sucursal_id;
+      setValue('cliente_id', String(parseMeta.cliente_id));
+      setValue('sucursal_id', String(parseMeta.sucursal_id)); // si el cliente ya está en caché
+      setClienteNoEncontrado(null);
+      return;
+    }
     if (parseMeta.cliente_nombre) {
       if (!clientes.length) return; // esperar que cargue la lista
       const needle = parseMeta.cliente_nombre.toLowerCase();
@@ -205,6 +232,7 @@ export default function NuevaSolicitud() {
     try {
       const { data: sol } = await api.post('/solicitudes', {
         cliente_id:         parseInt(formData.cliente_id),
+        sucursal_id:        formData.sucursal_id ? parseInt(formData.sucursal_id) : null,
         referencia_cliente: formData.referencia_cliente,
         atencion:           formData.atencion || null,
         concepto:           formData.concepto || null,
@@ -267,6 +295,20 @@ export default function NuevaSolicitud() {
                 >
                   <UserPlus size={12} /> Dar de alta
                 </button>
+              </div>
+            )}
+
+            {sucursales.length > 1 && (
+              <div className="mt-3">
+                <label className="label">Sucursal *</label>
+                <select className="input"
+                  {...register('sucursal_id', { required: 'Selecciona la sucursal' })}>
+                  <option value="">— Selecciona —</option>
+                  {sucursales.map((s) => (
+                    <option key={s.id} value={s.id}>{s.nombre}</option>
+                  ))}
+                </select>
+                {errors.sucursal_id && <p className="text-xs text-red-500 mt-1">{errors.sucursal_id.message}</p>}
               </div>
             )}
           </div>
@@ -369,6 +411,7 @@ export default function NuevaSolicitud() {
                 {parseInfo.meta?.cliente_nombre && (
                   <p className="text-xs text-gray-500 px-1">
                     Detectado — Cliente: <strong>{parseInfo.meta.cliente_nombre}</strong>
+                    {parseInfo.meta.sucursal_nombre ? <> · Sucursal: <strong>{parseInfo.meta.sucursal_nombre}</strong> (ID {parseInfo.meta.sucursal_id})</> : ''}
                     {parseInfo.meta.coc ? <> · COC: <strong>{parseInfo.meta.coc}</strong></> : ''}
                     {parseInfo.meta.factor_ganancia > 0 ? <> · Factor: <strong>{parseInfo.meta.factor_ganancia}</strong></> : ''}
                   </p>

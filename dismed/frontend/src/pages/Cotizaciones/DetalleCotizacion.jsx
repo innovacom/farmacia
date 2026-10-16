@@ -87,7 +87,7 @@ export default function DetalleCotizacion() {
         </button>
         <div className="flex-1">
           <h1 className="text-xl font-bold text-gray-900">{cot.folio}</h1>
-          <p className="text-sm text-gray-500">{cot.cliente_razon_social}</p>
+          <p className="text-sm text-gray-500">{cot.cliente_razon_social}{cot.sucursal_nombre ? ` · ${cot.sucursal_nombre}` : ''}</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           {/* Excel: formato de carga + análisis compra/venta y precios de proveedores */}

@@ -26,7 +26,7 @@ export default function PedidosList() {
     const t = q.trim().toLowerCase();
     return data.filter((p) =>
       (!fEstatus || p.estatus === fEstatus) &&
-      (!t || `${p.folio} ${p.cliente} ${p.cotizacion_folio}`.toLowerCase().includes(t))
+      (!t || `${p.folio} ${p.cliente} ${p.sucursal || ''} ${p.cotizacion_folio}`.toLowerCase().includes(t))
     );
   }, [data, q, fEstatus]);
 
@@ -87,7 +87,7 @@ export default function PedidosList() {
               {pageItems.map((p) => (
                 <tr key={p.id} className="cursor-pointer hover:bg-gray-50" onClick={() => navigate(`/ventas/pedidos/${p.id}`)}>
                   <td className="font-mono text-brand-500 font-semibold">{p.folio}</td>
-                  <td>{p.cliente}</td>
+                  <td>{p.cliente}{p.sucursal && <span className="block text-xs font-normal text-gray-400">{p.sucursal}</span>}</td>
                   <td className="font-mono text-xs text-gray-500">{p.cotizacion_folio}</td>
                   <td className="text-center">{p.partidas}</td>
                   <td className="text-center"><span className={BADGE[p.estatus] || 'badge-gray'}>{p.estatus.replace('_', ' ')}</span></td>

@@ -9,6 +9,7 @@ import Pagination from '../../components/ui/Pagination';
 import Modal from '../../components/ui/Modal';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import CuentaContableSelect from '../../components/shared/CuentaContableSelect';
+import SucursalesModal from './SucursalesModal';
 
 const TIPOS = ['hospital', 'clinica', 'farmacia', 'laboratorio', 'gobierno', 'otro'];
 
@@ -17,6 +18,7 @@ export default function ClientesList() {
   const { confirmar, dialogoConfirm } = useConfirm();
   const [showModal, setShowModal] = useState(false);
   const [editando, setEditando] = useState(null);
+  const [sucCliente, setSucCliente] = useState(null);
   const [ctaCobrar, setCtaCobrar] = useState('');
   const [q, setQ] = useState('');
 
@@ -139,6 +141,9 @@ export default function ClientesList() {
                     {c.nombre_comercial && (
                       <p className="text-xs text-gray-400">{c.nombre_comercial}</p>
                     )}
+                    {c.num_sucursales > 1 && (
+                      <p className="text-xs text-brand-500">{c.num_sucursales} sucursales</p>
+                    )}
                   </td>
                   <td className="font-mono text-xs">{c.rfc}</td>
                   <td><span className="badge-gray capitalize">{c.tipo_cliente}</span></td>
@@ -153,6 +158,9 @@ export default function ClientesList() {
                   </td>
                   <td>
                     <div className="flex items-center gap-3 justify-end">
+                      <button onClick={() => setSucCliente(c)} className="text-xs text-brand-500 hover:underline">
+                        Sucursales
+                      </button>
                       <button onClick={() => abrirEditar(c)} className="text-xs text-brand-500 hover:underline">
                         Editar
                       </button>
@@ -255,6 +263,10 @@ export default function ClientesList() {
             </div>
           </form>
         </Modal>
+      )}
+
+      {sucCliente && (
+        <SucursalesModal cliente={sucCliente} clientes={data} onClose={() => setSucCliente(null)} />
       )}
 
       {dialogoConfirm}

@@ -7,10 +7,11 @@ async function list(req, res, next) {
   try {
     const [rows] = await pool.query(
       `SELECT cc.id, cc.folio, cc.concepto, cc.estatus, cc.total, cc.created_at,
-              c.razon_social AS cliente,
+              c.razon_social AS cliente, su.nombre AS sucursal,
               s.folio AS folio_solicitud
        FROM cotizaciones_cliente cc
        JOIN clientes c ON c.id = cc.cliente_id
+       LEFT JOIN clientes_sucursales su ON su.id = cc.sucursal_id
        JOIN solicitudes s ON s.id = cc.solicitud_id
        ORDER BY cc.created_at DESC`
     );
@@ -23,12 +24,14 @@ async function getById(req, res, next) {
     const [[cot]] = await pool.query(
       `SELECT cc.*,
               c.razon_social AS cliente_razon_social, c.rfc AS cliente_rfc,
+              su.nombre AS sucursal_nombre, su.direccion_entrega AS sucursal_direccion,
               s.folio AS folio_solicitud, s.referencia_cliente,
               ct.nombre AS contacto_nombre,
               u.nombre  AS elaboro_nombre, u.puesto AS elaboro_puesto,
               j.nombre  AS autoriza_nombre
        FROM cotizaciones_cliente cc
        JOIN  clientes c           ON c.id  = cc.cliente_id
+       LEFT JOIN clientes_sucursales su ON su.id = cc.sucursal_id
        JOIN  solicitudes s        ON s.id  = cc.solicitud_id
        LEFT JOIN clientes_contactos ct ON ct.id = cc.contacto_id
        LEFT JOIN usuarios u       ON u.id  = cc.elaborado_por_id
@@ -80,7 +83,7 @@ async function create(req, res, next) {
     }
 
     const [[sol]] = await conn.query(
-      'SELECT cliente_id, atencion, concepto FROM solicitudes WHERE id = ?', [solicitud_id]
+      'SELECT cliente_id, sucursal_id, atencion, concepto FROM solicitudes WHERE id = ?', [solicitud_id]
     );
     if (!sol) return res.status(404).json({ error: 'Solicitud no encontrada' });
 
@@ -130,11 +133,11 @@ async function create(req, res, next) {
 
     const [r] = await conn.query(
       `INSERT INTO cotizaciones_cliente
-        (folio, concepto, atencion, solicitud_id, cliente_id, contacto_id, elaborado_por_id,
+        (folio, concepto, atencion, solicitud_id, cliente_id, sucursal_id, contacto_id, elaborado_por_id,
          subtotal, iva, total,
          condicion_pago, dias_credito, dias_vigencia, tiempo_entrega, notas)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [folio, conceptoFinal, atencionFinal, solicitud_id, sol.cliente_id,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [folio, conceptoFinal, atencionFinal, solicitud_id, sol.cliente_id, sol.sucursal_id || null,
        contacto_id || null, req.user?.id || null,
        subtotal.toFixed(2), ivaTotal.toFixed(2), total.toFixed(2),
        condicion_pago || 'Contado', dias_credito || 0,
@@ -205,12 +208,14 @@ async function generarPdf(req, res, next) {
     const [[cot]] = await pool.query(
       `SELECT cc.*,
               c.razon_social AS cliente_razon_social, c.rfc AS cliente_rfc,
+              su.nombre AS sucursal_nombre, su.direccion_entrega AS sucursal_direccion,
               s.referencia_cliente,
               ct.nombre AS contacto_nombre,
               u.nombre  AS elaboro_nombre,
               j.nombre  AS autoriza_nombre
        FROM cotizaciones_cliente cc
        JOIN  clientes c             ON c.id  = cc.cliente_id
+       LEFT JOIN clientes_sucursales su ON su.id = cc.sucursal_id
        JOIN  solicitudes s          ON s.id  = cc.solicitud_id
        LEFT JOIN clientes_contactos ct  ON ct.id = cc.contacto_id
        LEFT JOIN usuarios u         ON u.id  = cc.elaborado_por_id
@@ -263,9 +268,9 @@ async function convertirPedido(req, res, next) {
 
     const { tipo_pago, fecha_entrega_prom, notas } = req.body;
     const [r] = await conn.query(
-      `INSERT INTO pedidos (folio, cotizacion_id, cliente_id, tipo_pago, fecha_entrega_prom, notas)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [folio, req.params.id, cot.cliente_id,
+      `INSERT INTO pedidos (folio, cotizacion_id, cliente_id, sucursal_id, tipo_pago, fecha_entrega_prom, notas)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [folio, req.params.id, cot.cliente_id, cot.sucursal_id || null,
        tipo_pago || 'contado', fecha_entrega_prom || null, notas || null]
     );
 

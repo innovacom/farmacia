@@ -14,6 +14,8 @@
  *   sku          sku_interno (DM-#####) en las partidas (solo encabezado)
  *   fecha_desde  YYYY-MM-DD (inclusive)
  *   fecha_hasta  YYYY-MM-DD (inclusive)
+ *   cliente_id   id del cliente (no aplica a órdenes de compra)
+ *   sucursal_id  id de la sucursal del cliente (no aplica a órdenes de compra)
  *   limit/offset paginación (limit máx 200, default 50)
  */
 const { pool } = require('../../config/db');
@@ -32,6 +34,16 @@ function orderBy(req, sortCols, defaultExpr, tie) {
   const dir = String(req.query.dir || '').toLowerCase() === 'asc' ? 'ASC' : 'DESC';
   const primary = col ? `${col} ${dir}` : defaultExpr;
   return tie ? `${primary}, ${tie}` : primary;
+}
+
+// Filtro por cliente / sucursal. `docAlias` es el alias de la tabla del documento (la que tiene
+// cliente_id y sucursal_id). Las órdenes de compra (proveedores) no lo definen y lo ignoran.
+function filtroCliente(req, docAlias, cfg, where, params) {
+  if (!cfg.conCliente) return;
+  const cid = parseInt(req.query.cliente_id, 10);
+  const sid = parseInt(req.query.sucursal_id, 10);
+  if (cid > 0) { where.push(`${docAlias}.cliente_id = ?`); params.push(cid); }
+  if (sid > 0) { where.push(`${docAlias}.sucursal_id = ?`); params.push(sid); }
 }
 
 // Construye WHERE + params a partir de los filtros y una config por tipo (nivel ENCABEZADO).
@@ -58,6 +70,7 @@ function buildWhere(req, cfg) {
   }
   if (fecha_desde) { where.push(`${cfg.dateCol} >= ?`); params.push(fecha_desde); }
   if (fecha_hasta) { where.push(`${cfg.dateCol} < ? + INTERVAL 1 DAY`); params.push(fecha_hasta); }
+  filtroCliente(req, cfg.alias, cfg, where, params);
 
   return { sql: where.length ? `WHERE ${where.join(' AND ')}` : '', params };
 }
@@ -91,6 +104,7 @@ function buildWhereDet(req, cfg) {
   }
   if (fecha_desde) { where.push(`${cfg.dateCol} >= ?`); params.push(fecha_desde); }
   if (fecha_hasta) { where.push(`${cfg.dateCol} < ? + INTERVAL 1 DAY`); params.push(fecha_hasta); }
+  filtroCliente(req, cfg.docAlias, cfg, where, params);
 
   return { sql: where.length ? `WHERE ${where.join(' AND ')}` : '', params };
 }
@@ -115,27 +129,31 @@ async function runPartidaSearch(req, res, next, cfg) {
 const CFG = {
   solicitudes: {
     alias: 's',
-    from: `FROM solicitudes s JOIN clientes cl ON cl.id = s.cliente_id`,
-    textCols: ['cl.razon_social', 's.folio', 's.concepto', 's.referencia_cliente', 's.atencion'],
+    conCliente: true,
+    from: `FROM solicitudes s JOIN clientes cl ON cl.id = s.cliente_id
+           LEFT JOIN clientes_sucursales su ON su.id = s.sucursal_id`,
+    textCols: ['cl.razon_social', 'su.nombre', 's.folio', 's.concepto', 's.referencia_cliente', 's.atencion'],
     partidaTable: 'solicitudes_partidas', partidaFk: 'solicitud_id', partidaDesc: 'descripcion_original',
     codigoCols: ['codigo_cliente', 'codigo_gobierno'],
     skuExists: `EXISTS (SELECT 1 FROM solicitudes_partidas px JOIN productos pr ON pr.id = px.producto_id WHERE px.solicitud_id = s.id AND pr.sku_interno LIKE ?)`,
     dateCol: 's.created_at',
-    sortCols: { folio: 's.folio', cliente: 'cl.razon_social', solicitud_cliente: 's.referencia_cliente', concepto: 's.concepto', estatus: 's.estatus', fecha: 's.created_at' },
-    select: `s.id, s.folio, s.created_at AS fecha, cl.razon_social AS cliente, s.concepto,
+    sortCols: { folio: 's.folio', cliente: 'cl.razon_social', sucursal: 'su.nombre', solicitud_cliente: 's.referencia_cliente', concepto: 's.concepto', estatus: 's.estatus', fecha: 's.created_at' },
+    select: `s.id, s.folio, s.created_at AS fecha, cl.razon_social AS cliente, su.nombre AS sucursal, s.concepto,
              s.referencia_cliente AS solicitud_cliente, s.estatus,
              (SELECT COUNT(*) FROM solicitudes_partidas sp WHERE sp.solicitud_id = s.id) AS partidas`,
   },
   cotizaciones: {
     alias: 'c',
-    from: `FROM cotizaciones_cliente c JOIN clientes cl ON cl.id = c.cliente_id`,
-    textCols: ['cl.razon_social', 'c.folio', 'c.concepto', 'c.atencion'],
+    conCliente: true,
+    from: `FROM cotizaciones_cliente c JOIN clientes cl ON cl.id = c.cliente_id
+           LEFT JOIN clientes_sucursales su ON su.id = c.sucursal_id`,
+    textCols: ['cl.razon_social', 'su.nombre', 'c.folio', 'c.concepto', 'c.atencion'],
     partidaTable: 'cotizaciones_cliente_partidas', partidaFk: 'cotizacion_id', partidaDesc: 'descripcion',
     codigoCols: ['codigo_cliente'],
     skuExists: `EXISTS (SELECT 1 FROM cotizaciones_cliente_partidas px WHERE px.cotizacion_id = c.id AND px.sku_interno LIKE ?)`,
     dateCol: 'c.created_at',
-    sortCols: { folio: 'c.folio', cliente: 'cl.razon_social', concepto: 'c.concepto', total: 'c.total', estatus: 'c.estatus', fecha: 'c.created_at' },
-    select: `c.id, c.folio, c.created_at AS fecha, cl.razon_social AS cliente, c.concepto,
+    sortCols: { folio: 'c.folio', cliente: 'cl.razon_social', sucursal: 'su.nombre', concepto: 'c.concepto', total: 'c.total', estatus: 'c.estatus', fecha: 'c.created_at' },
+    select: `c.id, c.folio, c.created_at AS fecha, cl.razon_social AS cliente, su.nombre AS sucursal, c.concepto,
              c.total, c.estatus,
              (SELECT COUNT(*) FROM cotizaciones_cliente_partidas cp WHERE cp.cotizacion_id = c.id) AS partidas`,
   },
@@ -154,14 +172,16 @@ const CFG = {
   },
   pedidos: {
     alias: 'p',
-    from: `FROM pedidos_cliente p JOIN clientes cl ON cl.id = p.cliente_id`,
-    textCols: ['cl.razon_social', 'p.folio'],
+    conCliente: true,
+    from: `FROM pedidos_cliente p JOIN clientes cl ON cl.id = p.cliente_id
+           LEFT JOIN clientes_sucursales su ON su.id = p.sucursal_id`,
+    textCols: ['cl.razon_social', 'su.nombre', 'p.folio'],
     partidaTable: 'pedidos_cliente_partidas', partidaFk: 'pedido_id', partidaDesc: 'descripcion',
     codigoCols: ['codigo_cliente'],
     skuExists: `EXISTS (SELECT 1 FROM pedidos_cliente_partidas px WHERE px.pedido_id = p.id AND px.sku_interno LIKE ?)`,
     dateCol: 'p.created_at',
-    sortCols: { folio: 'p.folio', cliente: 'cl.razon_social', estatus: 'p.estatus', fecha: 'p.created_at' },
-    select: `p.id, p.folio, p.created_at AS fecha, cl.razon_social AS cliente, p.estatus,
+    sortCols: { folio: 'p.folio', cliente: 'cl.razon_social', sucursal: 'su.nombre', estatus: 'p.estatus', fecha: 'p.created_at' },
+    select: `p.id, p.folio, p.created_at AS fecha, cl.razon_social AS cliente, su.nombre AS sucursal, p.estatus,
              (SELECT COUNT(*) FROM pedidos_cliente_partidas pp WHERE pp.pedido_id = p.id) AS partidas`,
   },
 };
@@ -171,25 +191,29 @@ const CFG_DET = {
   solicitudes: {
     from: `FROM solicitudes_partidas sp
            JOIN solicitudes s ON s.id = sp.solicitud_id
-           JOIN clientes cl ON cl.id = s.cliente_id`,
+           JOIN clientes cl ON cl.id = s.cliente_id
+           LEFT JOIN clientes_sucursales su ON su.id = s.sucursal_id`,
+    conCliente: true, docAlias: 's',
     searchCols: ['sp.descripcion_original', 'sp.codigo_cliente', 'sp.codigo_gobierno'],
     dateCol: 's.created_at',
     orderTail: 'sp.solicitud_id DESC, sp.linea',
     sortCols: { folio: 's.folio', cliente: 'cl.razon_social', codigo: 'sp.codigo_cliente', descripcion: 'sp.descripcion_original', cantidad: 'sp.cantidad', unidad: 'sp.unidad_medida', fecha: 's.created_at' },
     select: `sp.id, sp.solicitud_id AS doc_id, s.folio, s.created_at AS fecha,
-             cl.razon_social AS cliente, sp.linea, sp.codigo_cliente, sp.codigo_gobierno,
+             cl.razon_social AS cliente, su.nombre AS sucursal, sp.linea, sp.codigo_cliente, sp.codigo_gobierno,
              sp.descripcion_original AS descripcion, sp.cantidad, sp.unidad_medida`,
   },
   cotizaciones: {
     from: `FROM cotizaciones_cliente_partidas cp
            JOIN cotizaciones_cliente c ON c.id = cp.cotizacion_id
-           JOIN clientes cl ON cl.id = c.cliente_id`,
+           JOIN clientes cl ON cl.id = c.cliente_id
+           LEFT JOIN clientes_sucursales su ON su.id = c.sucursal_id`,
+    conCliente: true, docAlias: 'c',
     searchCols: ['cp.descripcion', 'cp.codigo_cliente', 'cp.sku_interno'],
     dateCol: 'c.created_at',
     orderTail: 'cp.cotizacion_id DESC, cp.linea',
     sortCols: { folio: 'c.folio', cliente: 'cl.razon_social', sku: 'cp.sku_interno', descripcion: 'cp.descripcion', cantidad: 'cp.cantidad', precio_unitario_venta: 'cp.precio_unitario_venta', importe: 'cp.importe', fecha: 'c.created_at' },
     select: `cp.id, cp.cotizacion_id AS doc_id, c.folio, c.created_at AS fecha,
-             cl.razon_social AS cliente, cp.linea, cp.sku_interno, cp.codigo_cliente,
+             cl.razon_social AS cliente, su.nombre AS sucursal, cp.linea, cp.sku_interno, cp.codigo_cliente,
              cp.descripcion, cp.cantidad, cp.unidad_medida, cp.precio_unitario_venta, cp.importe`,
   },
   'ordenes-compra': {
@@ -207,13 +231,15 @@ const CFG_DET = {
   pedidos: {
     from: `FROM pedidos_cliente_partidas pp
            JOIN pedidos_cliente p ON p.id = pp.pedido_id
-           JOIN clientes cl ON cl.id = p.cliente_id`,
+           JOIN clientes cl ON cl.id = p.cliente_id
+           LEFT JOIN clientes_sucursales su ON su.id = p.sucursal_id`,
+    conCliente: true, docAlias: 'p',
     searchCols: ['pp.descripcion', 'pp.codigo_cliente', 'pp.sku_interno'],
     dateCol: 'p.created_at',
     orderTail: 'pp.pedido_id DESC, pp.id',
     sortCols: { folio: 'p.folio', cliente: 'cl.razon_social', sku: 'pp.sku_interno', descripcion: 'pp.descripcion', cantidad: 'pp.cantidad_asignada', precio_unitario_venta: 'pp.precio_unitario_venta', fecha: 'p.created_at' },
     select: `pp.id, pp.pedido_id AS doc_id, p.folio, p.created_at AS fecha,
-             cl.razon_social AS cliente, pp.sku_interno, pp.codigo_cliente,
+             cl.razon_social AS cliente, su.nombre AS sucursal, pp.sku_interno, pp.codigo_cliente,
              pp.descripcion, pp.cantidad_asignada AS cantidad, pp.precio_unitario_venta`,
   },
 };
@@ -234,8 +260,9 @@ const partidasPedidos = (req, res, next) => runPartidaSearch(req, res, next, CFG
 async function detalleSolicitud(req, res, next) {
   try {
     const [[h]] = await pool.query(
-      `SELECT s.*, cl.razon_social AS cliente FROM solicitudes s
-       JOIN clientes cl ON cl.id = s.cliente_id WHERE s.id = ?`, [req.params.id]
+      `SELECT s.*, cl.razon_social AS cliente, su.nombre AS sucursal FROM solicitudes s
+       JOIN clientes cl ON cl.id = s.cliente_id
+       LEFT JOIN clientes_sucursales su ON su.id = s.sucursal_id WHERE s.id = ?`, [req.params.id]
     );
     if (!h) return res.status(404).json({ error: 'No encontrada' });
     const [partidas] = await pool.query(
@@ -250,8 +277,9 @@ async function detalleSolicitud(req, res, next) {
 async function detalleCotizacion(req, res, next) {
   try {
     const [[h]] = await pool.query(
-      `SELECT c.*, cl.razon_social AS cliente FROM cotizaciones_cliente c
-       JOIN clientes cl ON cl.id = c.cliente_id WHERE c.id = ?`, [req.params.id]
+      `SELECT c.*, cl.razon_social AS cliente, su.nombre AS sucursal FROM cotizaciones_cliente c
+       JOIN clientes cl ON cl.id = c.cliente_id
+       LEFT JOIN clientes_sucursales su ON su.id = c.sucursal_id WHERE c.id = ?`, [req.params.id]
     );
     if (!h) return res.status(404).json({ error: 'No encontrada' });
     const [partidas] = await pool.query(
@@ -290,8 +318,9 @@ async function detalleOrdenCompra(req, res, next) {
 async function detallePedido(req, res, next) {
   try {
     const [[h]] = await pool.query(
-      `SELECT p.*, cl.razon_social AS cliente FROM pedidos_cliente p
-       JOIN clientes cl ON cl.id = p.cliente_id WHERE p.id = ?`, [req.params.id]
+      `SELECT p.*, cl.razon_social AS cliente, su.nombre AS sucursal FROM pedidos_cliente p
+       JOIN clientes cl ON cl.id = p.cliente_id
+       LEFT JOIN clientes_sucursales su ON su.id = p.sucursal_id WHERE p.id = ?`, [req.params.id]
     );
     if (!h) return res.status(404).json({ error: 'No encontrada' });
     const [partidas] = await pool.query(
@@ -303,8 +332,24 @@ async function detallePedido(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// Opciones para los filtros Cliente / Sucursal (con permiso 'consultas', sin exigir el de Clientes).
+async function filtrosClientes(req, res, next) {
+  try {
+    const [clientes] = await pool.query('SELECT id, razon_social FROM clientes ORDER BY razon_social');
+    const [sucs] = await pool.query(
+      'SELECT id, cliente_id, nombre FROM clientes_sucursales ORDER BY es_matriz DESC, nombre');
+    const porCliente = new Map();
+    sucs.forEach((x) => {
+      if (!porCliente.has(x.cliente_id)) porCliente.set(x.cliente_id, []);
+      porCliente.get(x.cliente_id).push({ id: x.id, nombre: x.nombre });
+    });
+    res.json(clientes.map((c) => ({ ...c, sucursales: porCliente.get(c.id) || [] })));
+  } catch (err) { next(err); }
+}
+
 module.exports = {
   listSolicitudes, listCotizaciones, listOrdenesCompra, listPedidos,
   partidasSolicitudes, partidasCotizaciones, partidasOrdenesCompra, partidasPedidos,
   detalleSolicitud, detalleCotizacion, detalleOrdenCompra, detallePedido,
+  filtrosClientes,
 };

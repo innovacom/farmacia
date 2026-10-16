@@ -18,10 +18,11 @@ async function list(req, res, next) {
   try {
     const [rows] = await pool.query(
       `SELECT s.id, s.folio, s.tipo_origen, s.estatus, s.created_at,
-              c.razon_social AS cliente,
+              c.razon_social AS cliente, su.nombre AS sucursal,
               (SELECT COUNT(*) FROM solicitudes_partidas WHERE solicitud_id = s.id) AS num_partidas
        FROM solicitudes s
        JOIN clientes c ON c.id = s.cliente_id
+       LEFT JOIN clientes_sucursales su ON su.id = s.sucursal_id
        ORDER BY s.created_at DESC`
     );
     res.json(rows);
@@ -31,9 +32,10 @@ async function list(req, res, next) {
 async function getById(req, res, next) {
   try {
     const [[sol]] = await pool.query(
-      `SELECT s.*, c.razon_social AS cliente_nombre
+      `SELECT s.*, c.razon_social AS cliente_nombre, su.nombre AS sucursal_nombre
        FROM solicitudes s
        JOIN clientes c ON c.id = s.cliente_id
+       LEFT JOIN clientes_sucursales su ON su.id = s.sucursal_id
        WHERE s.id = ?`,
       [req.params.id]
     );
@@ -58,17 +60,33 @@ async function create(req, res, next) {
     await conn.beginTransaction();
     const { cliente_id, contacto_id, referencia_cliente, atencion, concepto,
             factor_ganancia, tipo_origen, notas } = req.body;
+    let { sucursal_id } = req.body;
     if (!cliente_id) return res.status(400).json({ error: 'cliente_id requerido' });
+
+    // Sucursal: debe pertenecer al cliente; si no viene y el cliente tiene una sola, se asigna.
+    const [sucs] = await conn.query(
+      'SELECT id FROM clientes_sucursales WHERE cliente_id = ? AND activo = 1', [cliente_id]);
+    if (sucursal_id) {
+      if (!sucs.some((x) => x.id === Number(sucursal_id))) {
+        await conn.rollback();
+        return res.status(400).json({ error: 'La sucursal no pertenece al cliente' });
+      }
+    } else if (sucs.length === 1) {
+      sucursal_id = sucs[0].id;
+    } else if (sucs.length > 1) {
+      await conn.rollback();
+      return res.status(400).json({ error: 'Este cliente tiene varias sucursales: selecciona una' });
+    }
 
     await conn.query('CALL sp_generar_folio(?, @folio)', ['SOL']);
     const [[{ folio }]] = await conn.query('SELECT @folio AS folio');
 
     const [r] = await conn.query(
       `INSERT INTO solicitudes
-        (folio, cliente_id, contacto_id, referencia_cliente, atencion, concepto,
+        (folio, cliente_id, sucursal_id, contacto_id, referencia_cliente, atencion, concepto,
          factor_ganancia, tipo_origen, notas)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [folio, cliente_id, contacto_id || null, referencia_cliente || null,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [folio, cliente_id, sucursal_id || null, contacto_id || null, referencia_cliente || null,
        atencion || null, concepto || null,
        factor_ganancia != null ? parseFloat(factor_ganancia) : null,
        tipo_origen || 'manual', notas || null]
@@ -105,6 +123,27 @@ async function parseExcel(req, res, next) {
     if (!req.file) return res.status(400).json({ error: 'Archivo requerido' });
     const result = doParseExcel(req.file.path);
     // Retorna: { meta: { cliente_nombre, coc, factor_ganancia, ... }, partidas, proveedores }
+
+    // B3 = código del cliente. Si coincide con el ID de una sucursal (único entre todos los clientes),
+    // de ahí salen cliente y sucursal sin adivinar por nombre. Si no coincide (p. ej. códigos viejos),
+    // se avisa y se sigue buscando el cliente por el nombre de B2 como siempre.
+    const celda = String(result.meta.codigo_cliente || '').trim();
+    if (/^[1-9]\d*$/.test(celda)) {
+      const [[suc]] = await pool.query(
+        `SELECT su.id, su.nombre, (su.activo = 1 AND c.activo = 1) AS activo, c.id AS cliente_id, c.razon_social
+           FROM clientes_sucursales su JOIN clientes c ON c.id = su.cliente_id
+          WHERE su.id = ?`, [celda]);
+      if (suc && suc.activo) {
+        Object.assign(result.meta, {
+          cliente_nombre: suc.razon_social, cliente_id: suc.cliente_id,
+          sucursal_id: suc.id, sucursal_nombre: suc.nombre,
+        });
+      } else {
+        result.meta.sucursal_aviso = suc
+          ? `La sucursal ${celda} (${suc.nombre}) o su cliente está inactivo; se buscó el cliente por nombre.`
+          : `El código ${celda} (B3) no corresponde a ninguna sucursal; se buscó el cliente por nombre.`;
+      }
+    }
     res.json(result);
   } catch (err) { next(err); }
 }
@@ -781,9 +820,10 @@ async function comparador(req, res, next) {
 async function exportarComparador(req, res, next) {
   try {
     const [[sol]] = await pool.query(
-      `SELECT s.*, c.razon_social AS cliente_nombre
+      `SELECT s.*, c.razon_social AS cliente_nombre, su.nombre AS sucursal_nombre
        FROM solicitudes s
        JOIN clientes c ON c.id = s.cliente_id
+       LEFT JOIN clientes_sucursales su ON su.id = s.sucursal_id
        WHERE s.id = ?`,
       [req.params.id]
     );
@@ -827,17 +867,17 @@ async function exportarComparador(req, res, next) {
     const aoa = [];
 
     const f1 = filaBase();
-    f1[1] = 'CLIENTE'; f1[2] = 'DIRIGIR A'; f1[4] = 'ELABORO'; f1[5] = 'AUTORIZO'; f1[6] = 'DESCRIPCION';
+    f1[1] = 'CLIENTE'; f1[2] = 'DIRIGIR A'; f1[3] = 'COC'; f1[4] = 'ELABORO'; f1[5] = 'AUTORIZO'; f1[6] = 'DESCRIPCION';
     aoa.push(f1);
 
     const f2 = filaBase();
-    f2[1] = sol.cliente_nombre; f2[2] = sol.atencion || '';
+    f2[1] = sol.cliente_nombre; f2[2] = sol.atencion || ''; f2[3] = sol.referencia_cliente || '';
     f2[4] = req.user?.nombre || ''; f2[5] = req.user?.jefe_nombre || '';
     f2[6] = sol.concepto || '';
     aoa.push(f2);
 
     const f3 = filaBase();
-    f3[0] = 'COC'; f3[1] = sol.referencia_cliente || '';
+    f3[1] = sol.sucursal_id || ''; // B3: ID de sucursal, para poder re-importar el Excel
     aoa.push(f3);
 
     const f4 = filaBase();

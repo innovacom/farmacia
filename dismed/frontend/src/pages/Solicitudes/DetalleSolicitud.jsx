@@ -240,7 +240,7 @@ export default function DetalleSolicitud() {
         </button>
         <div className="flex-1">
           <h1 className="text-xl font-bold text-gray-900">{sol.folio}</h1>
-          <p className="text-sm text-gray-500">{sol.cliente_nombre}</p>
+          <p className="text-sm text-gray-500">{sol.cliente_nombre}{sol.sucursal_nombre ? ` · ${sol.sucursal_nombre}` : ''}</p>
         </div>
         <Link to={`/solicitudes/${id}/comparador`} className="btn-primary">
           <BarChart2 size={16} /> Ver comparador

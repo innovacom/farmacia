@@ -26,7 +26,7 @@ const partyLabel = (tab) => (PARTY[tab] === 'proveedor' ? 'Proveedor' : 'Cliente
 const COLS = {
   cotizaciones: [
     { h: 'Folio', sort: 'folio', c: (r) => <span className="font-mono text-xs font-semibold text-brand-500">{r.folio}</span> },
-    { h: 'Cliente', sort: 'cliente', c: (r) => <span className="font-medium">{r.cliente}</span> },
+    { h: 'Cliente', sort: 'cliente', c: (r) => <Cliente r={r} /> },
     { h: 'Concepto', sort: 'concepto', c: (r) => <span className="text-gray-600">{r.concepto || '—'}</span> },
     { h: 'Partidas', c: (r) => r.partidas, align: 'text-center' },
     { h: 'Total', sort: 'total', c: (r) => fmt(r.total), align: 'text-right' },
@@ -35,7 +35,7 @@ const COLS = {
   ],
   solicitudes: [
     { h: 'Folio', sort: 'folio', c: (r) => <span className="font-mono text-xs font-semibold text-brand-500">{r.folio}</span> },
-    { h: 'Cliente', sort: 'cliente', c: (r) => <span className="font-medium">{r.cliente}</span> },
+    { h: 'Cliente', sort: 'cliente', c: (r) => <Cliente r={r} /> },
     { h: 'No. Solicitud (COC)', sort: 'solicitud_cliente', c: (r) => <span className="font-mono text-xs text-gray-500">{r.solicitud_cliente || '—'}</span> },
     { h: 'Concepto', sort: 'concepto', c: (r) => <span className="text-gray-600">{r.concepto || '—'}</span> },
     { h: 'Partidas', c: (r) => r.partidas, align: 'text-center' },
@@ -52,7 +52,7 @@ const COLS = {
   ],
   pedidos: [
     { h: 'Folio', sort: 'folio', c: (r) => <span className="font-mono text-xs font-semibold text-brand-500">{r.folio}</span> },
-    { h: 'Cliente', sort: 'cliente', c: (r) => <span className="font-medium">{r.cliente}</span> },
+    { h: 'Cliente', sort: 'cliente', c: (r) => <Cliente r={r} /> },
     { h: 'Partidas', c: (r) => r.partidas, align: 'text-center' },
     { h: 'Estatus', sort: 'estatus', c: (r) => <span className="badge-gray">{r.estatus}</span> },
     { h: 'Fecha', sort: 'fecha', c: (r) => <span className="text-gray-400 text-xs">{fdate(r.fecha)}</span> },
@@ -65,7 +65,7 @@ const fechaCol = { h: 'Fecha', sort: 'fecha', c: (r) => <span className="text-gr
 const COLS_DET = {
   cotizaciones: [
     folioCol,
-    { h: 'Cliente', sort: 'cliente', c: (r) => <span className="font-medium">{r.cliente}</span> },
+    { h: 'Cliente', sort: 'cliente', c: (r) => <Cliente r={r} /> },
     { h: 'SKU', sort: 'sku', c: (r) => <span className="font-mono text-xs text-gray-500">{r.sku_interno || r.codigo_cliente || '—'}</span> },
     { h: 'Descripción', sort: 'descripcion', c: (r) => <span className="text-gray-700">{r.descripcion}</span> },
     { h: 'Cant.', sort: 'cantidad', c: (r) => fnum(r.cantidad), align: 'text-center' },
@@ -75,7 +75,7 @@ const COLS_DET = {
   ],
   solicitudes: [
     folioCol,
-    { h: 'Cliente', sort: 'cliente', c: (r) => <span className="font-medium">{r.cliente}</span> },
+    { h: 'Cliente', sort: 'cliente', c: (r) => <Cliente r={r} /> },
     { h: 'Código', sort: 'codigo', c: (r) => <span className="font-mono text-xs text-gray-500">{r.codigo_cliente || r.codigo_gobierno || '—'}</span> },
     { h: 'Descripción', sort: 'descripcion', c: (r) => <span className="text-gray-700">{r.descripcion}</span> },
     { h: 'Cant.', sort: 'cantidad', c: (r) => fnum(r.cantidad), align: 'text-center' },
@@ -93,7 +93,7 @@ const COLS_DET = {
   ],
   pedidos: [
     folioCol,
-    { h: 'Cliente', sort: 'cliente', c: (r) => <span className="font-medium">{r.cliente}</span> },
+    { h: 'Cliente', sort: 'cliente', c: (r) => <Cliente r={r} /> },
     { h: 'SKU', sort: 'sku', c: (r) => <span className="font-mono text-xs text-gray-500">{r.sku_interno || r.codigo_cliente || '—'}</span> },
     { h: 'Descripción', sort: 'descripcion', c: (r) => <span className="text-gray-700">{r.descripcion}</span> },
     { h: 'Cant.', sort: 'cantidad', c: (r) => fnum(r.cantidad), align: 'text-center' },
@@ -102,7 +102,18 @@ const COLS_DET = {
   ],
 };
 
-const EMPTY = { q: '', fecha_desde: '', fecha_hasta: '' };
+const EMPTY = { q: '', fecha_desde: '', fecha_hasta: '', cliente_id: '', sucursal_id: '' };
+
+function Cliente({ r }) {
+  return (
+    <>
+      <span className="font-medium">{r.cliente}</span>
+      {r.sucursal && r.sucursal !== r.cliente && (
+        <span className="block text-xs text-gray-400">{r.sucursal}</span>
+      )}
+    </>
+  );
+}
 
 export default function ConsultasHistoricas() {
   const [tab, setTab] = useState('cotizaciones');
@@ -114,6 +125,15 @@ export default function ConsultasHistoricas() {
   const [detalle, setDetalle] = useState(null);      // { tab, id } a mostrar en modal
   const pageSize = usePrefsStore((s) => s.rowsPerPage);
 
+  // Opciones de los filtros Cliente / Sucursal (no aplican a órdenes de compra)
+  const conCliente = tab !== 'ordenes-compra';
+  const { data: clientesOpc = [] } = useQuery({
+    queryKey: ['consultas', 'filtro-clientes'],
+    queryFn: () => api.get('/consultas/clientes').then((r) => r.data),
+    staleTime: 5 * 60 * 1000,
+  });
+  const sucursalesOpc = clientesOpc.find((c) => String(c.id) === String(form.cliente_id))?.sucursales || [];
+
   // Al cambiar el tamaño de página (Configuración) volver al inicio.
   useEffect(() => { setOffset(0); }, [pageSize]);
 
@@ -123,7 +143,7 @@ export default function ConsultasHistoricas() {
   const { data, isFetching } = useQuery({
     queryKey: ['consultas', tab, modo, applied, sort, offset, pageSize],
     queryFn: () => api.get(endpoint, {
-      params: { ...applied, ...(sort.field ? { sort: sort.field, dir: sort.dir } : {}), limit: pageSize, offset },
+      params: { ...applied, ...(conCliente ? {} : { cliente_id: '', sucursal_id: '' }), ...(sort.field ? { sort: sort.field, dir: sort.dir } : {}), limit: pageSize, offset },
     }).then((r) => r.data),
     placeholderData: keepPreviousData,
   });
@@ -148,6 +168,8 @@ export default function ConsultasHistoricas() {
     applied.q && `"${applied.q}"`,
     applied.fecha_desde && `desde ${applied.fecha_desde}`,
     applied.fecha_hasta && `hasta ${applied.fecha_hasta}`,
+    conCliente && applied.cliente_id && `cliente: ${clientesOpc.find((c) => String(c.id) === String(applied.cliente_id))?.razon_social || applied.cliente_id}`,
+    conCliente && applied.sucursal_id && `sucursal: ${clientesOpc.flatMap((c) => c.sucursales).find((x) => String(x.id) === String(applied.sucursal_id))?.nombre || applied.sucursal_id}`,
   ].filter(Boolean).join('  ·  ') || 'sin filtros';
 
   return (
@@ -216,6 +238,26 @@ export default function ConsultasHistoricas() {
             <label className="label">Hasta</label>
             <input type="date" className="input" value={form.fecha_hasta} onChange={setField('fecha_hasta')} />
           </div>
+          {conCliente && (
+            <>
+              <div className="lg:col-span-2">
+                <label className="label">Cliente</label>
+                <select className="input" value={form.cliente_id}
+                  onChange={(e) => setForm((f) => ({ ...f, cliente_id: e.target.value, sucursal_id: '' }))}>
+                  <option value="">Todos</option>
+                  {clientesOpc.map((c) => <option key={c.id} value={c.id}>{c.razon_social}</option>)}
+                </select>
+              </div>
+              <div className="lg:col-span-2">
+                <label className="label">Sucursal</label>
+                <select className="input" value={form.sucursal_id} onChange={setField('sucursal_id')}
+                  disabled={!form.cliente_id}>
+                  <option value="">{form.cliente_id ? 'Todas las sucursales' : 'Elige primero un cliente'}</option>
+                  {sucursalesOpc.map((x) => <option key={x.id} value={x.id}>{x.nombre}</option>)}
+                </select>
+              </div>
+            </>
+          )}
         </div>
         <div className="flex items-center gap-2 mt-3">
           <button type="submit" className="btn-primary flex items-center gap-2">
@@ -317,7 +359,7 @@ function DetalleModal({ tab, id, onClose }) {
         <div className="flex items-start justify-between gap-3 p-5 border-b border-gray-100">
           <div>
             <div className="font-mono text-sm font-semibold text-brand-500">{data?.folio || '…'}</div>
-            <div className="text-lg font-bold text-gray-900">{party || ''}</div>
+            <div className="text-lg font-bold text-gray-900">{party || ''}{PARTY[tab] !== 'proveedor' && data?.sucursal && data.sucursal !== party ? ` · ${data.sucursal}` : ''}</div>
             <div className="text-xs text-gray-500 mt-0.5">
               {fdate(data?.fecha || data?.created_at)}
               {data?.concepto ? `  ·  ${data.concepto}` : ''}

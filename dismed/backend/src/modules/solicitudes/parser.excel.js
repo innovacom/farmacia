@@ -4,9 +4,9 @@ const XLSX = require('xlsx');
  * Parser para el Excel de cotización de INNOVACOM.
  *
  * Estructura fija del archivo:
- *   Fila 1: etiquetas encabezado (CLIENTE, COC, ELABORO, AUTORIZO...)
- *   Fila 2: valores (nombre cliente, elaborador, autorizador)
- *   Fila 3: COC en col B
+ *   Fila 1: etiquetas encabezado (CLIENTE, DIRIGIR A, COC, ELABORO, AUTORIZO...)
+ *   Fila 2: valores (nombre cliente en B2, COC en D2, elaborador, autorizador)
+ *   Fila 3: código del cliente en B3 (= ID de la sucursal en el sistema, si existe)
  *   Fila 4: FACTOR GANANCIA en col E/F + nombres de proveedores desde col Q
  *   Fila 5: encabezados reales de la tabla de partidas
  *   Fila 6+: datos de partidas
@@ -30,7 +30,8 @@ function parseExcel(filePath) {
   // ── 1. Metadatos (filas 1-4, índices 0-3) ────────────────────────────────
   const meta = {
     cliente_nombre:  str(get(1, 1)),   // F2-B
-    coc:             str(get(2, 1)),   // F3-B (número de pedido del cliente)
+    coc:             str(get(1, 3)),   // D2 (número de pedido del cliente; el encabezado D1 dice COC)
+    codigo_cliente:  str(get(2, 1)),   // B3 (código del cliente = ID de sucursal)
     atencion:        str(get(1, 2)) || str(get(2, 2)),  // F2-C / F3-C (DIRIGIR A)
     concepto:        str(get(1, 6)) || str(get(2, 6)),  // F2-G / F3-G (DESCRIPCION)
     elaboro_nombre:  str(get(1, 4)),   // F2-E (solo referencia; en el sistema viene de BD)

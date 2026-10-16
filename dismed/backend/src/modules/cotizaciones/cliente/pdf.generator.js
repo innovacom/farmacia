@@ -153,8 +153,12 @@ function buildHtml(cot) {
                 </tr>
                 <tr>
                   <td style="color:#b2ebf2;padding:2px 5px 1px 0;white-space:nowrap">Cliente</td>
-                  <td style="color:#fff;font-weight:bold;font-style:italic">${esc(cot.cliente_razon_social)}</td>
+                  <td style="color:#fff;font-weight:bold;font-style:italic">${esc(cot.cliente_razon_social)}${cot.sucursal_nombre ? `<br><span style="font-weight:normal;font-style:normal;font-size:8.5px">${esc(cot.sucursal_nombre)}</span>` : ''}</td>
                 </tr>
+                ${cot.sucursal_direccion ? `<tr>
+                  <td style="color:#b2ebf2;padding:1px 5px 1px 0;white-space:nowrap;vertical-align:top">Entrega</td>
+                  <td style="color:#fff;font-size:8.5px">${esc(cot.sucursal_direccion)}</td>
+                </tr>` : ''}
                 <tr>
                   <td style="color:#b2ebf2;padding:1px 5px 1px 0;white-space:nowrap">Atención</td>
                   <td style="color:#fff;font-weight:bold;font-style:italic">${esc(cot.atencion || cot.contacto_nombre)}</td>

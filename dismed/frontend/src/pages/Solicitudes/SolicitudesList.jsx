@@ -29,7 +29,7 @@ export default function SolicitudesList() {
     const t = q.trim().toLowerCase();
     return data.filter((s) =>
       (!fEstatus || s.estatus === fEstatus) &&
-      (!t || `${s.folio} ${s.cliente}`.toLowerCase().includes(t))
+      (!t || `${s.folio} ${s.cliente} ${s.sucursal || ''}`.toLowerCase().includes(t))
     );
   }, [data, q, fEstatus]);
 
@@ -103,7 +103,7 @@ export default function SolicitudesList() {
               {pageItems.map((s) => (
                 <tr key={s.id}>
                   <td className="font-mono text-xs font-semibold text-brand-500">{s.folio}</td>
-                  <td className="font-medium">{s.cliente}</td>
+                  <td className="font-medium">{s.cliente}{s.sucursal && <span className="block text-xs font-normal text-gray-400">{s.sucursal}</span>}</td>
                   <td><span className="badge-gray capitalize">{s.tipo_origen}</span></td>
                   <td className="text-center">{s.num_partidas}</td>
                   <td>

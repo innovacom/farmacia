@@ -33,7 +33,7 @@ export default function CotizacionesList() {
     const t = q.trim().toLowerCase();
     return data.filter((c) =>
       (!fEstatus || c.estatus === fEstatus) &&
-      (!t || `${c.folio} ${c.cliente} ${c.folio_solicitud}`.toLowerCase().includes(t))
+      (!t || `${c.folio} ${c.cliente} ${c.sucursal || ''} ${c.folio_solicitud}`.toLowerCase().includes(t))
     );
   }, [data, q, fEstatus]);
 
@@ -119,7 +119,7 @@ export default function CotizacionesList() {
               {pageItems.map((c) => (
                 <tr key={c.id}>
                   <td className="font-mono text-xs font-semibold text-brand-500">{c.folio}</td>
-                  <td className="font-medium">{c.cliente}</td>
+                  <td className="font-medium">{c.cliente}{c.sucursal && <span className="block text-xs font-normal text-gray-400">{c.sucursal}</span>}</td>
                   <td className="font-mono text-xs text-gray-500">{c.folio_solicitud}</td>
                   <td className="text-right font-medium">{fmt(c.total)}</td>
                   <td>

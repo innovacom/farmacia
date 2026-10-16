@@ -304,7 +304,7 @@ export default function DetallePedido() {
         <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-gray-700"><ArrowLeft size={20} /></button>
         <div className="flex-1">
           <h1 className="text-xl font-bold text-gray-900">{ped.folio}</h1>
-          <p className="text-sm text-gray-500">{ped.cliente} · Cotización <Link to={`/cotizaciones/${ped.cotizacion_id}`} className="text-brand-500">{ped.cotizacion_folio}</Link></p>
+          <p className="text-sm text-gray-500">{ped.cliente}{ped.sucursal ? ` · ${ped.sucursal}` : ''} · Cotización <Link to={`/cotizaciones/${ped.cotizacion_id}`} className="text-brand-500">{ped.cotizacion_folio}</Link></p>
         </div>
         <div className="flex gap-2">
           <button onClick={() => genOC.mutate()} disabled={genOC.isPending} className="btn-secondary">

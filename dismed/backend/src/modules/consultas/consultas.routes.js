@@ -5,6 +5,9 @@ const c = require('./consultas.controller');
 
 router.use(auth, requirePermiso('consultas'));
 
+// Opciones de los filtros Cliente/Sucursal
+router.get('/clientes',        c.filtrosClientes);
+
 // Listados ENCABEZADO (q, codigo, sku, fecha_desde, fecha_hasta, limit, offset)
 router.get('/solicitudes',     c.listSolicitudes);
 router.get('/cotizaciones',    c.listCotizaciones);

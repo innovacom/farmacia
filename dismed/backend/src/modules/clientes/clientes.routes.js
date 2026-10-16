@@ -18,6 +18,12 @@ router.get('/:id/contactos',      c.listContactos);
 router.post('/:id/contactos',     c.createContacto);
 router.put('/:id/contactos/:cid', c.updateContacto);
 
+// Sucursales
+router.get('/:id/sucursales',        c.listSucursales);
+router.post('/:id/sucursales',       c.createSucursal);
+router.put('/:id/sucursales/:sid',   c.updateSucursal);
+router.post('/:id/fusionar',         c.fusionar);
+
 // SKUs del cliente (diccionario de equivalencias)
 router.get('/:id/skus',      c.listSkus);
 
