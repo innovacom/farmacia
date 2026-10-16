@@ -157,6 +157,39 @@ async function listSkus(req, res, next) {
 }
 
 /**
+ * Búsqueda del catálogo de TODOS los proveedores (sin fijar proveedor_id).
+ * La usa, entre otros, el alta de producto para vincular en el mismo proceso
+ * sin tener que saber de antemano a qué proveedor pertenece el renglón.
+ * GET /proveedores/catalogo-buscar?q=&vinculado=0|1&limit=
+ */
+async function buscarCatalogoGlobal(req, res, next) {
+  try {
+    const q = (req.query.q || '').trim();
+    if (q.length < 2) return res.json({ rows: [] });
+    const like = `%${q}%`;
+    const where = ['(pc.sku_proveedor LIKE ? OR pc.descripcion LIKE ? OR pc.referencia_fabricante LIKE ? OR pc.fabricante LIKE ? OR pc.sku_innovacom LIKE ?)'];
+    const vals = [like, like, like, like, like];
+    const { vinculado } = req.query;
+    if (vinculado === '1') where.push('pc.producto_id IS NOT NULL');
+    else if (vinculado === '0') where.push('pc.producto_id IS NULL');
+
+    const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
+    const [rows] = await pool.query(
+      `SELECT pc.proveedor_id, pc.sku_proveedor, pc.referencia_fabricante, pc.fabricante, pc.descripcion,
+              pc.unidad_medida, pc.precio_lista, pc.moneda, pc.sku_innovacom, pc.producto_id,
+              pr.nombre_empresa AS proveedor_nombre
+       FROM proveedores_catalogo pc
+       JOIN proveedores pr ON pr.id = pc.proveedor_id
+       WHERE ${where.join(' AND ')}
+       ORDER BY pc.descripcion
+       LIMIT ?`,
+      [...vals, limit]
+    );
+    res.json({ rows });
+  } catch (err) { next(err); }
+}
+
+/**
  * Catálogo/tarifario del proveedor con filtros y paginación.
  * GET /proveedores/:id/catalogo?q=&vinculado=0|1&limit=&offset=
  */
@@ -277,4 +310,4 @@ async function updateCatalogo(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { list, getById, create, update, remove, removeMultiple, listSkus, catalogo, createCatalogo, updateCatalogo, removeCatalogo, removeCatalogoMultiple };
+module.exports = { list, getById, create, update, remove, removeMultiple, listSkus, catalogo, buscarCatalogoGlobal, createCatalogo, updateCatalogo, removeCatalogo, removeCatalogoMultiple };

@@ -9,6 +9,9 @@ router.use(auth);
 // y desde Detalle de Solicitud (para iniciar cotización a proveedores).
 router.get('/',               requireAnyPermiso(['proveedores', 'herramientas-exportar', 'solicitudes']), c.list);
 router.post('/baja-masiva',   requirePermiso('proveedores'), c.removeMultiple);
+// Búsqueda global del catálogo por proveedor (alta de producto) — antes de
+// /:id para que "catalogo-buscar" no se interprete como un id de proveedor.
+router.get('/catalogo-buscar', requireAnyPermiso(['catalogo-proveedor', 'productos']), c.buscarCatalogoGlobal);
 router.get('/:id',            requirePermiso('proveedores'), c.getById);
 router.post('/',              requirePermiso('proveedores'), c.create);
 router.put('/:id',            requirePermiso('proveedores'), c.update);

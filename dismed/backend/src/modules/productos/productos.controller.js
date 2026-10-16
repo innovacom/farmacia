@@ -167,6 +167,76 @@ async function match(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// GET /productos/fabricantes — valores distintos ya usados (en productos y en
+// el catálogo por proveedor) para el combo "seleccionar o agregar" del alta.
+async function fabricantes(req, res, next) {
+  try {
+    const [rows] = await pool.query(`
+      SELECT DISTINCT fabricante FROM (
+        SELECT fabricante FROM productos WHERE fabricante IS NOT NULL AND fabricante <> ''
+        UNION
+        SELECT fabricante FROM proveedores_catalogo WHERE fabricante IS NOT NULL AND fabricante <> ''
+      ) t ORDER BY fabricante
+    `);
+    res.json(rows.map((r) => r.fabricante));
+  } catch (err) { next(err); }
+}
+
+// Código IN{2 letras}{3 dígitos}{2 dígitos} (ver reglas de negocio): las 2
+// letras salen de la primera palabra con letras de la descripción; los 3
+// dígitos agrupan "mismo producto, distinta presentación" y los 2 dígitos
+// numeran la presentación dentro de ese grupo.
+function letrasDeDescripcion(descripcion) {
+  const palabras = normalizar(descripcion).split(' ').filter(Boolean);
+  let acumulado = '';
+  for (const palabra of palabras) {
+    acumulado += palabra.replace(/[^A-Z]/g, '');
+    if (acumulado.length >= 2) return acumulado.substring(0, 2);
+  }
+  return acumulado.padEnd(2, 'X');
+}
+const RE_SKU_IN = /^IN([A-Z]{2})(\d{3})(\d{2})$/;
+
+// GET /productos/sugerir-sku?descripcion=...
+// No adivina si es "producto nuevo" o "nueva presentación de uno existente"
+// por similitud de texto (poco confiable): devuelve los grupos ya dados de
+// alta con esas 2 letras para que el usuario elija en el frontend.
+async function sugerirSku(req, res, next) {
+  try {
+    const descripcion = (req.query.descripcion || '').toString().trim();
+    if (!descripcion) return res.status(400).json({ error: 'descripcion requerida' });
+    const letras = letrasDeDescripcion(descripcion);
+
+    const [rows] = await pool.query(
+      'SELECT sku_interno, descripcion FROM productos WHERE sku_interno LIKE ? ORDER BY sku_interno',
+      [`IN${letras}%`]
+    );
+
+    const grupos = new Map();
+    let maxGrupo = 0;
+    rows.forEach((r) => {
+      const m = RE_SKU_IN.exec(r.sku_interno);
+      if (!m || m[1] !== letras) return;
+      const grupo = m[2];
+      maxGrupo = Math.max(maxGrupo, parseInt(grupo, 10));
+      if (!grupos.has(grupo)) grupos.set(grupo, { grupo, productos: [], maxPresentacion: 0 });
+      const g = grupos.get(grupo);
+      g.productos.push({ sku_interno: r.sku_interno, descripcion: r.descripcion });
+      g.maxPresentacion = Math.max(g.maxPresentacion, parseInt(m[3], 10));
+    });
+
+    const gruposOut = [...grupos.values()]
+      .sort((a, b) => a.grupo.localeCompare(b.grupo))
+      .map((g) => ({
+        grupo: g.grupo,
+        productos: g.productos,
+        siguientePresentacion: String(g.maxPresentacion + 1).padStart(2, '0'),
+      }));
+
+    res.json({ letras, grupoNuevo: String(maxGrupo + 1).padStart(3, '0'), grupos: gruposOut });
+  } catch (err) { next(err); }
+}
+
 // IA de desempate: elige entre el shortlist del matcher (lista cerrada).
 // POST /productos/match-ia  Body: { descripcion, codigo_cliente?, codigo_gobierno?, cliente_id? }
 async function matchIa(req, res, next) {
@@ -826,6 +896,6 @@ function plantillaCatalogo(req, res, next) {
 }
 
 module.exports = {
-  list, match, matchIa, getById, create, update, updateVenta, subirImagen, importPreview, importConfirm, plantillaCatalogo, remove, removeMultiple,
+  list, match, matchIa, sugerirSku, fabricantes, getById, create, update, updateVenta, subirImagen, importPreview, importConfirm, plantillaCatalogo, remove, removeMultiple,
   listPresentaciones, createPresentacion, updatePresentacion, removePresentacion, exportarExcel,
 };

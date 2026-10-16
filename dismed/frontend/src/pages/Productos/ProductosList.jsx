@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { Plus, Loader2, Package, Search, Upload, Download, Trash2, Layers, X } from 'lucide-react';
+import { Plus, Loader2, Package, Search, Upload, Download, Trash2, Layers, X, Link2 } from 'lucide-react';
 import api from '../../services/api';
 import ImportCatalogoModal from './ImportCatalogoModal';
 import { descargarArchivo } from '../../services/descargas';
@@ -33,6 +33,12 @@ export default function ProductosList() {
   const [estatus, setEstatus] = useState('activos');
   const [page, setPage] = useState(0);
   const [form, setForm] = useState(FORM_VACIO);
+  const [skuManual, setSkuManual] = useState(false);
+  const [grupoSeleccionado, setGrupoSeleccionado] = useState('nuevo');
+  const [descripcionDeb, setDescripcionDeb] = useState('');
+  const [catalogoQ, setCatalogoQ] = useState('');
+  const [catalogoQDeb, setCatalogoQDeb] = useState('');
+  const [catalogoSel, setCatalogoSel] = useState([]); // pendientes de vincular (solo alta; en edición se vincula de inmediato)
   const [seleccionados, setSeleccionados] = useState(new Set());
   const [exportando, setExportando] = useState(false);
   const pageSize = usePrefsStore((s) => s.rowsPerPage);
@@ -63,6 +69,78 @@ export default function ProductosList() {
     enabled: !!form.categoria_id,
   });
 
+  // Sugerencia de SKU (IN + 2 letras + 3 dígitos de grupo + 2 de presentación)
+  // mientras se da de alta un producto nuevo — ver reglas de negocio.
+  useEffect(() => {
+    const t = setTimeout(() => setDescripcionDeb(form.descripcion?.trim() || ''), 400);
+    return () => clearTimeout(t);
+  }, [form.descripcion]);
+  useEffect(() => { setGrupoSeleccionado('nuevo'); }, [descripcionDeb]);
+
+  const { data: sugerencia } = useQuery({
+    queryKey: ['sku-sugerido', descripcionDeb],
+    queryFn: () => api.get('/productos/sugerir-sku', { params: { descripcion: descripcionDeb } }).then((r) => r.data),
+    enabled: !editando && descripcionDeb.length >= 2 && showModal,
+    staleTime: 10000,
+  });
+
+  useEffect(() => {
+    if (editando || skuManual || !sugerencia?.letras) return;
+    const esNuevo = grupoSeleccionado === 'nuevo';
+    const grupo = esNuevo ? sugerencia.grupoNuevo : grupoSeleccionado;
+    const presentacion = esNuevo
+      ? '01'
+      : sugerencia.grupos.find((g) => g.grupo === grupoSeleccionado)?.siguientePresentacion || '01';
+    set('sku_interno', `IN${sugerencia.letras}${grupo}${presentacion}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sugerencia, grupoSeleccionado, skuManual, editando]);
+
+  // Fabricantes ya usados (productos + catálogo por proveedor) para el combo del alta.
+  const { data: fabricantes = [] } = useQuery({
+    queryKey: ['fabricantes'],
+    queryFn: () => api.get('/productos/fabricantes').then((r) => r.data),
+    enabled: showModal,
+    staleTime: 60000,
+  });
+
+  // Vincular con el catálogo por proveedor en el mismo proceso de alta/edición
+  // (antes había que hacerlo aparte, en /catalogo-proveedores).
+  useEffect(() => {
+    const t = setTimeout(() => setCatalogoQDeb(catalogoQ.trim()), 400);
+    return () => clearTimeout(t);
+  }, [catalogoQ]);
+
+  const { data: catalogoResultados = [], isFetching: buscandoCatalogo } = useQuery({
+    queryKey: ['catalogo-buscar', catalogoQDeb],
+    queryFn: () => api.get('/proveedores/catalogo-buscar', { params: { q: catalogoQDeb, limit: 20 } })
+      .then((r) => r.data.rows || []),
+    enabled: showModal && catalogoQDeb.length >= 2,
+  });
+
+  const vincularCatalogoMut = useMutation({
+    mutationFn: (row) => api.put(`/proveedores/${row.proveedor_id}/catalogo/${encodeURIComponent(row.sku_proveedor)}`,
+      { producto_id: editando?.id }),
+    onSuccess: (_, row) => {
+      toast.success(`Vinculado con ${row.proveedor_nombre} (${row.sku_proveedor})`);
+      qc.invalidateQueries(['catalogo-buscar']);
+    },
+    onError: (e) => toast.error(e.response?.data?.error || 'Error al vincular'),
+  });
+
+  function esMismoRenglon(a, b) {
+    return a.proveedor_id === b.proveedor_id && a.sku_proveedor === b.sku_proveedor;
+  }
+  function vincularCatalogo(row) {
+    if (editando) {
+      vincularCatalogoMut.mutate(row);
+    } else {
+      setCatalogoSel((prev) => (prev.some((c) => esMismoRenglon(c, row)) ? prev : [...prev, row]));
+    }
+  }
+  function quitarCatalogoSel(row) {
+    setCatalogoSel((prev) => prev.filter((c) => !esMismoRenglon(c, row)));
+  }
+
   // ── Lista de productos (paginación en servidor: se ve TODO el catálogo) ──
   const { data, isLoading } = useQuery({
     queryKey: ['productos', busquedaDeb, filtroFamilia, estatus, page, pageSize],
@@ -85,8 +163,18 @@ export default function ProductosList() {
   const guardarMut = useMutation({
     mutationFn: (payload) =>
       editando ? api.put(`/productos/${editando.id}`, payload) : api.post('/productos', payload),
-    onSuccess: (res) => {
+    onSuccess: async (res) => {
       toast.success(editando ? 'Producto actualizado' : `Producto creado — SKU: ${res.data?.sku_interno || ''}`);
+      const nuevoId = res.data?.id;
+      if (!editando && nuevoId && catalogoSel.length) {
+        const resultados = await Promise.allSettled(catalogoSel.map((row) =>
+          api.put(`/proveedores/${row.proveedor_id}/catalogo/${encodeURIComponent(row.sku_proveedor)}`,
+            { producto_id: nuevoId })
+        ));
+        const fallidos = resultados.filter((r) => r.status === 'rejected').length;
+        if (fallidos) toast.error(`No se pudo vincular ${fallidos} renglón(es) del catálogo de proveedores`);
+        else toast.success(`Vinculado con ${catalogoSel.length} renglón(es) del catálogo de proveedores`);
+      }
       qc.invalidateQueries(['productos']);
       cerrar();
     },
@@ -136,7 +224,11 @@ export default function ProductosList() {
     onError: (e) => toast.error(e.response?.data?.error || 'Error al reactivar'),
   });
 
-  function abrirNuevo() { setEditando(null); setForm(FORM_VACIO); setShowModal(true); }
+  function abrirNuevo() {
+    setEditando(null); setForm(FORM_VACIO); setShowModal(true);
+    setSkuManual(false); setGrupoSeleccionado('nuevo'); setDescripcionDeb('');
+    setCatalogoQ(''); setCatalogoQDeb(''); setCatalogoSel([]);
+  }
 
   function abrirEditar(p) {
     setEditando(p);
@@ -155,9 +247,14 @@ export default function ProductosList() {
       publicar_web: p.publicar_web ?? 0, imagen_url: p.imagen_url || '',
     });
     setShowModal(true);
+    setCatalogoQ(''); setCatalogoQDeb(''); setCatalogoSel([]);
   }
 
-  function cerrar() { setShowModal(false); setEditando(null); setForm(FORM_VACIO); }
+  function cerrar() {
+    setShowModal(false); setEditando(null); setForm(FORM_VACIO);
+    setSkuManual(false); setGrupoSeleccionado('nuevo'); setDescripcionDeb('');
+    setCatalogoQ(''); setCatalogoQDeb(''); setCatalogoSel([]);
+  }
   function set(campo, valor) { setForm((f) => ({ ...f, [campo]: valor })); }
 
   function onFamilia(id) { setForm((f) => ({ ...f, familia_id: id, categoria_id: '', subcategoria_id: '' })); }
@@ -412,13 +509,39 @@ export default function ProductosList() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="label">SKU (código INNOVACOM) {editando ? '' : '*'}</label>
-                <input className="input font-mono" placeholder="INAP00238" value={form.sku_interno}
-                  disabled={!!editando} onChange={(e) => set('sku_interno', e.target.value)} />
-                {!editando && <p className="text-xs text-gray-400 mt-0.5">Déjalo vacío para autogenerar DM-#####</p>}
+                <input className="input font-mono" placeholder="INAP00101" value={form.sku_interno}
+                  disabled={!!editando}
+                  onChange={(e) => { setSkuManual(true); set('sku_interno', e.target.value); }} />
+                {!editando && (
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {sugerencia?.letras
+                      ? 'Sugerido según la descripción — puedes editarlo.'
+                      : 'Escribe la descripción para sugerir el SKU, o déjalo vacío para autogenerar DM-#####.'}
+                  </p>
+                )}
+                {!editando && sugerencia?.letras && (
+                  <div className="mt-1.5">
+                    <label className="label text-xs">¿Es una nueva presentación de un producto existente?</label>
+                    <select className="input text-xs" value={grupoSeleccionado}
+                      onChange={(e) => { setGrupoSeleccionado(e.target.value); setSkuManual(false); }}>
+                      <option value="nuevo">Producto nuevo (IN{sugerencia.letras}{sugerencia.grupoNuevo}01)</option>
+                      {sugerencia.grupos.map((g) => (
+                        <option key={g.grupo} value={g.grupo}>
+                          {g.productos.map((p) => p.descripcion).join(', ')}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="label">Fabricante / Laboratorio</label>
-                <input className="input" value={form.fabricante} onChange={(e) => set('fabricante', e.target.value)} />
+                <input className="input" list="fabricantes-datalist" value={form.fabricante}
+                  placeholder="Selecciona uno existente o escribe uno nuevo"
+                  onChange={(e) => set('fabricante', e.target.value)} />
+                <datalist id="fabricantes-datalist">
+                  {fabricantes.map((f) => <option key={f} value={f} />)}
+                </datalist>
               </div>
             </div>
 
@@ -614,6 +737,75 @@ export default function ProductosList() {
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Catálogo por proveedor — vincular en el mismo proceso de alta/edición,
+                sin tener que ir aparte a /catalogo-proveedores. */}
+            <div className="border-t border-gray-100 pt-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Catálogo por proveedor</p>
+              <div className="relative">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input className="input pl-9"
+                  placeholder="Buscar por SKU, descripción o fabricante en el catálogo de proveedores…"
+                  value={catalogoQ} onChange={(e) => setCatalogoQ(e.target.value)} />
+              </div>
+              {catalogoQDeb.length >= 2 && (
+                <div className="mt-2 border border-gray-100 rounded-lg max-h-56 overflow-y-auto divide-y divide-gray-50">
+                  {buscandoCatalogo && <p className="text-xs text-gray-400 px-3 py-2">Buscando…</p>}
+                  {!buscandoCatalogo && catalogoResultados.length === 0 && (
+                    <p className="text-xs text-gray-400 px-3 py-2">Sin coincidencias</p>
+                  )}
+                  {catalogoResultados.map((r) => {
+                    const yaSel = catalogoSel.some((c) => esMismoRenglon(c, r));
+                    const yaVinculadoAqui = r.producto_id && editando && r.producto_id === editando.id;
+                    const key = `${r.proveedor_id}-${r.sku_proveedor}`;
+                    return (
+                      <div key={key} className="flex items-center gap-2 px-3 py-2 text-sm">
+                        <div className="flex-1 min-w-0">
+                          <p className="truncate">
+                            <span className="font-mono text-xs text-brand-600">{r.sku_proveedor}</span> — {r.descripcion}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {r.proveedor_nombre}{r.fabricante ? ` · ${r.fabricante}` : ''}
+                            {r.precio_lista != null ? ` · $${r.precio_lista}` : ''}
+                          </p>
+                        </div>
+                        {yaVinculadoAqui ? (
+                          <span className="text-xs text-green-600 shrink-0">Vinculado ✓</span>
+                        ) : yaSel ? (
+                          <button type="button" onClick={() => quitarCatalogoSel(r)}
+                            className="text-xs text-red-500 hover:underline shrink-0">Quitar</button>
+                        ) : (
+                          <div className="flex flex-col items-end gap-0.5 shrink-0">
+                            {r.producto_id && <span className="text-[10px] text-amber-500">Vinculado a otro producto</span>}
+                            <button type="button" onClick={() => vincularCatalogo(r)} disabled={vincularCatalogoMut.isPending}
+                              className="text-xs text-brand-600 hover:underline flex items-center gap-1">
+                              <Link2 size={12} /> Vincular
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {!editando && catalogoSel.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-xs text-gray-500 mb-1">Se vincularán al guardar:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {catalogoSel.map((r) => (
+                      <span key={`${r.proveedor_id}-${r.sku_proveedor}`}
+                        className="inline-flex items-center gap-1 text-xs bg-brand-50 text-brand-700 px-2 py-1 rounded-full">
+                        {r.proveedor_nombre}: {r.sku_proveedor}
+                        <X size={11} className="cursor-pointer" onClick={() => quitarCatalogoSel(r)} />
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <p className="text-xs text-gray-400 mt-1.5">
+                Vincula este producto con renglones del tarifario de proveedores (equivalencia de SKU) sin salir de esta pantalla.
+              </p>
             </div>
 
             <div className="flex gap-3 pt-2">

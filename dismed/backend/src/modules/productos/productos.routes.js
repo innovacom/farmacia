@@ -44,6 +44,8 @@ const permisoLecturaCompartida = requireAnyPermiso(['productos', 'movimientos', 
 router.get('/',                   permisoLecturaCompartida, c.list);
 router.get('/match',               permisoLecturaCompartida, c.match);   // antes de /:id para que no lo capture
 router.post('/match-ia',           permisoLecturaCompartida, c.matchIa);   // IA de desempate (lista cerrada)
+router.get('/sugerir-sku',         requirePermiso('productos'), c.sugerirSku); // antes de /:id para que no lo capture
+router.get('/fabricantes',         requirePermiso('productos'), c.fabricantes); // antes de /:id para que no lo capture
 router.get('/:id/presentaciones',  permisoLecturaCompartida, c.listPresentaciones);
 router.get('/:id',                 permisoLecturaCompartida, c.getById);
 
