@@ -8,4 +8,9 @@ const adminOnly = (req, res, next) =>
 router.get('/', auth, ctrl.get);            // lectura: cualquier usuario autenticado
 router.put('/', auth, adminOnly, ctrl.update); // edición: solo admin
 
+// PAC de timbrado CFDI y ambiente (solo admin)
+router.get('/cfdi', auth, adminOnly, ctrl.getCfdi);
+router.put('/cfdi', auth, adminOnly, ctrl.putCfdi);
+router.get('/cfdi/saldo', auth, adminOnly, ctrl.saldoCfdi);
+
 module.exports = router;

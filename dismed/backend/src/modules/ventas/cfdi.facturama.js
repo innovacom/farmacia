@@ -24,12 +24,11 @@ const { validarFactura, cargarFactura, empresaCfdi } = require('./cfdi.txt.gener
 const { generarFacturaCfdiPdf } = require('./ventas.pdf');
 const { LOTE_GENERICO } = require('../inventario/movimientos.service');
 const facturaDigital = require('./cfdi.facturadigital');
+const { getCfdiConfig } = require('../../config/cfdiPac');
 
-/** PAC activo según CFDI_PAC. Valor desconocido → error explícito (no timbrar en el PAC equivocado). */
-function pacActivo() {
-  const v = String(process.env.CFDI_PAC || 'facturama').trim().toLowerCase();
-  if (v === 'facturama' || v === 'facturadigital') return v;
-  const e = new Error(`CFDI_PAC inválido: "${v}" (use facturama o facturadigital)`); e.status = 500; throw e;
+/** PAC activo: Configuración (BD) > CFDI_PAC del entorno > facturama. Valor inválido → error. */
+async function pacActivo() {
+  return (await getCfdiConfig()).pac;
 }
 
 const IVA_TASA = 0.16;
@@ -178,7 +177,7 @@ function urlQrSat({ uuid, rfcEmisor, rfcReceptor, total, selloCfdi }) {
  * el llamador persiste con insertarComprobante() dentro de su propia transacción.
  */
 async function timbrarComprobante(body, { folioArchivo }) {
-  const pac = pacActivo();
+  const pac = await pacActivo();
   let resp; let xmlDelPac = null;
   if (pac === 'facturadigital') {
     ({ resp, xml: xmlDelPac } = await facturaDigital.timbrar(body));

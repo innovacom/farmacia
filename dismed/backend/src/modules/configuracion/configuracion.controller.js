@@ -7,6 +7,8 @@
 const { pool } = require('../../config/db');
 const precios = require('../../config/precios');
 const cobertura = require('../../config/cobertura');
+const cfdiPac = require('../../config/cfdiPac');
+const facturaDigital = require('../ventas/cfdi.facturadigital');
 
 // Parámetros editables y sus límites de validación. `decimales` habilita
 // valores no enteros (radio_cobertura_km admite fracciones de km).
@@ -71,4 +73,53 @@ async function update(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { get, update };
+async function estadoCfdi() {
+  const cfg = await cfdiPac.getCfdiConfig();
+  return {
+    ...cfg,
+    facturama_configurado: !!(process.env.FACTURAMA_URL && process.env.FACTURAMA_TOKEN),
+    facturadigital_sandbox_configurado: facturaDigital.claveConfigurada(false),
+    facturadigital_produccion_configurado: facturaDigital.claveConfigurada(true),
+  };
+}
+
+/** GET /configuracion/cfdi (admin) → PAC y ambiente activos + qué credenciales hay en el servidor. */
+async function getCfdi(req, res, next) {
+  try { res.json(await estadoCfdi()); } catch (err) { next(err); }
+}
+
+/** PUT /configuracion/cfdi (admin) { pac, ambiente } */
+async function putCfdi(req, res, next) {
+  try {
+    const { pac, ambiente } = req.body;
+    if (pac !== undefined && !cfdiPac.PACS.includes(pac)) {
+      return res.status(400).json({ error: 'PAC inválido (facturama o facturadigital)' });
+    }
+    if (ambiente !== undefined && !cfdiPac.AMBIENTES.includes(ambiente)) {
+      return res.status(400).json({ error: 'Ambiente inválido (sandbox o produccion)' });
+    }
+    if (pac === undefined && ambiente === undefined) {
+      return res.status(400).json({ error: 'No se enviaron valores para actualizar' });
+    }
+    const actual = await cfdiPac.getCfdiConfig();
+    const pacFinal = pac ?? actual.pac;
+    const ambFinal = ambiente ?? actual.ambiente;
+    if (pacFinal === 'facturadigital' && !facturaDigital.claveConfigurada(ambFinal === 'produccion')) {
+      return res.status(400).json({
+        error: `Falta ${ambFinal === 'produccion' ? 'FACTURADIGITAL_API_KEY' : 'FACTURADIGITAL_API_KEY_SANDBOX'} en el .env del servidor`,
+      });
+    }
+    await cfdiPac.setCfdiConfig({ pac, ambiente });
+    res.json(await estadoCfdi());
+  } catch (err) { next(err); }
+}
+
+/** GET /configuracion/cfdi/saldo (admin) → créditos en Factura Digital (prueba de credenciales). */
+async function saldoCfdi(req, res, next) {
+  try {
+    const r = await facturaDigital.saldo();
+    res.json({ balance: r.balance, message: r.message });
+  } catch (err) { next(err); }
+}
+
+module.exports = { get, update, getCfdi, putCfdi, saldoCfdi };

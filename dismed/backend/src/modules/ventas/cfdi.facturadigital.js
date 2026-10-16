@@ -16,36 +16,39 @@
  *   EMPRESA_REGIMEN_FISCAL          — régimen del emisor (el RFC/CSD los toma el PAC de la cuenta)
  */
 const { empresaCfdi } = require('./cfdi.txt.generator');
+const { getCfdiConfig } = require('../../config/cfdiPac');
 
 const URL_SANDBOX = 'https://sandbox-app.facturadigital.com.mx';
 const URL_PRODUCCION = 'https://app.facturadigital.com.mx';
 
-function esProduccion() {
-  return String(process.env.CFDI_AMBIENTE || 'sandbox').trim().toLowerCase().startsWith('prod');
-}
-function baseUrl() {
-  const u = esProduccion()
+// El ambiente (sandbox/produccion) viene de Configuración (BD) con fallback a CFDI_AMBIENTE.
+function baseUrl(produccion) {
+  const u = produccion
     ? (process.env.FACTURADIGITAL_URL || URL_PRODUCCION)
     : (process.env.FACTURADIGITAL_URL_SANDBOX || URL_SANDBOX);
   return u.replace(/\/+$/, '');
 }
-function apiKey() {
-  const k = esProduccion() ? process.env.FACTURADIGITAL_API_KEY : process.env.FACTURADIGITAL_API_KEY_SANDBOX;
+function claveConfigurada(produccion) {
+  return !!(produccion ? process.env.FACTURADIGITAL_API_KEY : process.env.FACTURADIGITAL_API_KEY_SANDBOX);
+}
+function apiKey(produccion) {
+  const k = produccion ? process.env.FACTURADIGITAL_API_KEY : process.env.FACTURADIGITAL_API_KEY_SANDBOX;
   if (!k) {
-    const e = new Error(`Factura Digital: falta ${esProduccion() ? 'FACTURADIGITAL_API_KEY' : 'FACTURADIGITAL_API_KEY_SANDBOX'} en el .env`);
+    const e = new Error(`Factura Digital: falta ${produccion ? 'FACTURADIGITAL_API_KEY' : 'FACTURADIGITAL_API_KEY_SANDBOX'} en el .env`);
     e.status = 503; throw e;
   }
   return k.trim();
 }
 
 async function llamar(metodo, ruta, form, extraHeaders = {}) {
-  const headers = { 'X-Api-Key': apiKey(), ...extraHeaders };
+  const produccion = (await getCfdiConfig()).ambiente === 'produccion';
+  const headers = { 'X-Api-Key': apiKey(produccion), ...extraHeaders };
   const opts = { method: metodo, headers };
   if (form) {
     headers['Content-Type'] = 'application/x-www-form-urlencoded';
     opts.body = new URLSearchParams(form).toString();
   }
-  const res = await fetch(baseUrl() + ruta, opts);
+  const res = await fetch(baseUrl(produccion) + ruta, opts);
   const texto = await res.text();
   let json = null;
   try { json = JSON.parse(texto); } catch (_) { /* no JSON */ }
@@ -201,4 +204,4 @@ async function saldo() {
   return llamar('GET', '/api/v5/account/balance');
 }
 
-module.exports = { timbrar, cancelar, saldo, traducirBody, esProduccion, baseUrl };
+module.exports = { timbrar, cancelar, saldo, traducirBody, claveConfigurada, baseUrl };

@@ -55,6 +55,9 @@ export default function Configuracion() {
       {/* Vigencia de precios (solo admin) */}
       {isAdmin && <VigenciaPrecios />}
 
+      {/* PAC de timbrado CFDI y ambiente (solo admin) */}
+      {isAdmin && <TimbradoCfdi />}
+
       {/* Radio de cobertura a domicilio (solo admin) */}
       {isAdmin && <RadioCobertura />}
 
@@ -151,6 +154,110 @@ function VigenciaPrecios() {
               Guardar
             </button>
             <span className="text-xs text-gray-400">Valores permitidos: 1 a 120 meses.</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const PAC_OPCIONES = [
+  { value: 'facturama', label: 'Facturama' },
+  { value: 'facturadigital', label: 'Factura Digital' },
+];
+const AMBIENTE_OPCIONES = [
+  { value: 'sandbox', label: 'Sandbox (pruebas)' },
+  { value: 'produccion', label: 'Producción (timbrado real)' },
+];
+
+// Elige con qué PAC se timbran los CFDI y a qué ambiente. Se guarda en la BD y
+// aplica de inmediato; las claves API siguen en el .env del servidor.
+function TimbradoCfdi() {
+  const qc = useQueryClient();
+  const [pac, setPac] = useState('facturama');
+  const [ambiente, setAmbiente] = useState('sandbox');
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['cfdi-config'],
+    queryFn: () => api.get('/configuracion/cfdi').then((r) => r.data),
+  });
+
+  useEffect(() => {
+    if (data) { setPac(data.pac); setAmbiente(data.ambiente); }
+  }, [data]);
+
+  const guardar = useMutation({
+    mutationFn: () => api.put('/configuracion/cfdi', { pac, ambiente }),
+    onSuccess: (r) => {
+      toast.success('Configuración de timbrado actualizada');
+      qc.setQueryData(['cfdi-config'], r.data);
+    },
+    onError: (e) => toast.error(e.response?.data?.error || 'No se pudo guardar'),
+  });
+
+  const probar = useMutation({
+    mutationFn: () => api.get('/configuracion/cfdi/saldo').then((r) => r.data),
+    onSuccess: (r) => toast.success(`Conexión correcta — ${r.balance} timbres disponibles`),
+    onError: (e) => toast.error(e.response?.data?.error || 'No se pudo conectar'),
+  });
+
+  const cambio = data && (pac !== data.pac || ambiente !== data.ambiente);
+  const claveOk = data && (pac === 'facturama'
+    ? data.facturama_configurado
+    : (ambiente === 'produccion' ? data.facturadigital_produccion_configurado : data.facturadigital_sandbox_configurado));
+
+  return (
+    <div className="card mt-6">
+      <div className="flex items-center gap-2 mb-1">
+        <ShieldCheck size={18} className="text-brand-500" />
+        <h2 className="font-semibold text-gray-900">Timbrado de facturas (CFDI)</h2>
+      </div>
+      <p className="text-sm text-gray-500 mb-4">
+        Proveedor (PAC) y ambiente con que se timbran las facturas. Los CFDI ya emitidos se
+        cancelan siempre en el PAC que los timbró. En Sandbox las facturas no tienen validez fiscal.
+        El ambiente aplica a Factura Digital; en Facturama lo define la URL configurada en el servidor.
+      </p>
+
+      {isLoading ? (
+        <p className="text-sm text-gray-400 py-4">Cargando…</p>
+      ) : (
+        <div className="space-y-4">
+          <div className="grid sm:grid-cols-2 gap-4">
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">Proveedor (PAC)</span>
+              <select className="input mt-1.5" value={pac} onChange={(e) => setPac(e.target.value)}>
+                {PAC_OPCIONES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700">Ambiente</span>
+              <select className="input mt-1.5" value={ambiente} onChange={(e) => setAmbiente(e.target.value)}
+                disabled={pac === 'facturama'}>
+                {AMBIENTE_OPCIONES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </label>
+          </div>
+
+          <div className="flex flex-wrap gap-2 text-xs">
+            <span className={claveOk ? 'badge-green' : 'badge-yellow'}>
+              {claveOk ? 'Credenciales presentes en el servidor' : 'Faltan credenciales en el .env del servidor'}
+            </span>
+            {pac === 'facturadigital' && ambiente === 'produccion' && (
+              <span className="badge-yellow">Timbrado real: cada factura consume un timbre y tiene validez fiscal</span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
+            <button onClick={() => guardar.mutate()} disabled={!cambio || guardar.isPending} className="btn-primary">
+              {guardar.isPending ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+              Guardar
+            </button>
+            {pac === 'facturadigital' && !cambio && (
+              <button onClick={() => probar.mutate()} disabled={probar.isPending} className="btn-secondary">
+                {probar.isPending ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
+                Probar conexión
+              </button>
+            )}
           </div>
         </div>
       )}
