@@ -4,7 +4,12 @@
  * Reaprovecha la validación y carga de datos de cfdi.txt.generator.js (NO se reescriben).
  * El emisor (RFC, régimen, CSD) NO se manda en el body: Facturama lo toma del perfil de la cuenta.
  *
- * Variables de entorno:
+ * Selector de PAC (por configuración): CFDI_PAC=facturama (default) | facturadigital.
+ * Con facturadigital se delega a cfdi.facturadigital.js (ver sus variables; CFDI_AMBIENTE
+ * elige sandbox/producción). Aunque el archivo conserve el nombre, es el punto único de
+ * timbrado/cancelación para ambos PAC; los llamadores no cambian.
+ *
+ * Variables de entorno (Facturama):
  *   FACTURAMA_URL    — base, ej sandbox https://apisandbox.facturama.mx
  *   FACTURAMA_TOKEN  — token ya codificado para el header Authorization: Basic <token>
  *   FACTURAMA_SERIE  — serie opcional para el comprobante (si no existe, se omite)
@@ -18,6 +23,14 @@ const QRCode = require('qrcode');
 const { validarFactura, cargarFactura, empresaCfdi } = require('./cfdi.txt.generator');
 const { generarFacturaCfdiPdf } = require('./ventas.pdf');
 const { LOTE_GENERICO } = require('../inventario/movimientos.service');
+const facturaDigital = require('./cfdi.facturadigital');
+
+/** PAC activo según CFDI_PAC. Valor desconocido → error explícito (no timbrar en el PAC equivocado). */
+function pacActivo() {
+  const v = String(process.env.CFDI_PAC || 'facturama').trim().toLowerCase();
+  if (v === 'facturama' || v === 'facturadigital') return v;
+  const e = new Error(`CFDI_PAC inválido: "${v}" (use facturama o facturadigital)`); e.status = 500; throw e;
+}
 
 const IVA_TASA = 0.16;
 const n2 = (n) => Number(n || 0).toFixed(2);
@@ -165,7 +178,13 @@ function urlQrSat({ uuid, rfcEmisor, rfcReceptor, total, selloCfdi }) {
  * el llamador persiste con insertarComprobante() dentro de su propia transacción.
  */
 async function timbrarComprobante(body, { folioArchivo }) {
-  const resp = await fPost('/3/cfdis', body);
+  const pac = pacActivo();
+  let resp; let xmlDelPac = null;
+  if (pac === 'facturadigital') {
+    ({ resp, xml: xmlDelPac } = await facturaDigital.timbrar(body));
+  } else {
+    resp = await fPost('/3/cfdis', body);
+  }
 
   const tfd = resp.Complement?.TaxStamp || {};
   const uuid = tfd.Uuid;
@@ -182,7 +201,7 @@ async function timbrarComprobante(body, { folioArchivo }) {
   const anioActual = new Date().getFullYear();
   const xmlDir = path.resolve(process.env.OUTPUT_DIR || './outputs', 'cfdi', String(anioActual));
   fs.mkdirSync(xmlDir, { recursive: true });
-  const xmlContent = await descargarXmlFacturama(resp.Id);
+  const xmlContent = xmlDelPac != null ? xmlDelPac : await descargarXmlFacturama(resp.Id);
   const xmlFileName = `${folioArchivo}.xml`;
   fs.writeFileSync(path.join(xmlDir, xmlFileName), xmlContent, 'utf8');
   const xmlPath = `/outputs/cfdi/${anioActual}/${xmlFileName}`;
@@ -205,6 +224,7 @@ async function timbrarComprobante(body, { folioArchivo }) {
     emisor_rfc: rfcEmisor,
     total,
   };
+  resp.pac = pac;
   return { resp, cfdiData, xmlPath, qrUrl };
 }
 
@@ -218,14 +238,14 @@ async function insertarComprobante(conn, {
 }) {
   const [r] = await conn.query(
     `INSERT INTO cfdi_comprobantes
-       (entrega_id, origen, pos_venta_id, pos_factura_global_id,
+       (entrega_id, origen, pos_venta_id, pos_factura_global_id, pac,
         facturama_id, uuid, serie, folio, fecha_timbrado,
         sello_cfdi, sello_sat, cert_emisor, cert_sat, rfc_prov_certif,
         cadena_original_tfd, cadena_original_comprobante, qr_url,
         xml_path, pdf_path, total, status, raw_response)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'vigente',?)`,
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'vigente',?)`,
     [
-      entrega_id, origen, pos_venta_id, pos_factura_global_id,
+      entrega_id, origen, pos_venta_id, pos_factura_global_id, resp.pac || 'facturama',
       resp.Id, cfdiData.uuid, cfdiData.serie, cfdiData.folio, cfdiData.fecha_timbrado,
       cfdiData.sello_cfdi, cfdiData.sello_sat, cfdiData.cert_emisor, cfdiData.cert_sat, cfdiData.rfc_prov_certif,
       cfdiData.cadena_original_tfd, cfdiData.cadena_original_comprobante, qrUrl,
@@ -284,7 +304,7 @@ async function timbrarEntrega(entregaId) {
     await conn.commit();
   } catch (err) { await conn.rollback(); throw err; } finally { conn.release(); }
 
-  return { uuid: cfdiData.uuid, facturama_id: resp.Id, xml_url: xmlPath, pdf_url: pdfPath, qr_url: qrUrl };
+  return { uuid: cfdiData.uuid, pac: resp.pac, facturama_id: resp.Id, xml_url: xmlPath, pdf_url: pdfPath, qr_url: qrUrl };
 }
 
 // ── Cancelación de un CFDI vigente ────────────────────────────────────────────
@@ -305,9 +325,15 @@ async function cancelarCfdi(entregaId, { motivo, uuidSustituye } = {}) {
   if (!comp) { const e = new Error('No hay un CFDI vigente para esta entrega'); e.status = 404; throw e; }
 
   // DELETE a Facturama: /cfdi/{Id}?type=issued&motive={motivo}[&uuidReplacement={uuid}]
-  let ruta = `/cfdi/${comp.facturama_id}?type=issued&motive=${motivo}`;
-  if (motivo === '01') ruta += `&uuidReplacement=${uuidSustituye}`;
-  const acuse = await fDelete(ruta);
+  // Se cancela en el PAC que lo timbró (comp.pac), no en el activo hoy.
+  let acuse;
+  if (comp.pac === 'facturadigital') {
+    acuse = await facturaDigital.cancelar(comp.uuid, motivo, uuidSustituye);
+  } else {
+    let ruta = `/cfdi/${comp.facturama_id}?type=issued&motive=${motivo}`;
+    if (motivo === '01') ruta += `&uuidReplacement=${uuidSustituye}`;
+    acuse = await fDelete(ruta);
+  }
 
   const conn = await pool.getConnection();
   try {
