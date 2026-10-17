@@ -11,6 +11,9 @@ import { useConfirm } from '../../components/ui/ConfirmDialog';
 import CuentaContableSelect from '../../components/shared/CuentaContableSelect';
 import SucursalesModal from './SucursalesModal';
 
+const FORMAS_PAGO = [['01', '01 · Efectivo'], ['02', '02 · Cheque nominativo'], ['03', '03 · Transferencia'], ['04', '04 · Tarjeta de crédito'], ['28', '28 · Tarjeta de débito'], ['99', '99 · Por definir']];
+const METODOS_PAGO = [['PUE', 'PUE · Pago en una exhibición'], ['PPD', 'PPD · Pago en parcialidades o diferido']];
+const USOS_CFDI = [['G01', 'G01 · Adquisición de mercancías'], ['G03', 'G03 · Gastos en general'], ['I01', 'I01 · Construcciones'], ['P01', 'P01 · Por definir'], ['CP01', 'CP01 · Pagos']];
 const TIPOS = ['hospital', 'clinica', 'farmacia', 'laboratorio', 'gobierno', 'otro'];
 
 export default function ClientesList() {
@@ -218,7 +221,24 @@ export default function ClientesList() {
               </div>
               <div>
                 <label className="label">Uso de CFDI</label>
-                <input className="input uppercase" placeholder="G03" {...register('uso_cfdi')} />
+                <select className="input" {...register('uso_cfdi')}>
+                  <option value="">— Sin definir (G03) —</option>
+                  {USOS_CFDI.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">Forma de pago (CFDI)</label>
+                <select className="input" {...register('forma_pago')}>
+                  <option value="">— Sin definir (03) —</option>
+                  {FORMAS_PAGO.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">Método de pago (CFDI)</label>
+                <select className="input" {...register('metodo_pago')}>
+                  <option value="">— Sin definir (PUE) —</option>
+                  {METODOS_PAGO.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
               </div>
               <div>
                 <label className="label">Código postal (dom. fiscal)</label>

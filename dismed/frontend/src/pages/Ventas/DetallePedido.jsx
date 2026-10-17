@@ -124,7 +124,11 @@ function RecepcionModal({ ocId, onClose, onDone }) {
 function EntregaModal({ pedido, onClose, onDone }) {
   const [tipo, setTipo] = useState('remision');
   const [lineas, setLineas] = useState({});
-  const [cfdi, setCfdi] = useState({ forma_pago: '03', metodo_pago: 'PUE', uso_cfdi: 'G03' });
+  const [cfdi, setCfdi] = useState({
+    forma_pago: pedido.cliente_forma_pago || '03',
+    metodo_pago: pedido.cliente_metodo_pago || 'PUE',
+    uso_cfdi: pedido.cliente_uso_cfdi || 'G03',
+  });
   const [faltantes, setFaltantes] = useState([]);
   const [notas, setNotas] = useState('');
 

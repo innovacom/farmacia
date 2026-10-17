@@ -4,7 +4,7 @@ async function list(req, res, next) {
   try {
     const soloActivos = req.query.activos === '1';
     const [rows] = await pool.query(
-      `SELECT id, razon_social, nombre_comercial, rfc, regimen_fiscal, uso_cfdi,
+      `SELECT id, razon_social, nombre_comercial, rfc, regimen_fiscal, uso_cfdi, forma_pago, metodo_pago,
               codigo_postal, email, tipo_cliente, limite_credito, dias_credito,
               direccion_fiscal, cuenta_cobrar_codigo, activo,
               (SELECT COUNT(*) FROM clientes_sucursales s
@@ -39,7 +39,7 @@ async function getById(req, res, next) {
 async function create(req, res, next) {
   try {
     const {
-      razon_social, nombre_comercial, rfc, regimen_fiscal, uso_cfdi, codigo_postal, email,
+      razon_social, nombre_comercial, rfc, regimen_fiscal, uso_cfdi, forma_pago, metodo_pago, codigo_postal, email,
       tipo_cliente, limite_credito, dias_credito, direccion_fiscal, notas, cuenta_cobrar_codigo,
     } = req.body;
 
@@ -49,11 +49,11 @@ async function create(req, res, next) {
 
     const [result] = await pool.query(
       `INSERT INTO clientes
-        (razon_social, nombre_comercial, rfc, regimen_fiscal, uso_cfdi, codigo_postal, email,
+        (razon_social, nombre_comercial, rfc, regimen_fiscal, uso_cfdi, forma_pago, metodo_pago, codigo_postal, email,
          tipo_cliente, limite_credito, dias_credito, direccion_fiscal, notas, cuenta_cobrar_codigo)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [razon_social, nombre_comercial || null, rfc, regimen_fiscal || null,
-       uso_cfdi || null, codigo_postal || null, email || null, tipo_cliente || 'otro', limite_credito || 0,
+       uso_cfdi || null, forma_pago || null, metodo_pago || null, codigo_postal || null, email || null, tipo_cliente || 'otro', limite_credito || 0,
        dias_credito || 0, direccion_fiscal || null, notas || null, cuenta_cobrar_codigo || null]
     );
     await pool.query(
@@ -68,7 +68,7 @@ async function create(req, res, next) {
 async function update(req, res, next) {
   try {
     const fields = [
-      'razon_social','nombre_comercial','rfc','regimen_fiscal','uso_cfdi','codigo_postal','email',
+      'razon_social','nombre_comercial','rfc','regimen_fiscal','uso_cfdi','forma_pago','metodo_pago','codigo_postal','email',
       'tipo_cliente','limite_credito','dias_credito','direccion_fiscal','notas','activo',
       'cuenta_cobrar_codigo',
     ];

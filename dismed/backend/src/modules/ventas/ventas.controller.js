@@ -100,7 +100,8 @@ async function listPedidos(req, res, next) {
 async function getPedido(req, res, next) {
   try {
     const [[ped]] = await pool.query(
-      `SELECT p.*, c.razon_social AS cliente, su.nombre AS sucursal, cot.folio AS cotizacion_folio
+      `SELECT p.*, c.razon_social AS cliente, c.uso_cfdi AS cliente_uso_cfdi, c.forma_pago AS cliente_forma_pago,
+              c.metodo_pago AS cliente_metodo_pago, su.nombre AS sucursal, cot.folio AS cotizacion_folio
        FROM pedidos_cliente p JOIN clientes c ON c.id = p.cliente_id
        LEFT JOIN clientes_sucursales su ON su.id = p.sucursal_id
        JOIN cotizaciones_cliente cot ON cot.id = p.cotizacion_id WHERE p.id = ?`, [req.params.id]
