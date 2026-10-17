@@ -379,7 +379,7 @@ export default function DetallePedido() {
               {ped.entregas.map((e) => (
                 <tr key={e.id}>
                   <td className="font-mono text-brand-500">{e.folio}</td>
-                  <td className="capitalize">{e.tipo}</td>
+                  <td className="capitalize">{e.tipo}{e.factura_folio && <span className="ml-2 badge-green normal-case">facturada en {e.factura_folio}</span>}{e.tipo === 'remision' && !e.factura_folio && <Link to="/ventas/facturar-remisiones" className="ml-2 text-xs normal-case text-brand-500 hover:underline">Facturar…</Link>}</td>
                   <td className="text-right">{fmt(e.total)}</td>
                   <td className="text-center">{e.tipo === 'factura' ? <span className={CFDI_BADGE[e.estatus_cfdi] || 'badge-gray'}>{e.estatus_cfdi || 'pendiente'}</span> : <span className="text-gray-300">—</span>}</td>
                   <td>{new Date(e.created_at).toLocaleDateString('es-MX')}</td>

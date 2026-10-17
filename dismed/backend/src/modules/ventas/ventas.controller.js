@@ -119,7 +119,10 @@ async function getPedido(req, res, next) {
        JOIN proveedores pr ON pr.id = oc.proveedor_id WHERE oc.pedido_id = ? ORDER BY oc.id`, [req.params.id]
     );
     const [entregas] = await pool.query(
-      'SELECT id, folio, tipo, total, pdf_path, cfdi_txt_path, estatus_cfdi, created_at FROM entregas WHERE pedido_id = ? ORDER BY id DESC', [req.params.id]
+      `SELECT e.id, e.folio, e.tipo, e.total, e.pdf_path, e.cfdi_txt_path, e.estatus_cfdi, e.created_at, f.folio AS factura_folio
+         FROM entregas e LEFT JOIN entregas f ON f.id = e.factura_id
+        WHERE e.pedido_id = ? OR e.id IN (SELECT r.factura_id FROM entregas r WHERE r.pedido_id = ? AND r.factura_id IS NOT NULL)
+        ORDER BY e.id DESC`, [req.params.id, req.params.id]
     );
     res.json({ ...ped, partidas, ordenes_compra: ocs, entregas });
   } catch (err) { next(err); }

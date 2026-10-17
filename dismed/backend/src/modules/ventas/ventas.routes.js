@@ -2,6 +2,7 @@ const router = require('express').Router();
 const auth = require('../../middleware/auth');
 const { requirePermiso } = require('../../middleware/permisos');
 const c = require('./ventas.controller');
+const rf = require('./remisiones.facturar');
 
 router.use(auth, requirePermiso('pedidos'));
 
@@ -26,5 +27,12 @@ router.post('/entregas/:id/cfdi-txt', c.cfdiTxt); // genera/regenera el TXT para
 router.post('/entregas/:id/cfdi/timbrar',  c.timbrarCfdi);
 router.post('/entregas/:id/cfdi/cancelar', c.cancelarCfdi);
 router.get('/entregas/:id/cfdi',           c.cfdiInfo);
+
+// Facturación consolidada de remisiones (1..N remisiones del mismo cliente → una factura)
+router.get('/remisiones/pendientes',          rf.pendientes);
+router.post('/remisiones/consolidar/resumen', rf.resumen);
+router.post('/remisiones/consolidar',         rf.consolidar);
+router.get('/remisiones/facturas',            rf.facturasPendientes);
+router.delete('/remisiones/facturas/:id',     rf.descartar);
 
 module.exports = router;

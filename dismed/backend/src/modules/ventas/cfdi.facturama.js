@@ -344,6 +344,8 @@ async function cancelarCfdi(entregaId, { motivo, uuidSustituye } = {}) {
       [motivo, uuidSustituye || null, JSON.stringify(acuse), comp.id]
     );
     await conn.query("UPDATE entregas SET estatus_cfdi = 'cancelado' WHERE id = ?", [entregaId]);
+    // Factura consolidada cancelada: sus remisiones quedan libres para facturarse de nuevo.
+    await conn.query('UPDATE entregas SET factura_id = NULL WHERE factura_id = ?', [entregaId]);
     await conn.commit();
   } catch (err) { await conn.rollback(); throw err; } finally { conn.release(); }
 
@@ -359,10 +361,13 @@ async function cargarEntregaCfdi(id) {
             p.folio AS pedido_folio
      FROM entregas e
      JOIN clientes c ON c.id = e.cliente_id
-     JOIN pedidos_cliente p ON p.id = e.pedido_id
+     LEFT JOIN pedidos_cliente p ON p.id = e.pedido_id
      WHERE e.id = ?`, [id]
   );
   if (!ent) return null;
+  // Factura consolidada: los lotes salieron con el folio de cada remisión.
+  const [rems] = await pool.query('SELECT folio FROM entregas WHERE factura_id = ?', [id]);
+  const refs = [ent.folio, ...rems.map((r) => r.folio)];
   const [partidas] = await pool.query(
     `SELECT ep.*, pr.clave_sat, pr.clave_unidad_sat
      FROM entregas_partidas ep
@@ -374,8 +379,8 @@ async function cargarEntregaCfdi(id) {
     `SELECT m.producto_id, l.numero_lote AS lote, l.fecha_caducidad AS caducidad
      FROM inventario_movimientos m
      JOIN inventario_lotes l ON l.id = m.lote_id
-     WHERE m.tipo = 'salida' AND m.referencia = ? AND l.numero_lote <> ?
-     ORDER BY m.id`, [ent.folio, LOTE_GENERICO]
+     WHERE m.tipo = 'salida' AND m.referencia IN (?) AND l.numero_lote <> ?
+     ORDER BY m.id`, [refs, LOTE_GENERICO]
   );
   const lotesPorProducto = new Map();
   for (const m of movs) {

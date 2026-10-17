@@ -29,6 +29,7 @@ export const MENU = {
         { key: 'cotizaciones', to: '/cotizaciones',   label: 'Cotizaciones',      icon: FileText },
         { key: 'pedidos',      to: '/ventas/pedidos', label: 'Pedidos / Surtido', icon: ShoppingCart },
         { key: 'pedidos',      to: '/ventas/ordenes-compra', label: 'Órdenes de compra', icon: PackageCheck },
+        { key: 'pedidos',      to: '/ventas/facturar-remisiones', label: 'Facturar remisiones', icon: Receipt },
         { key: 'cobranza',     to: '/cobranza',       label: 'Cobranza',          icon: Wallet },
       ],
     },

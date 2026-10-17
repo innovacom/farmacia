@@ -80,7 +80,7 @@ function validarFactura({ entrega, cliente, partidas }) {
 async function cargarFactura(entregaId) {
   const [[entrega]] = await pool.query(
     `SELECT e.*, p.folio AS pedido_folio FROM entregas e
-     JOIN pedidos_cliente p ON p.id = e.pedido_id WHERE e.id = ?`, [entregaId]
+     LEFT JOIN pedidos_cliente p ON p.id = e.pedido_id WHERE e.id = ?`, [entregaId]
   );
   if (!entrega) return null;
   const [[cliente]] = await pool.query('SELECT * FROM clientes WHERE id = ?', [entrega.cliente_id]);
