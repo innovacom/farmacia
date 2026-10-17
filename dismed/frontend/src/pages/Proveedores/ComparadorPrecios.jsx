@@ -106,6 +106,8 @@ export default function ComparadorPrecios() {
   // Márgenes como texto (captura libre); se parsean al construir el payload.
   const [margenGlobal, setMargenGlobal] = useState('20');
   const [margenPorPartida, setMargenPorPartida] = useState({});
+  // Precio de venta fijado manualmente por partida (texto); pisa al margen
+  const [precioVentaFijo, setPrecioVentaFijo] = useState({});
   // Override local del flag IVA por partida (1 = exento / no calcula IVA, 0 = sí calcula)
   const [ivaExentoOverride, setIvaExentoOverride] = useState({});
 
@@ -124,6 +126,21 @@ export default function ComparadorPrecios() {
 
   function setMargenPartida(partidaId, val) {
     setMargenPorPartida((prev) => ({ ...prev, [partidaId]: val }));
+    // Al cambiar el margen se recalcula el precio: descarta el precio fijo
+    setPrecioVentaFijo((prev) => {
+      if (!(partidaId in prev)) return prev;
+      const { [partidaId]: _, ...rest } = prev;
+      return rest;
+    });
+  }
+
+  // Precio de venta calculado (mejor compra × margen) o el fijado a mano
+  function getPrecioVenta(p) {
+    if (precioVentaFijo[p.id] != null) return precioVentaFijo[p.id];
+    const mejor = Object.values(p.precios).find((pr) => pr.es_mejor_precio && pr.disponible);
+    const compra = parseFloat(mejor?.precio_unitario) || 0;
+    if (!compra) return '';
+    return (Math.round(compra * (1 + num(getMargenPartida(p.id)) / 100) * 100) / 100).toFixed(2);
   }
 
   // IVA: 1 = exento (NO calcula IVA), 0 = sí calcula. Default = calcular (0).
@@ -201,7 +218,9 @@ export default function ComparadorPrecios() {
         observaciones:        p.observaciones || null,
         precio_compra:        parseFloat(mejor?.precio_unitario) || 0,
         margen_pct:           num(getMargenPartida(p.id)),
-        iva_exento:           getIvaExento(p),
+        precio_venta:         precioVentaFijo[p.id] != null && num(precioVentaFijo[p.id]) > 0
+                                ? num(precioVentaFijo[p.id]) : undefined,
+        iva_exento:          getIvaExento(p),
       };
     });
   }
@@ -329,6 +348,7 @@ export default function ComparadorPrecios() {
                 <th className="px-3 py-2 text-center font-semibold text-gray-500 border-b border-gray-200 w-28">Proveedor</th>
                 <th className="px-3 py-2 text-center font-semibold text-gray-500 border-b border-gray-200 w-14">Cant.</th>
                 <th className="px-3 py-2 text-center font-semibold text-gray-500 border-b border-gray-200 w-20">% Margen</th>
+                <th className="px-3 py-2 text-center font-semibold text-gray-500 border-b border-gray-200 w-28" title="Mejor precio de compra × margen. Editable para fijar un precio exacto">Precio venta</th>
                 <th className="px-3 py-2 text-center font-semibold text-gray-500 border-b border-gray-200 w-16" title="Marca para calcular IVA (16%) a esta partida">IVA 16%</th>
                 {proveedores.map((prov) => (
                   <th key={prov} className="px-3 py-2 text-center font-semibold text-gray-500 border-b border-gray-200 min-w-[130px]">
@@ -369,6 +389,25 @@ export default function ComparadorPrecios() {
                       value={getMargenPartida(p.id)}
                       onChange={(e) => setMargenPartida(p.id, e.target.value)}
                       title="Margen individual para esta partida"
+                    />
+                  </td>
+                  <td className="px-2 py-1 text-center">
+                    <input
+                      type="text" inputMode="decimal"
+                      className={`input text-xs text-right w-24 ${precioVentaFijo[p.id] != null ? 'border-brand-400 bg-brand-50' : ''}`}
+                      value={getPrecioVenta(p)}
+                      disabled={!mejor}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(',', '.');
+                        if (v !== '' && !/^\d*\.?\d*$/.test(v)) return;
+                        setPrecioVentaFijo((prev) => ({ ...prev, [p.id]: v }));
+                      }}
+                      onBlur={() => {
+                        if (precioVentaFijo[p.id] === '') setPrecioVentaFijo((prev) => {
+                          const { [p.id]: _, ...rest } = prev; return rest;
+                        });
+                      }}
+                      title="Precio unitario de venta (editable). Al cambiar el % de margen se recalcula."
                     />
                   </td>
                   <td className="px-2 py-1 text-center">

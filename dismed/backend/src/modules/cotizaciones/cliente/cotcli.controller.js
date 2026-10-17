@@ -110,14 +110,22 @@ async function create(req, res, next) {
     // Calcular partidas — IVA ya no va en subtotal/iva del header (se calcula por línea)
     let subtotal = 0;
     const partidasCalc = partidas.map((p, i) => {
-      const margen      = parseFloat(p.margen_pct) || 0;
+      let margen        = parseFloat(p.margen_pct) || 0;
       // Sin mejor precio registrado (partida sin cotizar a proveedor), el
       // costo real es 0 — mismo comportamiento que ya tenía el frontend.
       const precioCompra = precioRealPorPartida.get(p.partida_solicitud_id) ?? 0;
-      const precioVenta  = precioCompra * (1 + margen / 100);
+      // Precio de venta exacto capturado por el usuario (override del margen)
+      const precioFijo   = parseFloat(p.precio_venta);
+      let precioVenta;
+      if (Number.isFinite(precioFijo) && precioFijo > 0) {
+        precioVenta = precioFijo;
+        if (precioCompra > 0) margen = Math.round((precioVenta / precioCompra - 1) * 10000) / 100;
+      } else {
+        precioVenta = precioCompra * (1 + margen / 100);
+      }
       const importe      = precioVenta * parseFloat(p.cantidad);
       subtotal += importe;
-      return { ...p, linea: p.linea ?? (i + 1), precio_compra: precioCompra,
+      return { ...p, margen_pct: margen, linea: p.linea ?? (i + 1), precio_compra: precioCompra,
                precio_unitario_venta: precioVenta, importe };
     });
 
