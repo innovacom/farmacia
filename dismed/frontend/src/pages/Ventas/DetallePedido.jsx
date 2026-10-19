@@ -10,6 +10,7 @@ import ProductoPicker from '../../components/shared/ProductoPicker';
 
 const fmt = (n) => Number(n || 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
 const OC_BADGE = { abierta: 'badge-blue', parcial: 'badge-yellow', recibida: 'badge-green', cancelada: 'badge-red' };
+const ENT_BADGE = { pendiente: 'badge-yellow', confirmada: 'badge-green', cancelada: 'badge-red' };
 const CFDI_BADGE = { pendiente: 'badge-gray', generado: 'badge-blue', timbrado: 'badge-green', cancelado: 'badge-red' };
 
 // Catálogos SAT (mínimos; ampliar cuando llegue la spec del PAC)
@@ -127,7 +128,7 @@ function EntregaModal({ pedido, onClose, onDone }) {
   const [lineas, setLineas] = useState(() => {
     const init = {};
     (pedido.partidas || []).forEach((p) => {
-      const max = Math.min(Number(p.cantidad_asignada) - Number(p.cantidad_entregada), Math.floor(Number(p.stock)));
+      const max = Number(p.sugerido_entrega) || 0;
       if (max > 0) init[p.id] = String(max);
     });
     return init;
@@ -143,9 +144,7 @@ function EntregaModal({ pedido, onClose, onDone }) {
   const mut = useMutation({
     mutationFn: (body) => api.post(`/ventas/pedidos/${pedido.id}/entregas`, body),
     onSuccess: (res) => {
-      toast.success(`${res.data.tipo === 'factura' ? 'Factura' : 'Remisión'} ${res.data.folio} generada`);
-      if (res.data.url) window.open(res.data.url, '_blank');
-      if (res.data.cfdi_txt) window.open(res.data.cfdi_txt, '_blank');
+      toast.success(`${res.data.tipo === 'factura' ? 'Factura' : 'Remisión'} ${res.data.folio} creada · pendiente de confirmar (aún no descuenta inventario)`);
       onDone();
     },
     onError: (e) => {
@@ -210,21 +209,21 @@ function EntregaModal({ pedido, onClose, onDone }) {
             <p className="text-xs text-red-500 mt-2">Captura los datos del cliente o del producto y vuelve a intentar.</p>
           </div>
         )}
-        <p className="text-xs text-gray-400">Se sugiere surtir con la existencia que ya hay en almacén (aunque no se haya recibido de proveedor para este pedido); puedes ajustar las cantidades. Se descuenta por FEFO (caduca primero).</p>
+        <p className="text-xs text-gray-400">Se sugiere surtir con la mercancía reservada para este pedido y la existencia libre en almacén; puedes ajustar las cantidades. La entrega queda PENDIENTE: el inventario se descuenta (FEFO, caduca primero) hasta que la confirmes.</p>
         <div className="overflow-x-auto border border-gray-100 rounded-lg">
           <table className="w-full text-xs">
-            <thead className="bg-gray-50"><tr><th className="px-2 py-1 text-left">SKU / Desc.</th><th className="px-2 py-1 text-right">Pedido</th><th className="px-2 py-1 text-right">Recibido</th><th className="px-2 py-1 text-right">Entregado</th><th className="px-2 py-1 text-right">Stock</th><th className="px-2 py-1">Entregar</th></tr></thead>
+            <thead className="bg-gray-50"><tr><th className="px-2 py-1 text-left">SKU / Desc.</th><th className="px-2 py-1 text-right">Pedido</th><th className="px-2 py-1 text-right">Entregado</th><th className="px-2 py-1 text-right">Reservado</th><th className="px-2 py-1 text-right">Stock libre</th><th className="px-2 py-1">Entregar</th></tr></thead>
             <tbody>
               {(pedido.partidas || []).map((p) => {
                 const pend = Number(p.cantidad_asignada) - Number(p.cantidad_entregada);
-                const max = Math.min(pend, Math.floor(Number(p.stock)));
+                const max = Number(p.sugerido_entrega) || 0;
                 return (
                   <tr key={p.id} className="border-t border-gray-100">
                     <td className="px-2 py-1"><span className="font-mono text-brand-500">{p.sku_interno}</span> <span className="text-gray-500">{p.descripcion?.substring(0, 38)}</span></td>
                     <td className="px-2 py-1 text-right">{Number(p.cantidad_asignada)}</td>
-                    <td className="px-2 py-1 text-right">{Number(p.cantidad_recibida)}</td>
                     <td className="px-2 py-1 text-right">{Number(p.cantidad_entregada)}</td>
-                    <td className="px-2 py-1 text-right">{Number(p.stock)}</td>
+                    <td className="px-2 py-1 text-right">{Number(p.cantidad_reservada)}</td>
+                    <td className="px-2 py-1 text-right">{Number(p.stock_libre)}</td>
                     <td className="px-2 py-1"><input type="number" min="0" max={max} step="1" className="input w-20 text-xs" value={lineas[p.id] || ''} disabled={max <= 0} onChange={(e) => setLineas((x) => ({ ...x, [p.id]: e.target.value }))} /></td>
                   </tr>
                 );
@@ -233,8 +232,104 @@ function EntregaModal({ pedido, onClose, onDone }) {
           </table>
         </div>
         <div className="flex gap-3 pt-1">
-          <button onClick={submit} disabled={mut.isPending} className="btn-primary">{mut.isPending ? <Loader2 size={15} className="animate-spin" /> : <Truck size={15} />} Generar {tipo === 'factura' ? 'factura' : 'remisión'}</button>
+          <button onClick={submit} disabled={mut.isPending} className="btn-primary">{mut.isPending ? <Loader2 size={15} className="animate-spin" /> : <Truck size={15} />} Crear {tipo === 'factura' ? 'factura' : 'remisión'} (pendiente)</button>
           <button onClick={onClose} className="btn-secondary">Cancelar</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ── Modal de órdenes de compra: lo reservado del inventario NO se pide salvo que se marque ──
+function OCModal({ pedido, onClose, onDone }) {
+  const reservadas = (pedido.partidas || []).filter((p) => p.proveedor_id && Number(p.cantidad_reservada) - Number(p.en_entrega_pendiente) > 0);
+  const [incluir, setIncluir] = useState({});
+  const mut = useMutation({
+    mutationFn: (body) => api.post(`/ventas/pedidos/${pedido.id}/ordenes-compra`, body),
+    onSuccess: (res) => { toast.success(`${res.data.ordenes} orden(es) de compra generada(s)`); onDone(); },
+    onError: (e) => toast.error(e.response?.data?.error || 'Error'),
+  });
+  return (
+    <Modal size="lg" title="Generar órdenes de compra" onClose={onClose}>
+      <div className="space-y-3">
+        <p className="text-sm text-gray-600">Se pedirá a proveedores únicamente lo que falta por cubrir. La mercancía que ya está <b>reservada del inventario</b> para este pedido no se solicita.</p>
+        {reservadas.length > 0 && (
+          <div className="border border-gray-100 rounded-lg overflow-x-auto">
+            <p className="text-xs text-gray-500 px-2 py-1 bg-gray-50">Marca solo si quieres pedir también al proveedor lo reservado (se libera esa reserva en almacén):</p>
+            <table className="w-full text-xs">
+              <thead className="bg-gray-50"><tr><th className="px-2 py-1"></th><th className="px-2 py-1 text-left">SKU / Desc.</th><th className="px-2 py-1 text-right">Reservado</th></tr></thead>
+              <tbody>
+                {reservadas.map((p) => (
+                  <tr key={p.id} className="border-t border-gray-100">
+                    <td className="px-2 py-1"><input type="checkbox" checked={!!incluir[p.id]} onChange={(e) => setIncluir((x) => ({ ...x, [p.id]: e.target.checked }))} /></td>
+                    <td className="px-2 py-1"><span className="font-mono text-brand-500">{p.sku_interno}</span> <span className="text-gray-500">{p.descripcion?.substring(0, 40)}</span></td>
+                    <td className="px-2 py-1 text-right">{Number(p.cantidad_reservada) - Number(p.en_entrega_pendiente)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div className="flex gap-3 pt-1">
+          <button onClick={() => mut.mutate({ incluir_reservado_partidas: Object.keys(incluir).filter((k) => incluir[k]).map(Number) })} disabled={mut.isPending} className="btn-primary">
+            {mut.isPending ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />} Generar
+          </button>
+          <button onClick={onClose} className="btn-secondary">Cancelar</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ── Modal de cancelación de entrega pendiente (parcial o completa, con motivo) ──
+function CancelarEntregaModal({ entrega, onClose, onDone }) {
+  const [completa, setCompleta] = useState(true);
+  const [lineas, setLineas] = useState({});
+  const [motivo, setMotivo] = useState('');
+  const mut = useMutation({
+    mutationFn: (body) => api.post(`/ventas/entregas/${entrega.id}/cancelar`, body),
+    onSuccess: (res) => { toast.success(res.data.estatus === 'cancelada' ? 'Entrega cancelada' : 'Cancelación parcial registrada'); onDone(); },
+    onError: (e) => toast.error(e.response?.data?.error || 'Error'),
+  });
+  function submit() {
+    if (motivo.trim().length < 3) return toast.error('Indica el motivo de la cancelación');
+    if (completa) return mut.mutate({ motivo: motivo.trim() });
+    const partidas = (entrega.partidas || []).filter((l) => Number(lineas[l.id]) > 0).map((l) => ({ entrega_partida_id: l.id, cantidad: Number(lineas[l.id]) }));
+    if (!partidas.length) return toast.error('Captura las cantidades a cancelar');
+    mut.mutate({ motivo: motivo.trim(), partidas });
+  }
+  return (
+    <Modal size="lg" title={`Cancelar entrega ${entrega.folio}`} onClose={onClose}>
+      <div className="space-y-3">
+        <div className="flex gap-2">
+          {[[true, 'Entrega completa'], [false, 'Parcial (por partida)']].map(([v, l]) => (
+            <button key={l} onClick={() => setCompleta(v)} className={`px-4 py-2 rounded-lg text-sm font-medium border ${completa === v ? 'border-brand-500 bg-brand-50 text-brand-500' : 'border-gray-200 text-gray-600'}`}>{l}</button>
+          ))}
+        </div>
+        {!completa && (
+          <div className="border border-gray-100 rounded-lg overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-gray-50"><tr><th className="px-2 py-1 text-left">SKU / Desc.</th><th className="px-2 py-1 text-right">En la entrega</th><th className="px-2 py-1">Cancelar</th></tr></thead>
+              <tbody>
+                {(entrega.partidas || []).map((l) => (
+                  <tr key={l.id} className="border-t border-gray-100">
+                    <td className="px-2 py-1"><span className="font-mono text-brand-500">{l.sku_interno}</span> <span className="text-gray-500">{l.descripcion?.substring(0, 38)}</span></td>
+                    <td className="px-2 py-1 text-right">{Number(l.cantidad)}</td>
+                    <td className="px-2 py-1"><input type="number" min="0" max={Number(l.cantidad)} step="1" className="input w-20 text-xs" value={lineas[l.id] || ''} onChange={(e) => setLineas((x) => ({ ...x, [l.id]: e.target.value }))} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div>
+          <label className="label">Motivo de la cancelación *</label>
+          <textarea className="input text-sm" rows={3} maxLength={300} value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ej. El cliente redujo su pedido / producto en mal estado / error de captura" />
+        </div>
+        <p className="text-xs text-gray-400">La entrega aún no descuenta inventario, así que no hay movimiento de almacén; la mercancía sigue reservada para el pedido.</p>
+        <div className="flex gap-3 pt-1">
+          <button onClick={submit} disabled={mut.isPending} className="btn-primary">{mut.isPending ? <Loader2 size={15} className="animate-spin" /> : <Ban size={15} />} Confirmar cancelación</button>
+          <button onClick={onClose} className="btn-secondary">Volver</button>
         </div>
       </div>
     </Modal>
@@ -248,19 +343,36 @@ export default function DetallePedido() {
   const { confirmar, dialogoConfirm } = useConfirm();
   const [recOC, setRecOC] = useState(null);
   const [showEntrega, setShowEntrega] = useState(false);
+  const [showOC, setShowOC] = useState(false);
+  const [cancelEnt, setCancelEnt] = useState(null);
+  const [confirmando, setConfirmando] = useState(null);
   const [timbrando, setTimbrando] = useState(null);
 
   const { data: ped, isLoading } = useQuery({
     queryKey: ['pedido', id], queryFn: () => api.get(`/ventas/pedidos/${id}`).then((r) => r.data),
   });
 
-  const genOC = useMutation({
-    mutationFn: () => api.post(`/ventas/pedidos/${id}/ordenes-compra`),
-    onSuccess: (res) => { toast.success(`${res.data.ordenes} orden(es) de compra generada(s)`); refrescar(); },
-    onError: (e) => toast.error(e.response?.data?.error || 'Error'),
-  });
-
-  function refrescar() { qc.invalidateQueries(['pedido', id]); setRecOC(null); setShowEntrega(false); }
+  function refrescar() { qc.invalidateQueries(['pedido', id]); setRecOC(null); setShowEntrega(false); setShowOC(false); setCancelEnt(null); }
+  // Confirma una entrega pendiente: aquí se descuenta el inventario y se emite el documento.
+  async function confirmarEntrega(ent) {
+    const ok = await confirmar(
+      `Se descontará del inventario (FEFO) la mercancía de ${ent.folio} y se emitirá el documento. ¿Confirmar la entrega?`,
+      { titulo: 'Confirmar entrega', textoConfirmar: 'Confirmar entrega' }
+    );
+    if (!ok) return;
+    setConfirmando(ent.id);
+    try {
+      const { data } = await api.post(`/ventas/entregas/${ent.id}/confirmar`);
+      toast.success(`${data.tipo === 'factura' ? 'Factura' : 'Remisión'} ${data.folio} confirmada`);
+      if (data.url) window.open(data.url, '_blank');
+      if (data.cfdi_txt) window.open(data.cfdi_txt, '_blank');
+      refrescar();
+    } catch (e) {
+      const d = e.response?.data;
+      if (e.response?.status === 422 && Array.isArray(d?.faltantes)) toast.error(`Faltan datos: ${d.faltantes.slice(0, 3).join('; ')}${d.faltantes.length > 3 ? '…' : ''}`);
+      else toast.error(d?.error || 'Error al confirmar la entrega');
+    } finally { setConfirmando(null); }
+  }
   async function abrirPdf(url) { if (url) window.open(url, '_blank'); }
   async function pdfOC(ocId) { const { data } = await api.get(`/ventas/ordenes-compra/${ocId}/pdf`); abrirPdf(data.url); }
   async function descargarTxt(entId) {
@@ -320,9 +432,7 @@ export default function DetallePedido() {
           <p className="text-sm text-gray-500">{ped.cliente}{ped.sucursal ? ` · ${ped.sucursal}` : ''} · Cotización <Link to={`/cotizaciones/${ped.cotizacion_id}`} className="text-brand-500">{ped.cotizacion_folio}</Link></p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => genOC.mutate()} disabled={genOC.isPending} className="btn-secondary">
-            {genOC.isPending ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />} Generar órdenes de compra
-          </button>
+          <button onClick={() => setShowOC(true)} className="btn-secondary"><FileText size={15} /> Generar órdenes de compra</button>
           <button onClick={() => setShowEntrega(true)} className="btn-primary"><Truck size={15} /> Generar entrega</button>
         </div>
       </div>
@@ -331,7 +441,7 @@ export default function DetallePedido() {
       <div className="card overflow-x-auto">
         <h2 className="font-semibold text-gray-800 mb-3">Partidas del pedido</h2>
         <table className="table-auto w-full text-sm">
-          <thead><tr><th>SKU</th><th>Descripción</th><th>Proveedor</th><th className="text-right">Asignado</th><th className="text-right">Recibido</th><th className="text-right">Entregado</th><th className="text-right">Stock</th></tr></thead>
+          <thead><tr><th>SKU</th><th>Descripción</th><th>Proveedor</th><th className="text-right">Asignado</th><th className="text-right">Recibido</th><th className="text-right">Reservado</th><th className="text-right">Entregado</th><th className="text-right">Stock</th></tr></thead>
           <tbody>
             {ped.partidas?.map((p) => (
               <tr key={p.id}>
@@ -340,6 +450,7 @@ export default function DetallePedido() {
                 <td className="text-xs">{p.proveedor || <span className="text-amber-500">sin proveedor</span>}</td>
                 <td className="text-right">{Number(p.cantidad_asignada)}</td>
                 <td className="text-right">{Number(p.cantidad_recibida)}</td>
+                <td className="text-right">{Number(p.cantidad_reservada) > 0 ? <span className="badge-blue">{Number(p.cantidad_reservada)}</span> : 0}</td>
                 <td className="text-right">{Number(p.cantidad_entregada)}</td>
                 <td className="text-right">{Number(p.stock)}</td>
               </tr>
@@ -352,7 +463,7 @@ export default function DetallePedido() {
       <div className="card">
         <h2 className="font-semibold text-gray-800 mb-3">Órdenes de compra</h2>
         {(!ped.ordenes_compra || ped.ordenes_compra.length === 0) ? (
-          <p className="text-sm text-gray-400">Aún no se generan. Usa «Generar órdenes de compra».</p>
+          <p className="text-sm text-gray-400">Aún no se generan. Usa «Generar órdenes de compra» (no se pide lo reservado del inventario).</p>
         ) : (
           <table className="table-auto w-full text-sm">
             <thead><tr><th>Folio</th><th>Proveedor</th><th className="text-right">Total</th><th className="text-center">Estatus</th><th></th></tr></thead>
@@ -383,23 +494,35 @@ export default function DetallePedido() {
           <p className="text-sm text-gray-400">Sin entregas todavía.</p>
         ) : (
           <table className="table-auto w-full text-sm">
-            <thead><tr><th>Folio</th><th>Tipo</th><th className="text-right">Total</th><th className="text-center">CFDI</th><th>Fecha</th><th></th></tr></thead>
+            <thead><tr><th>Folio</th><th>Tipo</th><th className="text-right">Total</th><th className="text-center">Estatus</th><th className="text-center">CFDI</th><th>Fecha</th><th></th></tr></thead>
             <tbody>
               {ped.entregas.map((e) => (
                 <tr key={e.id}>
                   <td className="font-mono text-brand-500">{e.folio}</td>
                   <td className="capitalize">{e.tipo}{e.factura_folio && <span className="ml-2 badge-green normal-case">facturada en {e.factura_folio}</span>}{e.tipo === 'remision' && !e.factura_folio && <Link to="/ventas/facturar-remisiones" className="ml-2 text-xs normal-case text-brand-500 hover:underline">Facturar…</Link>}</td>
                   <td className="text-right">{fmt(e.total)}</td>
-                  <td className="text-center">{e.tipo === 'factura' ? <span className={CFDI_BADGE[e.estatus_cfdi] || 'badge-gray'}>{e.estatus_cfdi || 'pendiente'}</span> : <span className="text-gray-300">—</span>}</td>
+                  <td className="text-center">
+                    <span className={ENT_BADGE[e.estatus] || 'badge-gray'}>{e.estatus}</span>
+                    {e.estatus === 'cancelada' && e.motivo_cancelacion && <p className="text-xs text-gray-400 max-w-[14rem] mx-auto truncate" title={e.motivo_cancelacion}>{e.motivo_cancelacion}</p>}
+                  </td>
+                  <td className="text-center">{e.tipo === 'factura' && e.estatus === 'confirmada' ? <span className={CFDI_BADGE[e.estatus_cfdi] || 'badge-gray'}>{e.estatus_cfdi || 'pendiente'}</span> : <span className="text-gray-300">—</span>}</td>
                   <td>{new Date(e.created_at).toLocaleDateString('es-MX')}</td>
                   <td className="text-right whitespace-nowrap">
-                    <button onClick={async () => { const { data } = await api.get(`/ventas/entregas/${e.id}/pdf`); abrirPdf(data.url); }} className="text-xs text-gray-500 hover:text-brand-500 mr-3"><Download size={14} className="inline" /> PDF</button>
-                    {e.tipo === 'factura' && e.estatus_cfdi !== 'timbrado' && e.estatus_cfdi !== 'cancelado' && (
+                    {e.estatus === 'pendiente' && (
+                      <>
+                        <button onClick={() => confirmarEntrega(e)} disabled={confirmando === e.id} className="text-xs text-emerald-600 hover:underline mr-3">
+                          {confirmando === e.id ? <Loader2 size={14} className="inline animate-spin" /> : <PackageCheck size={14} className="inline" />} Confirmar
+                        </button>
+                        <button onClick={() => setCancelEnt(e)} className="text-xs text-red-500 hover:underline"><Ban size={14} className="inline" /> Cancelar</button>
+                      </>
+                    )}
+                    {e.estatus === 'confirmada' && <button onClick={async () => { const { data } = await api.get(`/ventas/entregas/${e.id}/pdf`); abrirPdf(data.url); }} className="text-xs text-gray-500 hover:text-brand-500 mr-3"><Download size={14} className="inline" /> PDF</button>}
+                    {e.estatus === 'confirmada' && e.tipo === 'factura' && e.estatus_cfdi !== 'timbrado' && e.estatus_cfdi !== 'cancelado' && (
                       <button onClick={() => timbrar(e.id)} disabled={timbrando === e.id} className="text-xs text-emerald-600 hover:underline mr-3">
                         {timbrando === e.id ? <Loader2 size={14} className="inline animate-spin" /> : <Stamp size={14} className="inline" />} Timbrar
                       </button>
                     )}
-                    {e.tipo === 'factura' && e.estatus_cfdi === 'timbrado' && (
+                    {e.estatus === 'confirmada' && e.tipo === 'factura' && e.estatus_cfdi === 'timbrado' && (
                       <>
                         <button onClick={() => descargarCfdi(e.id, 'pdf')} className="text-xs text-brand-500 hover:underline mr-3"><Download size={14} className="inline" /> PDF CFDI</button>
                         <button onClick={() => descargarCfdi(e.id, 'xml')} className="text-xs text-gray-500 hover:text-brand-500 mr-3"><FileText size={14} className="inline" /> XML</button>
@@ -416,6 +539,8 @@ export default function DetallePedido() {
 
       {recOC && <RecepcionModal ocId={recOC} onClose={() => setRecOC(null)} onDone={refrescar} />}
       {showEntrega && <EntregaModal pedido={ped} onClose={() => setShowEntrega(false)} onDone={refrescar} />}
+      {showOC && <OCModal pedido={ped} onClose={() => setShowOC(false)} onDone={refrescar} />}
+      {cancelEnt && <CancelarEntregaModal entrega={cancelEnt} onClose={() => setCancelEnt(null)} onDone={refrescar} />}
 
       {dialogoConfirm}
     </div>

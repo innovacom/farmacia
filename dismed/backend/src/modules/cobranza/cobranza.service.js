@@ -18,7 +18,7 @@ const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
  * `db` puede ser el pool o una conexión (para leer dentro de una transacción).
  */
 async function facturas(db, { clienteId, sucursalId, soloConSaldo = false } = {}) {
-  const where = ["e.tipo = 'factura'", "(e.estatus_cfdi IS NULL OR e.estatus_cfdi <> 'cancelado')"];
+  const where = ["e.tipo = 'factura'", "e.estatus = 'confirmada'", "(e.estatus_cfdi IS NULL OR e.estatus_cfdi <> 'cancelado')"];
   const params = [];
   if (clienteId) { where.push('e.cliente_id = ?'); params.push(clienteId); }
   if (sucursalId) { where.push('e.sucursal_id = ?'); params.push(sucursalId); }

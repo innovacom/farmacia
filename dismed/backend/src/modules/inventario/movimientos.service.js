@@ -172,7 +172,9 @@ async function registrarAjuste(conn, d) {
 // venta de mostrador (POS) para descontar solo del almacén de la sucursal; sin él,
 // el comportamiento es el de siempre (todos los almacenes).
 // Devuelve además el desglose de lotes consumidos (para la bitácora COFEPRIS del POS).
-async function registrarSalidaFEFO(conn, { producto_id, cantidad, motivo = null, referencia = null, usuario_id = null, almacen_id = null }) {
+// Reservas: por defecto NO se pueden sacar piezas apartadas para pedidos de cliente
+// (pedidos_cliente_partidas.cantidad_reservada); solo la entrega del propio pedido pasa `usarReservado: true`.
+async function registrarSalidaFEFO(conn, { producto_id, cantidad, motivo = null, referencia = null, usuario_id = null, almacen_id = null, usarReservado = false }) {
   const cant = parseFloat(cantidad);
   if (!(cant > 0)) throw Object.assign(new Error('Cantidad debe ser > 0'), { status: 400 });
   const params = [producto_id];
@@ -184,9 +186,19 @@ async function registrarSalidaFEFO(conn, { producto_id, cantidad, motivo = null,
      ORDER BY fecha_caducidad IS NULL, fecha_caducidad ASC, id ASC
      FOR UPDATE`, params
   );
-  const disponible = lotes.reduce((a, l) => a + Number(l.cantidad_actual), 0);
+  let disponible = lotes.reduce((a, l) => a + Number(l.cantidad_actual), 0);
+  if (!usarReservado) {
+    const [[ex]] = await conn.query('SELECT COALESCE(SUM(cantidad_actual), 0) AS t FROM inventario_lotes WHERE producto_id = ?', [producto_id]);
+    let reservado = 0;
+    try {
+      const [[rs]] = await conn.query('SELECT COALESCE(SUM(cantidad_reservada), 0) AS t FROM pedidos_cliente_partidas WHERE producto_id = ?', [producto_id]);
+      reservado = Number(rs.t);
+    } catch (e) { if (e.code !== 'ER_BAD_FIELD_ERROR') throw e; } // instancia aún sin migrate_v78
+    const libre = Math.max(0, Number(ex.t) - reservado);
+    if (libre < disponible) disponible = libre;
+  }
   if (disponible < cant) {
-    throw Object.assign(new Error(`Existencia insuficiente (disponible: ${disponible}, requerido: ${cant})`), { status: 400, disponible });
+    throw Object.assign(new Error(`Existencia insuficiente (disponible: ${disponible}${usarReservado ? '' : ', sin contar lo reservado para pedidos de cliente'}, requerido: ${cant})`), { status: 400, disponible });
   }
   let resta = cant;
   const folios = [];

@@ -1,5 +1,6 @@
 const { pool } = require('../../config/db');
 const svc = require('../inventario/movimientos.service');
+const reservas = require('./reservas.service');
 const { ejecutarRecepcion } = require('./recepcion.service');
 const { generarOcPdf, generarEntregaPdf } = require('./ventas.pdf');
 const { validarFactura, generarCfdiTxt } = require('./cfdi.txt.generator');
@@ -75,9 +76,11 @@ async function crearPedido(req, res, next) {
         sin_permiso_credito: req.user?.rol !== 'admin',
       });
     }
+    // Pedido en firme: aparta del inventario lo que ya hay disponible (no se vuelve a pedir a proveedor).
+    const piezasReservadas = await reservas.reservarPedido(conn, pedidoId);
     await conn.query("UPDATE cotizaciones_cliente SET estatus = 'aceptada' WHERE id = ? AND estatus <> 'aceptada'", [cotizacion_id]);
     await conn.commit();
-    res.status(201).json({ id: pedidoId, folio, aviso_credito: cred.avisos.length ? cred.avisos.join(' ') : null });
+    res.status(201).json({ id: pedidoId, folio, piezas_reservadas: piezasReservadas, aviso_credito: cred.avisos.length ? cred.avisos.join(' ') : null });
   } catch (err) { await conn.rollback(); next(err); } finally { conn.release(); }
 }
 
@@ -109,21 +112,40 @@ async function getPedido(req, res, next) {
     if (!ped) return res.status(404).json({ error: 'Pedido no encontrado' });
     const [partidas] = await pool.query(
       `SELECT pp.*, pr.nombre_empresa AS proveedor,
-              COALESCE((SELECT SUM(cantidad_actual) FROM inventario_lotes il WHERE il.producto_id = pp.producto_id), 0) AS stock
+              COALESCE((SELECT SUM(cantidad_actual) FROM inventario_lotes il WHERE il.producto_id = pp.producto_id), 0) AS stock,
+              COALESCE((SELECT SUM(x.cantidad_reservada) FROM pedidos_cliente_partidas x WHERE x.producto_id = pp.producto_id), 0) AS reservado_total,
+              COALESCE((SELECT SUM(ep.cantidad) FROM entregas_partidas ep JOIN entregas e ON e.id = ep.entrega_id
+                         WHERE ep.pedido_partida_id = pp.id AND e.estatus = 'pendiente'), 0) AS en_entrega_pendiente
        FROM pedidos_cliente_partidas pp
        LEFT JOIN proveedores pr ON pr.id = pp.proveedor_id
        WHERE pp.pedido_id = ? ORDER BY pp.id`, [req.params.id]
     );
+    for (const p of partidas) {
+      const existencia = Number(p.stock), reservadoTotal = Number(p.reservado_total);
+      p.stock_libre = Math.max(0, existencia - reservadoTotal);
+      const porEntregar = Number(p.cantidad_asignada) - Number(p.cantidad_entregada) - Number(p.en_entrega_pendiente);
+      // Sugerido: lo reservado para este pedido (sin comprometer) + lo que quede libre en almacén.
+      const propio = Number(p.cantidad_reservada) - Number(p.en_entrega_pendiente);
+      p.sugerido_entrega = Math.max(0, Math.floor(Math.min(porEntregar, propio + p.stock_libre)));
+    }
     const [ocs] = await pool.query(
       `SELECT oc.*, pr.nombre_empresa AS proveedor FROM ordenes_compra oc
        JOIN proveedores pr ON pr.id = oc.proveedor_id WHERE oc.pedido_id = ? ORDER BY oc.id`, [req.params.id]
     );
     const [entregas] = await pool.query(
-      `SELECT e.id, e.folio, e.tipo, e.total, e.pdf_path, e.cfdi_txt_path, e.estatus_cfdi, e.created_at, f.folio AS factura_folio
+      `SELECT e.id, e.folio, e.tipo, e.total, e.pdf_path, e.cfdi_txt_path, e.estatus_cfdi, e.created_at, f.folio AS factura_folio,
+              e.estatus, e.motivo_cancelacion, e.cancelada_at
          FROM entregas e LEFT JOIN entregas f ON f.id = e.factura_id
         WHERE e.pedido_id = ? OR e.id IN (SELECT r.factura_id FROM entregas r WHERE r.pedido_id = ? AND r.factura_id IS NOT NULL)
         ORDER BY e.id DESC`, [req.params.id, req.params.id]
     );
+    // Líneas de las entregas pendientes (para confirmar / cancelar parcialmente)
+    const pendIds = entregas.filter((e) => e.estatus === 'pendiente').map((e) => e.id);
+    if (pendIds.length) {
+      const [lineas] = await pool.query(
+        'SELECT id, entrega_id, pedido_partida_id, sku_interno, descripcion, cantidad FROM entregas_partidas WHERE entrega_id IN (?) ORDER BY id', [pendIds]);
+      for (const e of entregas) e.partidas = lineas.filter((l) => l.entrega_id === e.id);
+    }
     res.json({ ...ped, partidas, ordenes_compra: ocs, entregas });
   } catch (err) { next(err); }
 }
@@ -152,6 +174,13 @@ async function generarOC(req, res, next) {
     const [[ped]] = await conn.query('SELECT * FROM pedidos_cliente WHERE id = ?', [req.params.id]);
     if (!ped) { await conn.rollback(); return res.status(404).json({ error: 'Pedido no encontrado' }); }
 
+    // Por defecto NO se pide a proveedor lo que está reservado del inventario. Solo si el usuario lo pide
+    // explícitamente (incluir_reservado_partidas = ids de partidas) se libera esa reserva y se incluye.
+    const incluirIds = new Set((Array.isArray(req.body?.incluir_reservado_partidas) ? req.body.incluir_reservado_partidas : []).map(Number));
+    for (const id of incluirIds) {
+      const [[chk]] = await conn.query('SELECT id FROM pedidos_cliente_partidas WHERE id = ? AND pedido_id = ?', [id, req.params.id]);
+      if (chk) await reservas.liberarReservaPartida(conn, id);
+    }
     const [partidas] = await conn.query('SELECT * FROM pedidos_cliente_partidas WHERE pedido_id = ?', [req.params.id]);
     // Cantidad ya ordenada por partida
     const [yaOrd] = await conn.query(
@@ -161,15 +190,18 @@ async function generarOC(req, res, next) {
     );
     const ordMap = {}; yaOrd.forEach((x) => { ordMap[x.pedido_partida_id] = Number(x.ordenada); });
 
-    // Agrupar pendientes por proveedor
+    // Agrupar pendientes por proveedor.
+    // Cubierto = ya entregado + reservado vivo + lo ordenado que aún no llega (lo recibido ya está en reservado/entregado).
     const porProv = {};
     for (const pp of partidas) {
       if (!pp.proveedor_id) continue;
-      const pend = Number(pp.cantidad_asignada) - (ordMap[pp.id] || 0);
+      const ordenada = ordMap[pp.id] || 0;
+      const enCamino = Math.max(0, ordenada - Number(pp.cantidad_recibida));
+      const pend = Number(pp.cantidad_asignada) - Number(pp.cantidad_entregada) - Number(pp.cantidad_reservada) - enCamino;
       if (pend <= 0) continue;
       (porProv[pp.proveedor_id] = porProv[pp.proveedor_id] || []).push({ pp, pend });
     }
-    if (!Object.keys(porProv).length) { await conn.rollback(); return res.status(400).json({ error: 'No hay partidas pendientes con proveedor para generar OC' }); }
+    if (!Object.keys(porProv).length) { await conn.rollback(); return res.status(400).json({ error: 'No hay partidas pendientes por pedir a proveedor (lo reservado del inventario no se pide; si quieres pedirlo, márcalo explícitamente)' }); }
 
     const creadas = [];
     for (const [provId, items] of Object.entries(porProv)) {
@@ -261,7 +293,10 @@ async function recepcion(req, res, next) {
   } catch (err) { await conn.rollback(); if (err.status) return res.status(err.status).json({ error: err.message }); next(err); } finally { conn.release(); }
 }
 
-// ── ENTREGA al cliente (remisión/factura) → salida FEFO de inventario ──────────
+// ── ENTREGA al cliente (remisión/factura) ─────────────────────────────────────
+// Flujo: crearEntrega → 'pendiente' (sugerida; NO toca inventario, solo aparta) →
+//        confirmarEntrega → 'confirmada' (aquí se descuenta el inventario por FEFO y se emite el documento)
+//        cancelarEntrega  → 'cancelada' (total) o reduce líneas (parcial), siempre con motivo.
 async function crearEntrega(req, res, next) {
   const conn = await pool.getConnection();
   try {
@@ -279,37 +314,44 @@ async function crearEntrega(req, res, next) {
 
     const folio = await genFolio(conn, tipoFinal === 'factura' ? 'FAC' : 'REM');
     const [r] = await conn.query(
-      `INSERT INTO entregas (folio, tipo, pedido_id, cliente_id, sucursal_id, usuario_id, notas, forma_pago, metodo_pago, moneda, uso_cfdi)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO entregas (folio, tipo, estatus, pedido_id, cliente_id, sucursal_id, usuario_id, notas, forma_pago, metodo_pago, moneda, uso_cfdi)
+       VALUES (?, ?, 'pendiente', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [folio, tipoFinal, ped.id, ped.cliente_id, ped.sucursal_id || null, req.user?.id || null, String(notas || '').trim().slice(0, 300) || null,
        cfdiHeader.forma_pago, cfdiHeader.metodo_pago, cfdiHeader.moneda, cfdiHeader.uso_cfdi]
     );
     const entId = r.insertId;
-    let subtotal = 0, iva = 0;
-    const partidasFactura = []; // para validar CFDI antes de confirmar
+    let subtotal = 0, iva = 0, lineas = 0;
+    const partidasFactura = []; // para validar CFDI antes de crear
 
     for (const it of partidas) {
       const cant = parseFloat(it.cantidad);
       if (!(cant > 0)) continue;
-      const [[pp]] = await conn.query('SELECT * FROM pedidos_cliente_partidas WHERE id = ? AND pedido_id = ?', [it.pedido_partida_id, ped.id]);
+      const [[pp]] = await conn.query('SELECT * FROM pedidos_cliente_partidas WHERE id = ? AND pedido_id = ? FOR UPDATE', [it.pedido_partida_id, ped.id]);
       if (!pp) continue;
-      // Se puede surtir con existencia previa en almacén (no solo lo recibido de este pedido):
-      // el tope es lo pedido menos lo ya entregado; registrarSalidaFEFO valida el stock real.
-      const pendiente = Number(pp.cantidad_asignada) - Number(pp.cantidad_entregada);
-      if (cant > pendiente + 0.0001) { await conn.rollback(); return res.status(400).json({ error: `${pp.sku_interno}: solo quedan ${pendiente} pendientes de entregar` }); }
       if (!pp.producto_id) { await conn.rollback(); return res.status(400).json({ error: `${pp.descripcion} no tiene producto de catálogo` }); }
 
-      // Salida FEFO (valida stock disponible; no permite negativo)
-      await svc.registrarSalidaFEFO(conn, {
-        producto_id: pp.producto_id, cantidad: cant,
-        motivo: `Entrega ${folio} (${tipoFinal})`, referencia: folio, usuario_id: req.user?.id || null,
-      });
+      const enPend = await reservas.enEntregaPendiente(conn, pp.id);
+      const porEntregar = Number(pp.cantidad_asignada) - Number(pp.cantidad_entregada) - enPend;
+      if (cant > porEntregar + 0.0001) { await conn.rollback(); return res.status(400).json({ error: `${pp.sku_interno}: solo quedan ${porEntregar} por entregar (descontando entregas pendientes de confirmar)` }); }
+
+      // La entrega debe estar respaldada por piezas apartadas para este pedido; si faltan, se apartan del stock libre.
+      const falta = enPend + cant - Number(pp.cantidad_reservada);
+      if (falta > 0.0001) {
+        await reservas.bloquearProducto(conn, pp.producto_id);
+        const { libre, existencia } = await reservas.stockProducto(conn, pp.producto_id);
+        if (falta > libre + 0.0001) {
+          await conn.rollback();
+          return res.status(400).json({ error: `${pp.sku_interno}: sin existencia libre suficiente (existencia ${existencia}, libre ${libre}; el resto está reservado para otros pedidos)` });
+        }
+        await conn.query('UPDATE pedidos_cliente_partidas SET cantidad_reservada = cantidad_reservada + ? WHERE id = ?', [falta, pp.id]);
+      }
+
       await conn.query(
         `INSERT INTO entregas_partidas (entrega_id, pedido_partida_id, producto_id, sku_interno, descripcion, unidad_medida, cantidad, precio_unitario, iva_exento)
          VALUES (?,?,?,?,?,?,?,?,?)`,
         [entId, pp.id, pp.producto_id, pp.sku_interno, pp.descripcion, pp.unidad_medida, cant, pp.precio_unitario_venta, pp.iva_exento ? 1 : 0]
       );
-      await conn.query('UPDATE pedidos_cliente_partidas SET cantidad_entregada = cantidad_entregada + ? WHERE id = ?', [cant, pp.id]);
+      lineas++;
       const imp = Number(pp.precio_unitario_venta) * cant;
       subtotal += imp; iva += pp.iva_exento ? 0 : imp * 0.16;
 
@@ -321,8 +363,9 @@ async function crearEntrega(req, res, next) {
         });
       }
     }
+    if (!lineas) { await conn.rollback(); return res.status(400).json({ error: 'Captura cantidades a entregar' }); }
 
-    // Validación CFDI 4.0 ANTES de confirmar: si faltan datos, no se crea la factura.
+    // Validación CFDI 4.0 ANTES de crear: si faltan datos, no se crea la factura.
     if (tipoFinal === 'factura') {
       const [[cliente]] = await conn.query('SELECT * FROM clientes WHERE id = ?', [ped.cliente_id]);
       const v = validarFactura({ entrega: { tipo: 'factura', ...cfdiHeader }, cliente, partidas: partidasFactura });
@@ -335,28 +378,142 @@ async function crearEntrega(req, res, next) {
     const total = subtotal + iva;
     await conn.query('UPDATE entregas SET subtotal = ?, iva = ?, total = ? WHERE id = ?', [subtotal.toFixed(2), iva.toFixed(2), total.toFixed(2), entId]);
     await conn.commit();
+    res.status(201).json({ id: entId, folio, tipo: tipoFinal, estatus: 'pendiente' });
+  } catch (err) { await conn.rollback(); if (err.status) return res.status(err.status).json({ error: err.message }); next(err); } finally { conn.release(); }
+}
 
-    // PDF
+// Confirma una entrega pendiente: descuenta el inventario (FEFO), cierra la reserva y emite PDF / TXT CFDI.
+async function confirmarEntrega(req, res, next) {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [[ent]] = await conn.query('SELECT * FROM entregas WHERE id = ? FOR UPDATE', [req.params.id]);
+    if (!ent) { await conn.rollback(); return res.status(404).json({ error: 'Entrega no encontrada' }); }
+    if (ent.estatus !== 'pendiente') { await conn.rollback(); return res.status(409).json({ error: `La entrega ya está ${ent.estatus}` }); }
+
+    const [lineas] = await conn.query('SELECT * FROM entregas_partidas WHERE entrega_id = ? ORDER BY id', [ent.id]);
+    const partidasFactura = [];
+    for (const l of lineas) {
+      const cant = Number(l.cantidad);
+      if (!(cant > 0)) continue;
+      const [[pp]] = await conn.query('SELECT * FROM pedidos_cliente_partidas WHERE id = ? FOR UPDATE', [l.pedido_partida_id]);
+      // Salida FEFO (valida existencia real; no permite negativo)
+      await svc.registrarSalidaFEFO(conn, {
+        producto_id: l.producto_id, cantidad: cant, usarReservado: true, // sale de lo apartado para este pedido
+        motivo: `Entrega ${ent.folio} (${ent.tipo})`, referencia: ent.folio, usuario_id: req.user?.id || null,
+      });
+      await conn.query(
+        `UPDATE pedidos_cliente_partidas
+            SET cantidad_entregada = cantidad_entregada + ?, cantidad_reservada = GREATEST(0, cantidad_reservada - ?)
+          WHERE id = ?`, [cant, cant, pp.id]);
+      if (ent.tipo === 'factura') {
+        const [[prod]] = await conn.query('SELECT clave_sat, clave_unidad_sat FROM productos WHERE id = ?', [l.producto_id]);
+        partidasFactura.push({ id: pp.id, sku_interno: l.sku_interno, descripcion: l.descripcion, iva_exento: l.iva_exento,
+          clave_sat: prod?.clave_sat || null, clave_unidad_sat: prod?.clave_unidad_sat || null });
+      }
+    }
+    if (ent.tipo === 'factura') {
+      const [[cliente]] = await conn.query('SELECT * FROM clientes WHERE id = ?', [ent.cliente_id]);
+      const v = validarFactura({ entrega: ent, cliente, partidas: partidasFactura });
+      if (!v.ok) {
+        await conn.rollback();
+        return res.status(422).json({ error: 'Faltan datos fiscales para emitir la factura (CFDI 4.0)', faltantes: v.faltantes });
+      }
+    }
+    await conn.query("UPDATE entregas SET estatus = 'confirmada', confirmada_at = NOW(), confirmada_por = ? WHERE id = ?", [req.user?.id || null, ent.id]);
+    await conn.commit();
+
     let url = null;
     try {
-      const full = await cargarEntrega(entId);
+      const full = await cargarEntrega(ent.id);
       const { relativePath } = await generarEntregaPdf(full);
-      await pool.query('UPDATE entregas SET pdf_path = ? WHERE id = ?', [relativePath, entId]);
+      await pool.query('UPDATE entregas SET pdf_path = ? WHERE id = ?', [relativePath, ent.id]);
       url = urlFirmada(relativePath);
     } catch (e) { /* regenerable */ }
-
-    // TXT CFDI (factura): la validación ya pasó, así que esto no debería fallar.
     let cfdi_txt = null;
-    if (tipoFinal === 'factura') {
-      try { cfdi_txt = urlFirmada((await generarCfdiTxt(entId)).relativePath); } catch (e) { /* regenerable vía endpoint */ }
+    if (ent.tipo === 'factura') {
+      try { cfdi_txt = urlFirmada((await generarCfdiTxt(ent.id)).relativePath); } catch (e) { /* regenerable vía endpoint */ }
     }
-    res.status(201).json({ id: entId, folio, tipo: tipoFinal, url, cfdi_txt });
+    res.json({ id: ent.id, folio: ent.folio, tipo: ent.tipo, estatus: 'confirmada', url, cfdi_txt });
   } catch (err) { await conn.rollback(); if (err.status) return res.status(err.status).json({ error: err.message }); next(err); } finally { conn.release(); }
+}
+
+// Cancela una entrega PENDIENTE: completa (sin `partidas`) o parcial ([{entrega_partida_id, cantidad}]). Motivo obligatorio.
+// Al no haberse descontado inventario, solo se reduce/anula la entrega; la reserva del pedido se conserva.
+async function cancelarEntrega(req, res, next) {
+  const conn = await pool.getConnection();
+  try {
+    const motivo = String(req.body?.motivo || '').trim().slice(0, 300);
+    if (motivo.length < 3) return res.status(400).json({ error: 'Indica el motivo de la cancelación' });
+    await conn.beginTransaction();
+    const [[ent]] = await conn.query('SELECT * FROM entregas WHERE id = ? FOR UPDATE', [req.params.id]);
+    if (!ent) { await conn.rollback(); return res.status(404).json({ error: 'Entrega no encontrada' }); }
+    if (ent.estatus !== 'pendiente') {
+      await conn.rollback();
+      return res.status(409).json({ error: ent.estatus === 'cancelada' ? 'La entrega ya está cancelada' : 'La entrega ya fue confirmada y descontó inventario; no se puede cancelar desde aquí' });
+    }
+    const [lineas] = await conn.query('SELECT * FROM entregas_partidas WHERE entrega_id = ? ORDER BY id', [ent.id]);
+    const parciales = Array.isArray(req.body?.partidas) && req.body.partidas.length ? req.body.partidas : null;
+    // Mapa línea → piezas a cancelar
+    const cancelar = new Map();
+    if (parciales) {
+      for (const it of parciales) {
+        const l = lineas.find((x) => x.id === Number(it.entrega_partida_id));
+        const c = parseFloat(it.cantidad);
+        if (!l || !(c > 0)) continue;
+        if (c > Number(l.cantidad) + 0.0001) { await conn.rollback(); return res.status(400).json({ error: `${l.sku_interno}: solo hay ${Number(l.cantidad)} en la entrega` }); }
+        cancelar.set(l.id, c);
+      }
+      if (!cancelar.size) { await conn.rollback(); return res.status(400).json({ error: 'Indica qué cantidades cancelar' }); }
+    } else {
+      for (const l of lineas) cancelar.set(l.id, Number(l.cantidad));
+    }
+
+    let restantes = 0;
+    const cancelaciones = [];
+    for (const l of lineas) {
+      const c = cancelar.get(l.id) || 0;
+      const quedan = Math.round((Number(l.cantidad) - c) * 100) / 100;
+      if (c > 0) {
+        const [rc] = await conn.query(
+          `INSERT INTO entregas_cancelaciones (entrega_id, entrega_partida_id, pedido_partida_id, sku_interno, cantidad, total_entrega, motivo, usuario_id)
+           VALUES (?,?,?,?,?,0,?,?)`,
+          [ent.id, l.id, l.pedido_partida_id, l.sku_interno, c, motivo, req.user?.id || null]);
+        cancelaciones.push(rc.insertId);
+        if (quedan > 0) await conn.query('UPDATE entregas_partidas SET cantidad = ? WHERE id = ?', [quedan, l.id]);
+        else await conn.query('DELETE FROM entregas_partidas WHERE id = ?', [l.id]);
+      }
+      if (quedan > 0) restantes++;
+    }
+    if (restantes === 0) {
+      if (cancelaciones.length) await conn.query('UPDATE entregas_cancelaciones SET total_entrega = 1 WHERE id IN (?)', [cancelaciones]);
+      await conn.query(
+        "UPDATE entregas SET estatus = 'cancelada', cancelada_at = NOW(), cancelada_por = ?, motivo_cancelacion = ?, subtotal = 0, iva = 0, total = 0 WHERE id = ?",
+        [req.user?.id || null, motivo, ent.id]);
+    } else {
+      const [[t]] = await conn.query(
+        `SELECT COALESCE(SUM(cantidad * precio_unitario), 0) AS sub,
+                COALESCE(SUM(CASE WHEN iva_exento = 1 THEN 0 ELSE cantidad * precio_unitario * 0.16 END), 0) AS iva
+           FROM entregas_partidas WHERE entrega_id = ?`, [ent.id]);
+      const sub = Number(t.sub), iv = Number(t.iva);
+      await conn.query('UPDATE entregas SET subtotal = ?, iva = ?, total = ? WHERE id = ?', [sub.toFixed(2), iv.toFixed(2), (sub + iv).toFixed(2), ent.id]);
+    }
+    await conn.commit();
+    res.json({ ok: true, estatus: restantes === 0 ? 'cancelada' : 'pendiente' });
+  } catch (err) { await conn.rollback(); if (err.status) return res.status(err.status).json({ error: err.message }); next(err); } finally { conn.release(); }
+}
+
+// Solo las entregas confirmadas generan documento / CFDI.
+async function exigirConfirmada(id) {
+  const [[e]] = await pool.query('SELECT estatus FROM entregas WHERE id = ?', [id]);
+  if (!e) throw Object.assign(new Error('Entrega no encontrada'), { status: 404 });
+  if (e.estatus !== 'confirmada') throw Object.assign(new Error('Confirma la entrega antes de generar el documento'), { status: 409 });
 }
 
 // ── TXT CFDI (regenerar / descargar) ──────────────────────────────────────────
 async function cfdiTxt(req, res, next) {
   try {
+    await exigirConfirmada(req.params.id);
     const { relativePath } = await generarCfdiTxt(req.params.id);
     res.json({ url: urlFirmada(relativePath) });
   } catch (err) {
@@ -368,6 +525,7 @@ async function cfdiTxt(req, res, next) {
 
 async function entregaPdf(req, res, next) {
   try {
+    await exigirConfirmada(req.params.id);
     const [[ent]] = await pool.query('SELECT pdf_path FROM entregas WHERE id = ?', [req.params.id]);
     if (!ent) return res.status(404).json({ error: 'Entrega no encontrada' });
     if (ent.pdf_path) return res.json({ url: urlFirmada(ent.pdf_path) });
@@ -375,12 +533,13 @@ async function entregaPdf(req, res, next) {
     const { relativePath } = await generarEntregaPdf(full);
     await pool.query('UPDATE entregas SET pdf_path = ? WHERE id = ?', [relativePath, req.params.id]);
     res.json({ url: urlFirmada(relativePath) });
-  } catch (err) { next(err); }
+  } catch (err) { if (err.status) return res.status(err.status).json({ error: err.message }); next(err); }
 }
 
 // ── TIMBRADO CFDI (Facturama) ─────────────────────────────────────────────────
 async function timbrarCfdi(req, res, next) {
   try {
+    await exigirConfirmada(req.params.id);
     const r = await timbrarEntrega(req.params.id);
     if (r.xml_url) r.xml_url = urlFirmada(r.xml_url);
     if (r.pdf_url) r.pdf_url = urlFirmada(r.pdf_url);
@@ -419,6 +578,6 @@ async function cfdiInfo(req, res, next) {
 module.exports = {
   crearPedido, listPedidos, getPedido,
   listOrdenesCompra, generarOC, getOC, ocPdf, recepcion,
-  crearEntrega, entregaPdf, cfdiTxt,
+  crearEntrega, confirmarEntrega, cancelarEntrega, entregaPdf, cfdiTxt,
   timbrarCfdi, cancelarCfdi, cfdiInfo,
 };

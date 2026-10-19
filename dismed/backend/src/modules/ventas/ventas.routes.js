@@ -20,6 +20,8 @@ router.post('/ordenes-compra/:id/recepciones', c.recepcion);
 
 // Entregas (remisión/factura)
 router.post('/pedidos/:id/entregas', c.crearEntrega);
+router.post('/entregas/:id/confirmar', c.confirmarEntrega);
+router.post('/entregas/:id/cancelar',  c.cancelarEntrega);
 router.get('/entregas/:id/pdf',      c.entregaPdf);
 router.post('/entregas/:id/cfdi-txt', c.cfdiTxt); // genera/regenera el TXT para timbrado
 

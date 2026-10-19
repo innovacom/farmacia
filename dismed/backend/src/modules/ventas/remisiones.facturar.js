@@ -49,6 +49,7 @@ async function cargarRemisiones(db, idList, { lock = false } = {}) {
   if (rems.length !== idList.length) { const e = new Error('Alguna remisión no existe'); e.status = 404; throw e; }
   for (const r of rems) {
     if (r.tipo !== 'remision') { const e = new Error(`${r.folio} no es una remisión`); e.status = 400; throw e; }
+    if (r.estatus !== 'confirmada') { const e = new Error(`${r.folio} no está confirmada`); e.status = 409; throw e; }
     if (r.factura_id) { const e = new Error(`${r.folio} ya fue facturada`); e.status = 409; throw e; }
   }
   if (new Set(rems.map((r) => r.cliente_id)).size > 1) {
@@ -67,7 +68,7 @@ async function cargarRemisiones(db, idList, { lock = false } = {}) {
 async function pendientes(req, res, next) {
   try {
     const params = [];
-    let where = "e.tipo = 'remision' AND e.factura_id IS NULL";
+    let where = "e.tipo = 'remision' AND e.estatus = 'confirmada' AND e.factura_id IS NULL";
     if (req.query.cliente_id) { where += ' AND e.cliente_id = ?'; params.push(req.query.cliente_id); }
     const [rows] = await pool.query(
       `SELECT e.id, e.folio, e.cliente_id, c.razon_social AS cliente, e.sucursal_id, su.nombre AS sucursal,

@@ -7,6 +7,7 @@
  * inventario/movimientos.service.js), y lanza errores con `.status` en vez de responder HTTP.
  */
 const svc = require('../inventario/movimientos.service');
+const reservas = require('./reservas.service');
 
 async function ejecutarRecepcion(conn, { oc_id, almacen_id, partidas, usuario_id = null }) {
   if (!almacen_id || !Array.isArray(partidas) || !partidas.length) {
@@ -71,6 +72,8 @@ async function ejecutarRecepcion(conn, { oc_id, almacen_id, partidas, usuario_id
     );
     await conn.query('UPDATE ordenes_compra_partidas SET cantidad_recibida = cantidad_recibida + ? WHERE id = ?', [cant, ocp.id]);
     await conn.query('UPDATE pedidos_cliente_partidas SET cantidad_recibida = cantidad_recibida + ? WHERE id = ?', [cant, ocp.pedido_partida_id]);
+    // Lo recién recibido queda apartado para el pedido que lo originó.
+    await reservas.reservarRecibido(conn, ocp.pedido_partida_id, cant);
   }
 
   const [[resumen]] = await conn.query(
