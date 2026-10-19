@@ -102,6 +102,36 @@ export default function DetalleSolicitud() {
     });
   }
 
+  // ── Agregar / eliminar partidas en cualquier momento ──
+  const NUEVA_VACIA = { descripcion_original: '', cantidad: '1', unidad_medida: 'pza', codigo_cliente: '' };
+  const [nuevaPartida, setNuevaPartida] = useState(NUEVA_VACIA);
+  const refrescarPartidas = () => {
+    qc.invalidateQueries(['solicitud', id]);
+    qc.invalidateQueries(['comparador', id]);
+  };
+  const agregarMut = useMutation({
+    mutationFn: (data) => api.post(`/solicitudes/${id}/partidas`, data),
+    onSuccess: () => { toast.success('Partida agregada'); setNuevaPartida(NUEVA_VACIA); refrescarPartidas(); },
+    onError: (e) => toast.error(e.response?.data?.error || 'No se pudo agregar la partida'),
+  });
+  const eliminarMut = useMutation({
+    mutationFn: (pid) => api.delete(`/solicitudes/${id}/partidas/${pid}`),
+    onSuccess: () => { toast.success('Partida eliminada'); refrescarPartidas(); },
+    onError: (e) => toast.error(e.response?.data?.error || 'No se pudo eliminar la partida'),
+  });
+
+  function agregarPartida() {
+    const cant = parseInt(String(nuevaPartida.cantidad).trim(), 10);
+    if (!nuevaPartida.descripcion_original.trim()) return toast.error('Captura la descripción');
+    if (!Number.isFinite(cant) || cant <= 0) return toast.error('Cantidad inválida: debe ser un entero mayor a 0');
+    agregarMut.mutate({
+      descripcion_original: nuevaPartida.descripcion_original.trim(),
+      cantidad:             cant,
+      unidad_medida:        nuevaPartida.unidad_medida.trim() || 'pza',
+      codigo_cliente:       nuevaPartida.codigo_cliente.trim() || null,
+    });
+  }
+
   function toggleProv(pid) {
     setSelProvs((prev) => prev.includes(pid) ? prev.filter((x) => x !== pid) : [...prev, pid]);
   }
@@ -388,6 +418,9 @@ export default function DetalleSolicitud() {
                       <button title="Capturar proveedor/precio a mano"
                         onClick={() => setManualModal(p)}
                         className="text-gray-300 hover:text-green-600"><DollarSign size={15} /></button>
+                      <button title="Eliminar partida"
+                        onClick={() => { if (window.confirm(`¿Eliminar la partida ${p.linea}? Se perderán sus precios capturados.`)) eliminarMut.mutate(p.id); }}
+                        className="text-gray-300 hover:text-red-500"><X size={15} /></button>
                     </span>
                   )}
                 </td>
@@ -396,6 +429,34 @@ export default function DetalleSolicitud() {
             })}
           </tbody>
         </table>
+
+        {/* Agregar partida */}
+        <form className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap items-end gap-2"
+          onSubmit={(e) => { e.preventDefault(); agregarPartida(); }}>
+          <div className="w-32">
+            <label className="label">Código cliente</label>
+            <input className="input text-xs" value={nuevaPartida.codigo_cliente}
+              onChange={(e) => setNuevaPartida((n) => ({ ...n, codigo_cliente: e.target.value }))} />
+          </div>
+          <div className="flex-1 min-w-[220px]">
+            <label className="label">Descripción *</label>
+            <input className="input text-xs" value={nuevaPartida.descripcion_original}
+              onChange={(e) => setNuevaPartida((n) => ({ ...n, descripcion_original: e.target.value }))} />
+          </div>
+          <div className="w-24">
+            <label className="label">Cant.</label>
+            <input type="text" inputMode="numeric" className="input text-xs text-right" value={nuevaPartida.cantidad}
+              onChange={(e) => setNuevaPartida((n) => ({ ...n, cantidad: e.target.value.replace(/[^0-9]/g, '') }))} />
+          </div>
+          <div className="w-20">
+            <label className="label">U/M</label>
+            <input className="input text-xs" value={nuevaPartida.unidad_medida}
+              onChange={(e) => setNuevaPartida((n) => ({ ...n, unidad_medida: e.target.value }))} />
+          </div>
+          <button type="submit" disabled={agregarMut.isPending} className="btn-primary btn-sm disabled:opacity-50">
+            {agregarMut.isPending ? <Loader2 size={14} className="animate-spin" /> : '+'} Agregar partida
+          </button>
+        </form>
       </div>
 
       {/* Búsqueda automática de precios: 1º catálogo, 2º internet */}

@@ -50,6 +50,11 @@ export default function NuevaSolicitud() {
   // (gasta cuota de IA); ya no se dispara solo porque el Excel no traía precios.
   const buscarWebAlGuardarRef = useRef(false);
 
+  const { data: proveedores = [] } = useQuery({
+    queryKey: ['proveedores'],
+    queryFn: () => api.get('/proveedores').then((r) => r.data),
+  });
+
   const { data: clientes = [] } = useQuery({
     queryKey: ['clientes', 'activos'],
     queryFn: () => api.get('/clientes?activos=1').then((r) => r.data),
@@ -211,6 +216,21 @@ export default function NuevaSolicitud() {
     const duplicados = lineas.filter((l, i) => lineas.indexOf(l) !== i);
     if (duplicados.length > 0) {
       toast.error(`Números de partida duplicados: ${[...new Set(duplicados)].join(', ')}`);
+      return;
+    }
+
+    // Proveedor/precio capturados a mano en la tabla: ambos o ninguno, precio > 0
+    const incompletas = [];
+    for (const p of partidasLimpias) {
+      const prov = String(p._prov || '').trim();
+      const txt  = String(p._precio ?? '').trim();
+      if (!prov && !txt) continue;
+      const precio = parseFloat(txt.replace(',', '.'));
+      if (!prov || !Number.isFinite(precio) || precio <= 0) { incompletas.push(p.linea); continue; }
+      p.precios_proveedores = { ...(p.precios_proveedores || {}), [prov]: { precio, comentario: '' } };
+    }
+    if (incompletas.length > 0) {
+      toast.error(`Partida(s) ${incompletas.join(', ')}: captura proveedor y precio mayor a 0, o deja ambos vacíos`);
       return;
     }
 
@@ -440,6 +460,9 @@ export default function NuevaSolicitud() {
               </button>
             </div>
 
+            <datalist id="lista-proveedores">
+              {proveedores.map((v) => <option key={v.id} value={v.nombre_empresa} />)}
+            </datalist>
             <div className="overflow-x-auto">
               <table className="table-auto w-full text-xs">
                 <thead>
@@ -452,6 +475,8 @@ export default function NuevaSolicitud() {
                     <th style={{ width: 70 }}>Cant.</th>
                     <th style={{ width: 80 }}>U/M</th>
                     <th style={{ width: 50 }} title="Marca para calcular IVA (16%)">IVA</th>
+                    <th style={{ width: 150 }} title="Opcional: proveedor que ya cotizó esta partida">Proveedor</th>
+                    <th style={{ width: 90 }} title="Precio unitario del proveedor (sin IVA)">Precio unit.</th>
                     <th style={{ width: 160 }}>Observaciones</th>
                     <th style={{ width: 36 }}></th>
                   </tr>
@@ -516,6 +541,18 @@ export default function NuevaSolicitud() {
                           checked={!p.iva_exento}
                           onChange={(e) => updatePartida(idx, 'iva_exento', e.target.checked ? 0 : 1)}
                           title={!p.iva_exento ? 'Sí calcula IVA (16%)' : 'Exento — no calcula IVA'} />
+                      </td>
+                      <td>
+                        <input className="input text-xs" list="lista-proveedores"
+                          value={p._prov || ''}
+                          onChange={(e) => updatePartida(idx, '_prov', e.target.value)}
+                          placeholder="Proveedor" />
+                      </td>
+                      <td>
+                        <input type="text" inputMode="decimal" className="input text-xs text-right"
+                          value={p._precio ?? ''}
+                          onChange={(e) => updatePartida(idx, '_precio', e.target.value.replace(/[^0-9.,]/g, ''))}
+                          placeholder="0.00" />
                       </td>
                       <td>
                         <input
