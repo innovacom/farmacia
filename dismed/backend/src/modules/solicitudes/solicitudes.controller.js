@@ -185,6 +185,42 @@ function clasificarComentarioProveedor(valor) {
     : { sku: v.substring(0, 30), obs: null };
 }
 
+/**
+ * Resuelve un código de la columna B del Excel contra el catálogo, en este orden:
+ *   1) código INNOVACOM (productos.sku_interno)
+ *   2) código de proveedor (proveedores_skus; proveedores_catalogo ya confirmado)
+ *   3) EAN (productos.ean; producto_presentaciones.ean)
+ * Solo coincidencia exacta. Si el código apunta a más de un producto distinto
+ * (ambiguo) no vincula. Devuelve { id, origen } o null.
+ */
+async function resolverProductoPorCodigoCatalogo(conn, codigo) {
+  if (codigo === null || codigo === undefined) return null;
+  const c = String(codigo).trim().replace(/\.0+$/, ''); // Excel numérico: 7501234567890.0
+  if (!c) return null;
+
+  const unico = (rows, col) => {
+    const ids = [...new Set(rows.map((r) => r[col]).filter(Boolean))];
+    return ids.length === 1 ? ids[0] : null;
+  };
+  const intentos = [
+    ['sku_interno', 'SELECT id FROM productos WHERE sku_interno = ? AND activo = 1 LIMIT 2', 'id'],
+    ['sku_proveedor', 'SELECT producto_id FROM proveedores_skus WHERE sku_proveedor = ? AND producto_id IS NOT NULL LIMIT 5', 'producto_id'],
+    ['sku_proveedor', `SELECT producto_id FROM proveedores_catalogo
+                       WHERE (sku_proveedor = ? OR referencia_fabricante = ?)
+                         AND match_estado = 'confirmado' AND producto_id IS NOT NULL LIMIT 5`, 'producto_id', 2],
+    ['ean', 'SELECT id FROM productos WHERE ean = ? AND activo = 1 LIMIT 2', 'id'],
+    ['ean', 'SELECT producto_id FROM producto_presentaciones WHERE ean = ? LIMIT 2', 'producto_id'],
+  ];
+  for (const [origen, sql, col, n] of intentos) {
+    try {
+      const [rows] = await conn.query(sql, n === 2 ? [c, c] : [c]);
+      const id = unico(rows, col);
+      if (id) return { id, origen };
+    } catch (_) { /* tabla/columna aún sin migrar en esta instancia */ }
+  }
+  return null;
+}
+
 async function bulkPartidas(req, res, next) {
   const conn = await pool.getConnection();
   try {
@@ -236,7 +272,16 @@ async function bulkPartidas(req, res, next) {
         // El usuario lo eligió en la tabla editable → confirmado.
         matchEstado = 'confirmado'; matchOrigen = 'manual';
         matchScore = p.match_score != null ? p.match_score : null;
-      } else if (p.codigo_cliente && sol) {
+      }
+      // Código INNOVACOM / de proveedor / EAN ya dado de alta en el catálogo → vincula directo.
+      if (!productoId && p.codigo_cliente) {
+        const hit = await resolverProductoPorCodigoCatalogo(conn, p.codigo_cliente);
+        if (hit) {
+          productoId = hit.id;
+          matchEstado = 'confirmado'; matchOrigen = `codigo_${hit.origen}`; matchScore = 1;
+        }
+      }
+      if (!productoId && p.codigo_cliente && sol) {
         // Código de cliente confirmado en el diccionario → auto-vincula (sugerido).
         const [[sku]] = await conn.query(
           'SELECT producto_id FROM clientes_skus WHERE cliente_id = ? AND sku_cliente = ? AND confirmado = 1',
