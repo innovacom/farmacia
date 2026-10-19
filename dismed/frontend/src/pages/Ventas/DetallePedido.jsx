@@ -123,7 +123,15 @@ function RecepcionModal({ ocId, onClose, onDone }) {
 // ── Modal de entrega (remisión / factura) ─────────────────────────────────────
 function EntregaModal({ pedido, onClose, onDone }) {
   const [tipo, setTipo] = useState('remision');
-  const [lineas, setLineas] = useState({});
+  // Sugerencia automática: surtir primero lo que ya hay en almacén (sale por FEFO, caduca antes que lo recién comprado)
+  const [lineas, setLineas] = useState(() => {
+    const init = {};
+    (pedido.partidas || []).forEach((p) => {
+      const max = Math.min(Number(p.cantidad_asignada) - Number(p.cantidad_entregada), Math.floor(Number(p.stock)));
+      if (max > 0) init[p.id] = String(max);
+    });
+    return init;
+  });
   const [cfdi, setCfdi] = useState({
     forma_pago: pedido.cliente_forma_pago || '03',
     metodo_pago: pedido.cliente_metodo_pago || 'PUE',
@@ -202,17 +210,18 @@ function EntregaModal({ pedido, onClose, onDone }) {
             <p className="text-xs text-red-500 mt-2">Captura los datos del cliente o del producto y vuelve a intentar.</p>
           </div>
         )}
-        <p className="text-xs text-gray-400">Solo puedes entregar lo recibido y disponible en inventario. Se descuenta por FEFO (caduca primero).</p>
+        <p className="text-xs text-gray-400">Se sugiere surtir con la existencia que ya hay en almacén (aunque no se haya recibido de proveedor para este pedido); puedes ajustar las cantidades. Se descuenta por FEFO (caduca primero).</p>
         <div className="overflow-x-auto border border-gray-100 rounded-lg">
           <table className="w-full text-xs">
-            <thead className="bg-gray-50"><tr><th className="px-2 py-1 text-left">SKU / Desc.</th><th className="px-2 py-1 text-right">Recibido</th><th className="px-2 py-1 text-right">Entregado</th><th className="px-2 py-1 text-right">Stock</th><th className="px-2 py-1">Entregar</th></tr></thead>
+            <thead className="bg-gray-50"><tr><th className="px-2 py-1 text-left">SKU / Desc.</th><th className="px-2 py-1 text-right">Pedido</th><th className="px-2 py-1 text-right">Recibido</th><th className="px-2 py-1 text-right">Entregado</th><th className="px-2 py-1 text-right">Stock</th><th className="px-2 py-1">Entregar</th></tr></thead>
             <tbody>
               {(pedido.partidas || []).map((p) => {
-                const pend = Number(p.cantidad_recibida) - Number(p.cantidad_entregada);
-                const max = Math.min(pend, Number(p.stock));
+                const pend = Number(p.cantidad_asignada) - Number(p.cantidad_entregada);
+                const max = Math.min(pend, Math.floor(Number(p.stock)));
                 return (
                   <tr key={p.id} className="border-t border-gray-100">
                     <td className="px-2 py-1"><span className="font-mono text-brand-500">{p.sku_interno}</span> <span className="text-gray-500">{p.descripcion?.substring(0, 38)}</span></td>
+                    <td className="px-2 py-1 text-right">{Number(p.cantidad_asignada)}</td>
                     <td className="px-2 py-1 text-right">{Number(p.cantidad_recibida)}</td>
                     <td className="px-2 py-1 text-right">{Number(p.cantidad_entregada)}</td>
                     <td className="px-2 py-1 text-right">{Number(p.stock)}</td>

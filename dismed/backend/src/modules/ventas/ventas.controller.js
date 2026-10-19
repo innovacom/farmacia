@@ -293,8 +293,10 @@ async function crearEntrega(req, res, next) {
       if (!(cant > 0)) continue;
       const [[pp]] = await conn.query('SELECT * FROM pedidos_cliente_partidas WHERE id = ? AND pedido_id = ?', [it.pedido_partida_id, ped.id]);
       if (!pp) continue;
-      const pendiente = Number(pp.cantidad_recibida) - Number(pp.cantidad_entregada);
-      if (cant > pendiente + 0.0001) { await conn.rollback(); return res.status(400).json({ error: `${pp.sku_interno}: solo hay ${pendiente} recibidas pendientes de entregar` }); }
+      // Se puede surtir con existencia previa en almacén (no solo lo recibido de este pedido):
+      // el tope es lo pedido menos lo ya entregado; registrarSalidaFEFO valida el stock real.
+      const pendiente = Number(pp.cantidad_asignada) - Number(pp.cantidad_entregada);
+      if (cant > pendiente + 0.0001) { await conn.rollback(); return res.status(400).json({ error: `${pp.sku_interno}: solo quedan ${pendiente} pendientes de entregar` }); }
       if (!pp.producto_id) { await conn.rollback(); return res.status(400).json({ error: `${pp.descripcion} no tiene producto de catálogo` }); }
 
       // Salida FEFO (valida stock disponible; no permite negativo)
