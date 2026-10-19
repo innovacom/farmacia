@@ -203,7 +203,9 @@ async function resolverProductoPorCodigoCatalogo(conn, codigo) {
     return ids.length === 1 ? ids[0] : null;
   };
   const intentos = [
-    ['sku_interno', 'SELECT id FROM productos WHERE sku_interno = ? AND activo = 1 LIMIT 2', 'id'],
+    ['sku_interno', 'SELECT id FROM productos WHERE sku_interno = ? ORDER BY activo DESC LIMIT 2', 'id'],
+    // Código INNOVACOM registrado en el tarifario/equivalencias del proveedor
+    ['sku_interno', 'SELECT producto_id FROM proveedores_catalogo WHERE sku_innovacom = ? AND producto_id IS NOT NULL LIMIT 5', 'producto_id'],
     ['sku_proveedor', 'SELECT producto_id FROM proveedores_skus WHERE sku_proveedor = ? AND producto_id IS NOT NULL LIMIT 5', 'producto_id'],
     ['sku_proveedor', `SELECT producto_id FROM proveedores_catalogo
                        WHERE (sku_proveedor = ? OR referencia_fabricante = ?)
