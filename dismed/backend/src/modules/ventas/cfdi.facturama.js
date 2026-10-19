@@ -358,10 +358,13 @@ async function cargarEntregaCfdi(id) {
     `SELECT e.*, c.razon_social AS cliente_nombre, c.rfc AS cliente_rfc,
             c.regimen_fiscal AS cliente_regimen_fiscal, c.codigo_postal AS cliente_codigo_postal,
             c.direccion_fiscal AS cliente_direccion_fiscal,
-            p.folio AS pedido_folio
+            p.folio AS pedido_folio,
+            s.referencia_cliente AS pedido_cliente, s.atencion AS atencion
      FROM entregas e
      JOIN clientes c ON c.id = e.cliente_id
      LEFT JOIN pedidos_cliente p ON p.id = e.pedido_id
+     LEFT JOIN cotizaciones_cliente cc ON cc.id = p.cotizacion_id
+     LEFT JOIN solicitudes s ON s.id = cc.solicitud_id
      WHERE e.id = ?`, [id]
   );
   if (!ent) return null;

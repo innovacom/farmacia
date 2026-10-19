@@ -150,9 +150,12 @@ function buildEntregaHtml(ent) {
     const imp = Number(p.precio_unitario) * Number(p.cantidad);
     const ivaL = p.iva_exento ? 0 : imp * 0.16;
     subtotal += imp; iva += ivaL;
+    const lotes = (p.lotes || [])
+      .map((l) => `LOTE ${esc(l.lote)}${l.caducidad ? ' CADUCIDAD ' + caducidadFmt(l.caducidad) : ''}`)
+      .join(' &nbsp; ');
     return `<tr>
       <td style="${td};font-family:monospace">${esc(p.sku_interno)}</td>
-      <td style="${td}">${esc(p.descripcion)}</td>
+      <td style="${td}">${esc(p.descripcion)}${lotes ? `<br><span style="font-size:9px;color:#444">${lotes}</span>` : ''}</td>
       <td style="${td};text-align:right">${Number(p.cantidad).toLocaleString('es-MX')}</td>
       <td style="${td}">${esc(p.unidad_medida)}</td>
       <td style="${td};text-align:right">${fmt(p.precio_unitario)}</td>
@@ -162,7 +165,10 @@ function buildEntregaHtml(ent) {
   return `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;color:#222;margin:0}</style></head><body>
     ${encabezado(e, logo, 'REMISIÓN', ent.folio)}
     <div style="background:#f6f9fa;border-radius:6px;padding:8px 10px;margin-bottom:10px;font-size:10px">
-      <strong>Cliente:</strong> ${esc(ent.cliente_nombre)} &nbsp;&nbsp; ${ent.pedido_folio ? `<strong>Pedido:</strong> ${esc(ent.pedido_folio)}` : ''}
+      <strong>Cliente:</strong> ${esc(ent.cliente_nombre)}
+      ${ent.atencion ? `<br><strong>Atención:</strong> ${esc(ent.atencion)}` : ''}
+      ${ent.pedido_cliente ? `<br><strong>Pedido del cliente:</strong> ${esc(ent.pedido_cliente)}` : ''}
+      ${ent.pedido_folio ? `<br><span style="color:#777"><strong>Pedido interno:</strong> ${esc(ent.pedido_folio)}</span>` : ''}
     </div>
     <table style="${tablaBase()}">
       <thead><tr><th style="${th}">SKU</th><th style="${th}">Descripción</th><th style="${th};text-align:right">Cant.</th><th style="${th}">U/M</th><th style="${th};text-align:right">P. Unitario</th><th style="${th};text-align:right">Importe</th></tr></thead>
