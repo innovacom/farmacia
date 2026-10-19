@@ -144,6 +144,17 @@ async function parseExcel(req, res, next) {
           : `El código ${celda} (B3) no corresponde a ninguna sucursal; se buscó el cliente por nombre.`;
       }
     }
+    // Vincula desde la vista previa: código de la columna B (INNOVACOM → proveedor → EAN).
+    // Así la tabla editable ya muestra el SKU interno antes de crear la solicitud.
+    for (const p of result.partidas) {
+      if (!p.codigo_cliente) continue;
+      const hit = await resolverProductoPorCodigoCatalogo(pool, p.codigo_cliente);
+      if (!hit) continue;
+      const [[prod]] = await pool.query('SELECT sku_interno FROM productos WHERE id = ?', [hit.id]);
+      p.producto_id = hit.id;
+      p.sku_interno = prod ? prod.sku_interno : null;
+      p.match_score = 1;
+    }
     res.json(result);
   } catch (err) { next(err); }
 }
