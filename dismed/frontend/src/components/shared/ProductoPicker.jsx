@@ -92,6 +92,7 @@ export default function ProductoPicker({ open, onClose, partida, clienteId, incl
     codigo_cliente: 'código cliente',
     codigo_cliente_sugerido: 'código cliente (sin confirmar)',
     ean: 'EAN',
+    codigo: 'código exacto',
     codigo_gobierno: 'clave de gobierno',
   };
 
@@ -176,6 +177,9 @@ export default function ProductoPicker({ open, onClose, partida, clienteId, incl
                     </span>
                     {reasonLabel[c.match_reason] && (
                       <span className="text-[10px] text-green-600">{reasonLabel[c.match_reason]}</span>
+                    )}
+                    {c.vendible === false && (
+                      <span className="text-[10px] text-amber-600" title="Sin precio de lista capturado">sin precio</span>
                     )}
                     {elegidoIa && (
                       <span className="text-[10px] text-violet-600 flex items-center gap-0.5">

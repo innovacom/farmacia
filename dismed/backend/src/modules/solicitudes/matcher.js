@@ -165,6 +165,46 @@ async function buscarCandidatos({
     } catch (_) { /* columna aún no existe (migración pendiente) */ }
   }
 
+  // ── Búsqueda directa del usuario (q): misma lógica que la consulta del catálogo ──
+  // Cada palabra tecleada debe aparecer EN CUALQUIER PARTE del SKU, descripción, EAN,
+  // fabricante o códigos del proveedor (no solo al inicio ni solo palabras completas).
+  // No filtra por "vendible": para vincular manualmente se debe poder elegir cualquier
+  // producto activo del catálogo.
+  const qDirecta = (q && q.trim()) || '';
+  if (qDirecta) {
+    const palabras = qDirecta.split(/\s+/).filter(Boolean).slice(0, 6);
+    const conds = []; const vals = [];
+    for (const w of palabras) {
+      const like = `%${w}%`;
+      conds.push(`(p.sku_interno LIKE ? OR p.descripcion LIKE ? OR p.ean LIKE ? OR p.fabricante LIKE ?
+        OR EXISTS (SELECT 1 FROM proveedores_catalogo pc WHERE pc.producto_id = p.id
+                   AND (pc.sku_proveedor LIKE ? OR pc.referencia_fabricante LIKE ? OR pc.sku_innovacom LIKE ?))
+        OR EXISTS (SELECT 1 FROM proveedores_skus ps WHERE ps.producto_id = p.id AND ps.sku_proveedor LIKE ?))`);
+      vals.push(like, like, like, like, like, like, like, like);
+    }
+    let rowsD = [];
+    try {
+      [rowsD] = await pool.query(
+        `SELECT p.* FROM productos p WHERE p.activo = 1 AND ${conds.join(' AND ')} LIMIT 300`, vals
+      );
+    } catch (_) {
+      // tablas de códigos de proveedor aún sin migrar: solo campos del producto
+      const c2 = palabras.map(() => '(p.sku_interno LIKE ? OR p.descripcion LIKE ? OR p.ean LIKE ? OR p.fabricante LIKE ?)');
+      const v2 = palabras.flatMap((w) => Array(4).fill(`%${w}%`));
+      [rowsD] = await pool.query(`SELECT p.* FROM productos p WHERE p.activo = 1 AND ${c2.join(' AND ')} LIMIT 300`, v2);
+    }
+    const normQ = normalizar(qDirecta);
+    const qTok = tokenizar(normQ);
+    const up = qDirecta.toUpperCase();
+    for (const r of rowsD) {
+      const exacto = (r.sku_interno || '').toUpperCase() === up || (r.ean || '') === qDirecta;
+      const sc = exacto ? 1 : Math.max(score(qTok, normalizar(r.descripcion)), 0.3);
+      push(r, sc, exacto ? 'codigo' : 'descripcion');
+    }
+    resultados.sort((a, b) => b.score - a.score || String(a.sku_interno).localeCompare(String(b.sku_interno)));
+    return resultados.slice(0, Math.max(limit, 50));
+  }
+
   // ── C4/C5: similitud de descripción (sugerencia, nunca auto-vincula) ──
   const texto = (q && q.trim()) || descripcion || '';
   if (texto.trim()) {
