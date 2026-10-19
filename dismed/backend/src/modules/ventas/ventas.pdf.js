@@ -151,7 +151,7 @@ function buildEntregaHtml(ent) {
     const ivaL = p.iva_exento ? 0 : imp * 0.16;
     subtotal += imp; iva += ivaL;
     const lotes = (p.lotes || [])
-      .map((l) => `LOTE ${esc(l.lote)}${l.caducidad ? ' CADUCIDAD ' + caducidadFmt(l.caducidad) : ''}`)
+      .map((l) => `${l.cantidad ? piezasFmt(l.cantidad) + ' ' : ''}LOTE ${esc(l.lote)}${l.caducidad ? ' CADUCIDAD ' + caducidadFmt(l.caducidad) : ''}`)
       .join(' &nbsp; ');
     return `<tr>
       <td style="${td};font-family:monospace">${esc(p.sku_interno)}</td>
@@ -190,6 +190,11 @@ const num = (n) => Number(n || 0).toLocaleString('es-MX', { minimumFractionDigit
 const cantFmt = (n) => Number(n || 0).toLocaleString('es-MX', { maximumFractionDigits: 2 });
 const MESES = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
 
+function piezasFmt(n) {
+  const v = Number(n);
+  return `${Number.isInteger(v) ? v : v.toFixed(2)} ${v === 1 ? 'PIEZA' : 'PIEZAS'}`;
+}
+
 function caducidadFmt(f) {
   const d = f ? new Date(f) : null;
   return d && !isNaN(d) ? `${MESES[d.getUTCMonth()]}-${d.getUTCFullYear()}` : '';
@@ -213,7 +218,7 @@ function buildFacturaHtml(ent, cfdi) {
     const ivaImp = imp * tasa;
     subtotal += imp; iva += ivaImp;
     const lotes = (p.lotes || [])
-      .map((l) => `LOTE ${esc(l.lote)}${l.caducidad ? ' CADUCIDAD ' + caducidadFmt(l.caducidad) : ''}`)
+      .map((l) => `${l.cantidad ? piezasFmt(l.cantidad) + ' ' : ''}LOTE ${esc(l.lote)}${l.caducidad ? ' CADUCIDAD ' + caducidadFmt(l.caducidad) : ''}`)
       .join(' &nbsp; ');
     return `<tr>
       <td>${esc(p.sku_interno)}</td>

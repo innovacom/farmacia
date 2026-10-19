@@ -377,25 +377,11 @@ async function cargarEntregaCfdi(id) {
      LEFT JOIN productos pr ON pr.id = ep.producto_id
      WHERE ep.entrega_id = ? ORDER BY ep.id`, [id]
   );
-  // Lotes consumidos (FEFO) por producto, tomados de las salidas de inventario de esta entrega.
-  const [movs] = await pool.query(
-    `SELECT m.producto_id, l.numero_lote AS lote, l.fecha_caducidad AS caducidad
-     FROM inventario_movimientos m
-     JOIN inventario_lotes l ON l.id = m.lote_id
-     WHERE m.tipo = 'salida' AND m.referencia IN (?) AND l.numero_lote <> ?
-     ORDER BY m.id`, [refs, LOTE_GENERICO]
-  );
-  const lotesPorProducto = new Map();
-  for (const m of movs) {
-    const lista = lotesPorProducto.get(m.producto_id) || [];
-    if (!lista.some((x) => x.lote === m.lote)) lista.push({ lote: m.lote, caducidad: m.caducidad });
-    lotesPorProducto.set(m.producto_id, lista);
-  }
-  for (const p of partidas) p.lotes = lotesPorProducto.get(p.producto_id) || [];
-
-  // Entrega PENDIENTE: aún no hay salidas de inventario, así que se proyectan los lotes que saldrán
-  // por FEFO (mismo orden que registrarSalidaFEFO) para que la remisión impresa ya lleve lote y caducidad.
+  // Lotes por producto con su cantidad, en orden FEFO: [{ lote, caducidad, cantidad, generico }].
+  const colaPorProducto = new Map();
   if (ent.estatus === 'pendiente') {
+    // Entrega PENDIENTE: aún no hay salidas de inventario, se proyectan los lotes que saldrán por FEFO
+    // (mismo orden que registrarSalidaFEFO) para que la remisión impresa ya lleve lote, caducidad y piezas.
     const restante = new Map(); // lote_id -> piezas aún no asignadas en esta proyección
     for (const p of partidas) {
       if (!p.producto_id) continue;
@@ -404,7 +390,7 @@ async function cargarEntregaCfdi(id) {
           WHERE producto_id = ? AND cantidad_actual > 0
           ORDER BY fecha_caducidad IS NULL, fecha_caducidad ASC, id ASC`, [p.producto_id]);
       let resta = Number(p.cantidad);
-      p.lotes = [];
+      const cola = colaPorProducto.get(p.producto_id) || [];
       for (const l of lotes) {
         if (resta <= 0) break;
         const disp = restante.has(l.id) ? restante.get(l.id) : Number(l.cantidad_actual);
@@ -412,11 +398,44 @@ async function cargarEntregaCfdi(id) {
         const toma = Math.min(resta, disp);
         restante.set(l.id, disp - toma);
         resta -= toma;
-        if (l.numero_lote !== LOTE_GENERICO && !p.lotes.some((x) => x.lote === l.numero_lote)) {
-          p.lotes.push({ lote: l.numero_lote, caducidad: l.fecha_caducidad });
-        }
+        cola.push({ lote: l.numero_lote, caducidad: l.fecha_caducidad, cantidad: toma, generico: l.numero_lote === LOTE_GENERICO });
       }
+      colaPorProducto.set(p.producto_id, cola);
     }
+  } else {
+    // Entrega confirmada: lotes realmente descontados, tomados de las salidas de inventario de la entrega.
+    const [movs] = await pool.query(
+      `SELECT m.producto_id, l.numero_lote AS lote, l.fecha_caducidad AS caducidad, -m.cantidad AS cantidad
+         FROM inventario_movimientos m
+         JOIN inventario_lotes l ON l.id = m.lote_id
+        WHERE m.tipo = 'salida' AND m.referencia IN (?)
+        ORDER BY m.id`, [refs]);
+    for (const m of movs) {
+      const cola = colaPorProducto.get(m.producto_id) || [];
+      cola.push({ lote: m.lote, caducidad: m.caducidad, cantidad: Number(m.cantidad), generico: m.lote === LOTE_GENERICO });
+      colaPorProducto.set(m.producto_id, cola);
+    }
+  }
+  // Reparte la cola de cada producto entre sus partidas (en orden) según su cantidad.
+  for (const p of partidas) {
+    const cola = colaPorProducto.get(p.producto_id) || [];
+    let resta = Number(p.cantidad);
+    const asignados = [];
+    while (resta > 0.0001 && cola.length) {
+      const l = cola[0];
+      const toma = Math.min(resta, l.cantidad);
+      asignados.push({ lote: l.lote, caducidad: l.caducidad, cantidad: toma, generico: l.generico });
+      l.cantidad -= toma; resta -= toma;
+      if (l.cantidad <= 0.0001) cola.shift();
+    }
+    // Se fusionan tramos del mismo lote y se omiten los lotes genéricos (producto sin control de lote).
+    const porLote = new Map();
+    for (const l of asignados) {
+      if (l.generico) continue;
+      const prev = porLote.get(l.lote);
+      if (prev) prev.cantidad += l.cantidad; else porLote.set(l.lote, { lote: l.lote, caducidad: l.caducidad, cantidad: l.cantidad });
+    }
+    p.lotes = [...porLote.values()];
   }
   return { ...ent, partidas };
 }
