@@ -435,7 +435,8 @@ async function confirmarEntrega(req, res, next) {
     await conn.query("UPDATE entregas SET estatus = 'confirmada', confirmada_at = NOW(), confirmada_por = ? WHERE id = ?", [req.user?.id || null, ent.id]);
     await conn.commit();
 
-    const url = ent.pdf_path ? urlFirmada(ent.pdf_path) : await emitirPdfEntrega(ent.id);
+    // Se regenera con los lotes realmente descontados (pueden diferir de la proyección si cambió el inventario).
+    const url = await emitirPdfEntrega(ent.id);
     let cfdi_txt = null;
     if (ent.tipo === 'factura') {
       try { cfdi_txt = urlFirmada((await generarCfdiTxt(ent.id)).relativePath); } catch (e) { /* regenerable vía endpoint */ }

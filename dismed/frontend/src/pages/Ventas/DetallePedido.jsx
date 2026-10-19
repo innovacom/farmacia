@@ -369,6 +369,7 @@ export default function DetallePedido() {
     try {
       const { data } = await api.post(`/ventas/entregas/${ent.id}/confirmar`);
       toast.success(`${data.tipo === 'factura' ? 'Factura' : 'Remisión'} ${data.folio} confirmada`);
+      if (data.url) window.open(data.url, '_blank'); // PDF definitivo con los lotes realmente descontados
       if (data.cfdi_txt) window.open(data.cfdi_txt, '_blank');
       refrescar();
     } catch (e) {

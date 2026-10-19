@@ -392,6 +392,32 @@ async function cargarEntregaCfdi(id) {
     lotesPorProducto.set(m.producto_id, lista);
   }
   for (const p of partidas) p.lotes = lotesPorProducto.get(p.producto_id) || [];
+
+  // Entrega PENDIENTE: aún no hay salidas de inventario, así que se proyectan los lotes que saldrán
+  // por FEFO (mismo orden que registrarSalidaFEFO) para que la remisión impresa ya lleve lote y caducidad.
+  if (ent.estatus === 'pendiente') {
+    const restante = new Map(); // lote_id -> piezas aún no asignadas en esta proyección
+    for (const p of partidas) {
+      if (!p.producto_id) continue;
+      const [lotes] = await pool.query(
+        `SELECT id, numero_lote, fecha_caducidad, cantidad_actual FROM inventario_lotes
+          WHERE producto_id = ? AND cantidad_actual > 0
+          ORDER BY fecha_caducidad IS NULL, fecha_caducidad ASC, id ASC`, [p.producto_id]);
+      let resta = Number(p.cantidad);
+      p.lotes = [];
+      for (const l of lotes) {
+        if (resta <= 0) break;
+        const disp = restante.has(l.id) ? restante.get(l.id) : Number(l.cantidad_actual);
+        if (disp <= 0) continue;
+        const toma = Math.min(resta, disp);
+        restante.set(l.id, disp - toma);
+        resta -= toma;
+        if (l.numero_lote !== LOTE_GENERICO && !p.lotes.some((x) => x.lote === l.numero_lote)) {
+          p.lotes.push({ lote: l.numero_lote, caducidad: l.fecha_caducidad });
+        }
+      }
+    }
+  }
   return { ...ent, partidas };
 }
 
