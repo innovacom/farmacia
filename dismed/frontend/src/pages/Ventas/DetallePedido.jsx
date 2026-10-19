@@ -144,7 +144,8 @@ function EntregaModal({ pedido, onClose, onDone }) {
   const mut = useMutation({
     mutationFn: (body) => api.post(`/ventas/pedidos/${pedido.id}/entregas`, body),
     onSuccess: (res) => {
-      toast.success(`${res.data.tipo === 'factura' ? 'Factura' : 'Remisión'} ${res.data.folio} creada · pendiente de confirmar (aún no descuenta inventario)`);
+      toast.success(`${res.data.tipo === 'factura' ? 'Factura' : 'Remisión'} ${res.data.folio} creada · imprímela y llévala al cliente; confírmala al entregar (aún no descuenta inventario)`);
+      if (res.data.url) window.open(res.data.url, '_blank');
       onDone();
     },
     onError: (e) => {
@@ -288,7 +289,11 @@ function CancelarEntregaModal({ entrega, onClose, onDone }) {
   const [motivo, setMotivo] = useState('');
   const mut = useMutation({
     mutationFn: (body) => api.post(`/ventas/entregas/${entrega.id}/cancelar`, body),
-    onSuccess: (res) => { toast.success(res.data.estatus === 'cancelada' ? 'Entrega cancelada' : 'Cancelación parcial registrada'); onDone(); },
+    onSuccess: (res) => {
+      toast.success(res.data.estatus === 'cancelada' ? 'Entrega cancelada' : 'Cancelación parcial registrada · se regeneró el PDF');
+      if (res.data.url) window.open(res.data.url, '_blank');
+      onDone();
+    },
     onError: (e) => toast.error(e.response?.data?.error || 'Error'),
   });
   function submit() {
@@ -364,7 +369,6 @@ export default function DetallePedido() {
     try {
       const { data } = await api.post(`/ventas/entregas/${ent.id}/confirmar`);
       toast.success(`${data.tipo === 'factura' ? 'Factura' : 'Remisión'} ${data.folio} confirmada`);
-      if (data.url) window.open(data.url, '_blank');
       if (data.cfdi_txt) window.open(data.cfdi_txt, '_blank');
       refrescar();
     } catch (e) {
@@ -516,7 +520,7 @@ export default function DetallePedido() {
                         <button onClick={() => setCancelEnt(e)} className="text-xs text-red-500 hover:underline"><Ban size={14} className="inline" /> Cancelar</button>
                       </>
                     )}
-                    {e.estatus === 'confirmada' && <button onClick={async () => { const { data } = await api.get(`/ventas/entregas/${e.id}/pdf`); abrirPdf(data.url); }} className="text-xs text-gray-500 hover:text-brand-500 mr-3"><Download size={14} className="inline" /> PDF</button>}
+                    {e.estatus !== 'cancelada' && <button onClick={async () => { const { data } = await api.get(`/ventas/entregas/${e.id}/pdf`); abrirPdf(data.url); }} className="text-xs text-gray-500 hover:text-brand-500 mr-3"><Download size={14} className="inline" /> PDF</button>}
                     {e.estatus === 'confirmada' && e.tipo === 'factura' && e.estatus_cfdi !== 'timbrado' && e.estatus_cfdi !== 'cancelado' && (
                       <button onClick={() => timbrar(e.id)} disabled={timbrando === e.id} className="text-xs text-emerald-600 hover:underline mr-3">
                         {timbrando === e.id ? <Loader2 size={14} className="inline animate-spin" /> : <Stamp size={14} className="inline" />} Timbrar

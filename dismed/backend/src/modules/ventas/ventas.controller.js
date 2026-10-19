@@ -293,6 +293,16 @@ async function recepcion(req, res, next) {
   } catch (err) { await conn.rollback(); if (err.status) return res.status(err.status).json({ error: err.message }); next(err); } finally { conn.release(); }
 }
 
+// Genera (o regenera) el PDF de la entrega y guarda su ruta. Devuelve la URL firmada o null si falla.
+async function emitirPdfEntrega(entId) {
+  try {
+    const full = await cargarEntrega(entId);
+    const { relativePath } = await generarEntregaPdf(full);
+    await pool.query('UPDATE entregas SET pdf_path = ? WHERE id = ?', [relativePath, entId]);
+    return urlFirmada(relativePath);
+  } catch (e) { return null; /* regenerable vía GET /entregas/:id/pdf */ }
+}
+
 // ── ENTREGA al cliente (remisión/factura) ─────────────────────────────────────
 // Flujo: crearEntrega → 'pendiente' (sugerida; NO toca inventario, solo aparta) →
 //        confirmarEntrega → 'confirmada' (aquí se descuenta el inventario por FEFO y se emite el documento)
@@ -378,7 +388,9 @@ async function crearEntrega(req, res, next) {
     const total = subtotal + iva;
     await conn.query('UPDATE entregas SET subtotal = ?, iva = ?, total = ? WHERE id = ?', [subtotal.toFixed(2), iva.toFixed(2), total.toFixed(2), entId]);
     await conn.commit();
-    res.status(201).json({ id: entId, folio, tipo: tipoFinal, estatus: 'pendiente' });
+    // El PDF se emite desde el inicio: la remisión se imprime y se lleva al cliente; se confirma al entregarla.
+    const url = await emitirPdfEntrega(entId);
+    res.status(201).json({ id: entId, folio, tipo: tipoFinal, estatus: 'pendiente', url });
   } catch (err) { await conn.rollback(); if (err.status) return res.status(err.status).json({ error: err.message }); next(err); } finally { conn.release(); }
 }
 
@@ -423,13 +435,7 @@ async function confirmarEntrega(req, res, next) {
     await conn.query("UPDATE entregas SET estatus = 'confirmada', confirmada_at = NOW(), confirmada_por = ? WHERE id = ?", [req.user?.id || null, ent.id]);
     await conn.commit();
 
-    let url = null;
-    try {
-      const full = await cargarEntrega(ent.id);
-      const { relativePath } = await generarEntregaPdf(full);
-      await pool.query('UPDATE entregas SET pdf_path = ? WHERE id = ?', [relativePath, ent.id]);
-      url = urlFirmada(relativePath);
-    } catch (e) { /* regenerable */ }
+    const url = ent.pdf_path ? urlFirmada(ent.pdf_path) : await emitirPdfEntrega(ent.id);
     let cfdi_txt = null;
     if (ent.tipo === 'factura') {
       try { cfdi_txt = urlFirmada((await generarCfdiTxt(ent.id)).relativePath); } catch (e) { /* regenerable vía endpoint */ }
@@ -498,8 +504,11 @@ async function cancelarEntrega(req, res, next) {
       const sub = Number(t.sub), iv = Number(t.iva);
       await conn.query('UPDATE entregas SET subtotal = ?, iva = ?, total = ? WHERE id = ?', [sub.toFixed(2), iv.toFixed(2), (sub + iv).toFixed(2), ent.id]);
     }
+    if (restantes === 0) await conn.query('UPDATE entregas SET pdf_path = NULL WHERE id = ?', [ent.id]);
     await conn.commit();
-    res.json({ ok: true, estatus: restantes === 0 ? 'cancelada' : 'pendiente' });
+    // Cancelación parcial: el PDF debe reflejar las cantidades que sí se entregarán.
+    const url = restantes > 0 ? await emitirPdfEntrega(ent.id) : null;
+    res.json({ ok: true, estatus: restantes === 0 ? 'cancelada' : 'pendiente', url });
   } catch (err) { await conn.rollback(); if (err.status) return res.status(err.status).json({ error: err.message }); next(err); } finally { conn.release(); }
 }
 
@@ -525,9 +534,9 @@ async function cfdiTxt(req, res, next) {
 
 async function entregaPdf(req, res, next) {
   try {
-    await exigirConfirmada(req.params.id);
-    const [[ent]] = await pool.query('SELECT pdf_path FROM entregas WHERE id = ?', [req.params.id]);
+    const [[ent]] = await pool.query('SELECT pdf_path, estatus FROM entregas WHERE id = ?', [req.params.id]);
     if (!ent) return res.status(404).json({ error: 'Entrega no encontrada' });
+    if (ent.estatus === 'cancelada') return res.status(409).json({ error: 'La entrega está cancelada' });
     if (ent.pdf_path) return res.json({ url: urlFirmada(ent.pdf_path) });
     const full = await cargarEntrega(req.params.id);
     const { relativePath } = await generarEntregaPdf(full);
