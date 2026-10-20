@@ -143,46 +143,7 @@ function buildOcHtml(oc) {
 
 // ── Remisión ──────────────────────────────────────────────────────────────────
 function buildEntregaHtml(ent) {
-  if (ent.tipo === 'factura') return buildFacturaHtml(ent, null);
-  const e = empresa(); const logo = logoBase64();
-  let subtotal = 0, iva = 0;
-  const filas = (ent.partidas || []).map((p) => {
-    const imp = Number(p.precio_unitario) * Number(p.cantidad);
-    const ivaL = p.iva_exento ? 0 : imp * 0.16;
-    subtotal += imp; iva += ivaL;
-    const lotes = (p.lotes || [])
-      .map((l) => `${l.cantidad ? piezasFmt(l.cantidad) + ' ' : ''}LOTE ${esc(l.lote)}${l.caducidad ? ' CADUCIDAD ' + caducidadFmt(l.caducidad) : ''}`)
-      .join(' &nbsp; ');
-    return `<tr>
-      <td style="${td};font-family:monospace">${esc(p.sku_interno)}</td>
-      <td style="${td}">${esc(p.descripcion)}${lotes ? `<br><span style="font-size:9px;color:#444">${lotes}</span>` : ''}</td>
-      <td style="${td};text-align:right">${Number(p.cantidad).toLocaleString('es-MX')}</td>
-      <td style="${td}">${esc(p.unidad_medida)}</td>
-      <td style="${td};text-align:right">${fmt(p.precio_unitario)}</td>
-      <td style="${td};text-align:right">${fmt(imp)}</td></tr>`;
-  }).join('');
-  const total = subtotal + iva;
-  return `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;color:#222;margin:0}</style></head><body>
-    ${encabezado(e, logo, 'REMISIÓN', ent.folio)}
-    <div style="background:#f6f9fa;border-radius:6px;padding:8px 10px;margin-bottom:10px;font-size:10px">
-      <strong>Cliente:</strong> ${esc(ent.cliente_nombre)}
-      ${ent.atencion ? `<br><strong>Atención:</strong> ${esc(ent.atencion)}` : ''}
-      ${ent.pedido_cliente ? `<br><strong>Pedido del cliente:</strong> ${esc(ent.pedido_cliente)}` : ''}
-      ${ent.pedido_folio ? `<br><span style="color:#777"><strong>Pedido interno:</strong> ${esc(ent.pedido_folio)}</span>` : ''}
-    </div>
-    <table style="${tablaBase()}">
-      <thead><tr><th style="${th}">SKU</th><th style="${th}">Descripción</th><th style="${th};text-align:right">Cant.</th><th style="${th}">U/M</th><th style="${th};text-align:right">P. Unitario</th><th style="${th};text-align:right">Importe</th></tr></thead>
-      <tbody>${filas}</tbody>
-    </table>
-    <div style="display:flex;justify-content:flex-end;margin-top:10px">
-      <table style="font-size:11px">
-        <tr><td style="padding:3px 12px;color:#555">Subtotal</td><td style="padding:3px 12px;text-align:right">${fmt(subtotal)}</td></tr>
-        <tr><td style="padding:3px 12px;color:#555">IVA</td><td style="padding:3px 12px;text-align:right">${fmt(iva)}</td></tr>
-        <tr style="font-weight:bold;color:${TEAL};font-size:13px"><td style="padding:4px 12px">TOTAL</td><td style="padding:4px 12px;text-align:right">${fmt(total)}</td></tr>
-      </table>
-    </div>
-    <p style="font-size:8.5px;color:#999;margin-top:14px">Documento de remisión sin validez fiscal.</p>
-  </body></html>`;
+  return buildFacturaHtml(ent, null, ent.tipo !== 'factura');
 }
 
 // ── Factura (representación impresa CFDI 4.0; cfdi = null antes del timbrado) ──
@@ -206,7 +167,7 @@ function fechaIso(v) {
   return isNaN(d) ? '' : d.toLocaleString('sv-SE', { timeZone: 'America/Mexico_City' }).replace(' ', 'T');
 }
 
-function buildFacturaHtml(ent, cfdi) {
+function buildFacturaHtml(ent, cfdi, remision = false) {
   const e = empresa(); const logo = logoBase64();
   const moneda = ent.moneda || 'MXN';
   let subtotal = 0, iva = 0;
@@ -225,8 +186,8 @@ function buildFacturaHtml(ent, cfdi) {
       <td class="r">${cantFmt(cant)}</td>
       <td>${esc(String(p.unidad_medida || '').toUpperCase())}</td>
       <td>${esc(p.descripcion)}${lotes ? `<br>${lotes}` : ''}
-        <br><b>ClaveProdServ:</b> ${esc(p.clave_sat)} <b>ClaveUnidad:</b> ${esc(p.clave_unidad_sat)}
-        <div class="imp"><b>Impuesto:</b> IVA Trasladado. <b>Base:</b> ${imp.toFixed(2)} <b>Factor:</b> Tasa ${tasa.toFixed(6)} <b>Importe:</b> ${ivaImp.toFixed(2)}</div></td>
+        ${remision ? '' : `<br><b>ClaveProdServ:</b> ${esc(p.clave_sat)} <b>ClaveUnidad:</b> ${esc(p.clave_unidad_sat)}
+        <div class="imp"><b>Impuesto:</b> IVA Trasladado. <b>Base:</b> ${imp.toFixed(2)} <b>Factor:</b> Tasa ${tasa.toFixed(6)} <b>Importe:</b> ${ivaImp.toFixed(2)}</div>`}</td>
       <td class="r">${num(pu)}</td><td class="r">0.00</td><td class="r">${num(imp)}</td></tr>`;
   }).join('');
   const total = subtotal + iva;
@@ -257,10 +218,10 @@ function buildFacturaHtml(ent, cfdi) {
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
       <div>${logo ? `<img src="${logo}" style="height:60px">` : `<b style="font-size:16px;color:${TEAL}">${esc(e.nombre)}</b>`}</div>
       <div style="width:52%">
-        <div style="text-align:right;font-weight:bold;font-size:8px;color:#555;margin-bottom:3px">Versión: 4.0</div>
+        ${remision ? '' : '<div style="text-align:right;font-weight:bold;font-size:8px;color:#555;margin-bottom:3px">Versión: 4.0</div>'}
         <div style="display:flex;gap:4px">
-          <div style="flex:2"><div class="bar">No. Certificado:</div><div class="cell">${esc(cfdi?.cert_emisor) || '&nbsp;'}</div></div>
-          <div style="flex:1"><div class="bar">FACTURA:</div><div class="cell">${esc(ent.folio)}</div></div>
+          ${remision ? '' : `<div style="flex:2"><div class="bar">No. Certificado:</div><div class="cell">${esc(cfdi?.cert_emisor) || '&nbsp;'}</div></div>`}
+          <div style="flex:1"><div class="bar">${remision ? 'REMISIÓN:' : 'FACTURA:'}</div><div class="cell">${esc(ent.folio)}</div></div>
         </div>
       </div>
     </div>
@@ -275,19 +236,21 @@ function buildFacturaHtml(ent, cfdi) {
       <div style="flex:1"><div class="bar">RECEPTOR:</div><div class="box">
         <div><b>Razón Social:</b> ${esc(ent.cliente_nombre)}</div>
         <div><b>RFC:</b> ${esc(ent.cliente_rfc)}</div>
-        <div><b>Régimen Fiscal:</b> ${esc(conCatalogo(REGIMENES_SAT, ent.cliente_regimen_fiscal))}</div>
-        <div><b>Uso CFDI:</b> ${esc(conCatalogo(USOS_CFDI_SAT, ent.uso_cfdi))}</div>
+        ${remision ? '' : `<div><b>Régimen Fiscal:</b> ${esc(conCatalogo(REGIMENES_SAT, ent.cliente_regimen_fiscal))}</div>
+        <div><b>Uso CFDI:</b> ${esc(conCatalogo(USOS_CFDI_SAT, ent.uso_cfdi))}</div>`}
+        ${remision && ent.atencion ? `<div><b>Atención:</b> ${esc(ent.atencion)}</div>` : ''}
+        ${remision && ent.pedido_cliente ? `<div><b>Pedido del cliente:</b> ${esc(ent.pedido_cliente)}</div>` : ''}
         <div><b>Dirección:</b> ${esc(direccionReceptor)}</div>
       </div></div>
     </div>
     <div class="grid3">
       ${celda('Fecha:', fechaIso(ent.created_at))}
       ${celda('Lugar de Expedición:', e.cp)}
-      ${celda('Tipo de Comprobante:', 'I')}
+      ${remision ? celda('Pedido:', ent.pedido_folio || '') : celda('Tipo de Comprobante:', 'I')}
       ${celda('Moneda:', moneda)}
-      ${celda('Tipo de Cambio:', '1.000000')}
+      ${remision ? '' : `${celda('Tipo de Cambio:', '1.000000')}
       ${celda('Forma de Pago:', conCatalogo(FORMAS_PAGO_SAT, ent.forma_pago))}
-      ${celda('Método de Pago:', conCatalogo(METODOS_PAGO_SAT, ent.metodo_pago))}
+      ${celda('Método de Pago:', conCatalogo(METODOS_PAGO_SAT, ent.metodo_pago))}`}
     </div>
     <table class="p">
       <colgroup><col style="width:11%"><col style="width:6%"><col style="width:8%"><col><col style="width:11%"><col style="width:7%"><col style="width:12%"></colgroup>
@@ -299,7 +262,7 @@ function buildFacturaHtml(ent, cfdi) {
       <div class="box" style="flex:1">
         <div><b>Importe en letra:</b> ${esc(importeEnLetra(total, moneda))}</div>
         ${ent.notas ? `<div style="white-space:pre-line"><b>Observaciones:</b> ${esc(ent.notas)}</div>` : ''}
-        ${cfdi ? `
+        ${remision ? '<div style="color:#777">Documento de remisión sin validez fiscal.</div>' : cfdi ? `
         <div><b>Folio Fiscal UUID:</b>${esc(cfdi.uuid)}</div>
         <div><b>Fecha de Timbrado:</b> ${esc(fechaIso(cfdi.fecha_timbrado))}</div>
         <div><b>RFC Proveedor de Certificación:</b> ${esc(cfdi.rfc_prov_certif)}</div>
@@ -317,9 +280,9 @@ function buildFacturaHtml(ent, cfdi) {
   </body></html>`;
 }
 
-function footerFactura(timbrado) {
+function footerFactura(timbrado, remision = false) {
   const web = process.env.EMPRESA_WEB || '';
-  const ley = timbrado
+  const ley = remision ? 'Documento de remisión sin validez fiscal.' : timbrado
     ? 'Este documento es una representación impresa de un CFDI.'
     : 'Documento previo al timbrado, sin validez fiscal.';
   return `<div style="font-size:8px;font-style:italic;color:#555;width:100%;padding:0 10mm;box-sizing:border-box;display:flex;justify-content:space-between">
@@ -332,7 +295,7 @@ function buildFacturaCfdiHtml(ent, cfdi) { return buildFacturaHtml(ent, cfdi); }
 
 async function generarOcPdf(oc) { return renderPdf(buildOcHtml(oc), oc.folio); }
 async function generarEntregaPdf(ent) {
-  return renderPdf(buildEntregaHtml(ent), ent.folio, ent.tipo === 'factura' ? footerFactura(false) : null);
+  return renderPdf(buildEntregaHtml(ent), ent.folio, footerFactura(false, ent.tipo !== 'factura'));
 }
 // PDF de la factura timbrada (CFDI). Usa un folio distinto para no pisar el PDF previo al timbrado.
 async function generarFacturaCfdiPdf(ent, cfdi) {
