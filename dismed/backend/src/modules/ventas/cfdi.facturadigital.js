@@ -118,6 +118,10 @@ function traducirBody(b) {
   const out = {
     Version: '4.0',
     Serie: b.Serie || process.env.FACTURADIGITAL_SERIE || undefined,
+    // Con serie, el PAC asigna el folio consecutivo del rango configurado en su panel
+    // (Configuración → Series y Folios), así conviven las facturas hechas fuera del sistema.
+    // Sin rango para esa serie/tipo el PAC rechaza el timbre ("No folio range found…").
+    Folio: (b.Serie || process.env.FACTURADIGITAL_SERIE) ? 'AUTO' : undefined,
     Fecha: 'AUTO',
     FormaPago: b.PaymentForm,
     SubTotal: n2(subtotal),
