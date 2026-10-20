@@ -96,12 +96,12 @@ async function cargarFactura(entregaId) {
   return { entrega, cliente, sucursal, partidas };
 }
 
-/** Serie CFDI: la de la sucursal; la factura consolidada (varias sucursales) usa la del cliente. */
-function serieDeEntrega({ entrega, cliente, sucursal }) {
-  const s = entrega.consolidada
-    ? cliente?.serie_facturacion
-    : (sucursal?.serie_facturacion || cliente?.serie_facturacion);
-  return s || null;
+/**
+ * Serie CFDI: la de la sucursal de la entrega; si no tiene (o la factura consolidada junta remisiones
+ * de varias sucursales, caso en que entregas.sucursal_id queda NULL) usa la del cliente.
+ */
+function serieDeEntrega({ cliente, sucursal }) {
+  return sucursal?.serie_facturacion || cliente?.serie_facturacion || null;
 }
 
 /** Construye el contenido del TXT. Cambiar SOLO esto cuando llegue la spec del PAC. */

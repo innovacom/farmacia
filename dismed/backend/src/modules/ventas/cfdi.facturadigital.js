@@ -171,8 +171,8 @@ async function timbrar(body) {
   const uuid = String(c.UUID).toUpperCase();
   const resp = {
     Id: uuid,
-    Serie: attr(cab, 'Serie'),
-    Folio: attr(cab, 'Folio'),
+    Serie: attr(cab, 'Serie') || c.Serie || null,
+    Folio: attr(cab, 'Folio') || c.Folio || null,
     Total: attr(cab, 'Total'),
     CertNumber: c.NoCertificado || attr(cab, 'NoCertificado'),
     OriginalString: null,

@@ -192,6 +192,11 @@ function buildFacturaHtml(ent, cfdi, remision = false) {
   }).join('');
   const total = subtotal + iva;
 
+  // Factura timbrada: serie y folio que asignó el PAC (p. ej. G-125); si no los devolvió o es
+  // remisión/previo al timbrado, el folio interno.
+  const folioPac = [cfdi?.serie, cfdi?.folio].filter(Boolean).join('-');
+  const folioMostrado = !remision && folioPac ? folioPac : ent.folio;
+
   const dirCliente = String(ent.cliente_direccion_fiscal || '');
   const cp = String(ent.cliente_codigo_postal || '');
   const direccionReceptor = `${dirCliente}${cp && !dirCliente.includes(cp) ? ` CP. ${cp}` : ''}`;
@@ -221,7 +226,7 @@ function buildFacturaHtml(ent, cfdi, remision = false) {
         ${remision ? '' : '<div style="text-align:right;font-weight:bold;font-size:8px;color:#555;margin-bottom:3px">Versión: 4.0</div>'}
         <div style="display:flex;gap:4px">
           ${remision ? '' : `<div style="flex:2"><div class="bar">No. Certificado:</div><div class="cell">${esc(cfdi?.cert_emisor) || '&nbsp;'}</div></div>`}
-          <div style="flex:1"><div class="bar">${remision ? 'REMISIÓN:' : 'FACTURA:'}</div><div class="cell">${esc(ent.folio)}</div></div>
+          <div style="flex:1"><div class="bar">${remision ? 'REMISIÓN:' : 'FACTURA:'}</div><div class="cell">${esc(folioMostrado)}</div></div>
         </div>
       </div>
     </div>
