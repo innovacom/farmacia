@@ -58,6 +58,9 @@ export default function Configuracion() {
       {/* PAC de timbrado CFDI y ambiente (solo admin) */}
       {isAdmin && <TimbradoCfdi />}
 
+      {/* Series de facturación disponibles para clientes y sucursales (solo admin) */}
+      {isAdmin && <SeriesCfdi />}
+
       {/* Radio de cobertura a domicilio (solo admin) */}
       {isAdmin && <RadioCobertura />}
 
@@ -259,6 +262,60 @@ function TimbradoCfdi() {
               </button>
             )}
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// La API de Factura Digital no permite consultar las series de la cuenta, así que se
+// capturan aquí (las mismas que dio de alta el PAC) y alimentan los selectores de
+// Clientes y Sucursales.
+function SeriesCfdi() {
+  const qc = useQueryClient();
+  const [texto, setTexto] = useState('');
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['cfdi-series'],
+    queryFn: () => api.get('/configuracion/cfdi/series').then((r) => r.data),
+  });
+
+  useEffect(() => { if (data) setTexto(data.join(', ')); }, [data]);
+
+  const guardar = useMutation({
+    mutationFn: () => api.put('/configuracion/cfdi/series', {
+      series: texto.split(/[,\s]+/).filter(Boolean),
+    }).then((r) => r.data),
+    onSuccess: (r) => {
+      toast.success('Series de facturación actualizadas');
+      qc.setQueryData(['cfdi-series'], r);
+    },
+    onError: (e) => toast.error(e.response?.data?.error || 'No se pudo guardar'),
+  });
+
+  const cambio = data && texto.split(/[,\s]+/).filter(Boolean).map((s) => s.toUpperCase()).join(',') !== data.join(',');
+
+  return (
+    <div className="card mt-6">
+      <div className="flex items-center gap-2 mb-1">
+        <ShieldCheck size={18} className="text-brand-500" />
+        <h2 className="font-semibold text-gray-900">Series de facturación</h2>
+      </div>
+      <p className="text-sm text-gray-500 mb-4">
+        Series dadas de alta en tu cuenta del PAC, separadas por coma (ej. A, B, HOSP). Se asignan por cliente
+        (y por sucursal) en Clientes; la factura usa la de la sucursal, y las consolidadas la del cliente.
+        Deben existir en el PAC con el mismo texto.
+      </p>
+      {isLoading ? (
+        <p className="text-sm text-gray-400 py-4">Cargando…</p>
+      ) : (
+        <div className="flex items-center gap-3">
+          <input className="input flex-1 uppercase" value={texto} placeholder="A, B, C"
+            onChange={(e) => setTexto(e.target.value)} />
+          <button onClick={() => guardar.mutate()} disabled={!cambio || guardar.isPending} className="btn-primary">
+            {guardar.isPending ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+            Guardar
+          </button>
         </div>
       )}
     </div>

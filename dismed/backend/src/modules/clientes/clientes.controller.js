@@ -6,7 +6,7 @@ async function list(req, res, next) {
     const [rows] = await pool.query(
       `SELECT id, razon_social, nombre_comercial, rfc, regimen_fiscal, uso_cfdi, forma_pago, metodo_pago,
               codigo_postal, email, tipo_cliente, limite_credito, dias_credito,
-              direccion_fiscal, cuenta_cobrar_codigo, activo,
+              direccion_fiscal, cuenta_cobrar_codigo, serie_facturacion, activo,
               (SELECT COUNT(*) FROM clientes_sucursales s
                 WHERE s.cliente_id = clientes.id AND s.activo = 1) AS num_sucursales
        FROM clientes
@@ -40,7 +40,7 @@ async function create(req, res, next) {
   try {
     const {
       razon_social, nombre_comercial, rfc, regimen_fiscal, uso_cfdi, forma_pago, metodo_pago, codigo_postal, email,
-      tipo_cliente, limite_credito, dias_credito, direccion_fiscal, notas, cuenta_cobrar_codigo,
+      tipo_cliente, limite_credito, dias_credito, direccion_fiscal, notas, cuenta_cobrar_codigo, serie_facturacion,
     } = req.body;
 
     if (!razon_social || !rfc) {
@@ -50,11 +50,11 @@ async function create(req, res, next) {
     const [result] = await pool.query(
       `INSERT INTO clientes
         (razon_social, nombre_comercial, rfc, regimen_fiscal, uso_cfdi, forma_pago, metodo_pago, codigo_postal, email,
-         tipo_cliente, limite_credito, dias_credito, direccion_fiscal, notas, cuenta_cobrar_codigo)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         tipo_cliente, limite_credito, dias_credito, direccion_fiscal, notas, cuenta_cobrar_codigo, serie_facturacion)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [razon_social, nombre_comercial || null, rfc, regimen_fiscal || null,
        uso_cfdi || null, forma_pago || null, metodo_pago || null, codigo_postal || null, email || null, tipo_cliente || 'otro', limite_credito || 0,
-       dias_credito || 0, direccion_fiscal || null, notas || null, cuenta_cobrar_codigo || null]
+       dias_credito || 0, direccion_fiscal || null, notas || null, cuenta_cobrar_codigo || null, serie_facturacion || null]
     );
     await pool.query(
       `INSERT INTO clientes_sucursales (cliente_id, nombre, es_matriz, direccion_entrega, codigo_postal)
@@ -70,12 +70,12 @@ async function update(req, res, next) {
     const fields = [
       'razon_social','nombre_comercial','rfc','regimen_fiscal','uso_cfdi','forma_pago','metodo_pago','codigo_postal','email',
       'tipo_cliente','limite_credito','dias_credito','direccion_fiscal','notas','activo',
-      'cuenta_cobrar_codigo',
+      'cuenta_cobrar_codigo','serie_facturacion',
     ];
     const sets = [];
     const vals = [];
     fields.forEach((f) => {
-      if (req.body[f] !== undefined) { sets.push(`${f} = ?`); vals.push(req.body[f]); }
+      if (req.body[f] !== undefined) { sets.push(`${f} = ?`); vals.push(f === 'serie_facturacion' && req.body[f] === '' ? null : req.body[f]); }
     });
     if (!sets.length) return res.status(400).json({ error: 'Sin campos para actualizar' });
     vals.push(req.params.id);
@@ -159,9 +159,9 @@ async function listSkus(req, res, next) {
 
 // ── Sucursales ───────────────────────────────────────────────────────────────
 const SUC_CAMPOS = ['nombre', 'clave', 'direccion_entrega', 'codigo_postal', 'telefono',
-  'latitud', 'longitud', 'limite_credito', 'dias_credito', 'notas', 'activo'];
+  'latitud', 'longitud', 'limite_credito', 'dias_credito', 'notas', 'serie_facturacion', 'activo'];
 const SUC_NULLABLE = ['clave', 'direccion_entrega', 'codigo_postal', 'telefono', 'latitud',
-  'longitud', 'limite_credito', 'dias_credito', 'notas'];
+  'longitud', 'limite_credito', 'dias_credito', 'notas', 'serie_facturacion'];
 
 function valSuc(f, v) {
   if (SUC_NULLABLE.includes(f) && (v === '' || v === undefined)) return null;

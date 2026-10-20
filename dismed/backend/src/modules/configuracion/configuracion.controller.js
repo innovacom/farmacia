@@ -122,4 +122,17 @@ async function saldoCfdi(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { get, update, getCfdi, putCfdi, saldoCfdi };
+/** GET /configuracion/cfdi/series → series disponibles (cualquier usuario autenticado, para los selectores). */
+async function getSeriesCfdi(req, res, next) {
+  try { res.json(await cfdiPac.getSeries()); } catch (err) { next(err); }
+}
+
+/** PUT /configuracion/cfdi/series (admin) { series: ['A','B'] } */
+async function putSeriesCfdi(req, res, next) {
+  try {
+    if (!Array.isArray(req.body.series)) return res.status(400).json({ error: 'series debe ser una lista' });
+    res.json(await cfdiPac.setSeries(req.body.series));
+  } catch (err) { if (err.status) return res.status(err.status).json({ error: err.message }); next(err); }
+}
+
+module.exports = { get, update, getCfdi, putCfdi, saldoCfdi, getSeriesCfdi, putSeriesCfdi };

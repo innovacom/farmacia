@@ -47,4 +47,26 @@ async function setCfdiConfig({ pac, ambiente }) {
   return getCfdiConfig();
 }
 
-module.exports = { getCfdiConfig, setCfdiConfig, PACS, AMBIENTES };
+// Catálogo de series de facturación (la API de Factura Digital no permite listarlas):
+// lo administra el admin en Configuración y alimenta los selectores de cliente y sucursal.
+const SERIE_RE = /^[A-Za-z0-9-]{1,10}$/;
+
+async function getSeries() {
+  try {
+    const [[r]] = await pool.query("SELECT valor FROM configuracion WHERE clave = 'cfdi_series'");
+    return String(r?.valor || '').split(',').map((s) => s.trim()).filter(Boolean);
+  } catch (_) { return []; }
+}
+
+async function setSeries(lista) {
+  const series = [...new Set((lista || []).map((s) => String(s).trim().toUpperCase()).filter(Boolean))];
+  const mala = series.find((s) => !SERIE_RE.test(s));
+  if (mala) { const e = new Error(`Serie inválida "${mala}" (letras, números o guion, máx. 10)`); e.status = 400; throw e; }
+  await pool.query(
+    'INSERT INTO configuracion (clave, valor, descripcion) VALUES (?,?,?) ON DUPLICATE KEY UPDATE valor = VALUES(valor)',
+    ['cfdi_series', series.join(','), 'Series de facturación CFDI disponibles (separadas por coma)']
+  );
+  return series;
+}
+
+module.exports = { getCfdiConfig, setCfdiConfig, getSeries, setSeries, PACS, AMBIENTES };

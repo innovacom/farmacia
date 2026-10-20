@@ -10,6 +10,7 @@ import Modal from '../../components/ui/Modal';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import CuentaContableSelect from '../../components/shared/CuentaContableSelect';
 import SucursalesModal from './SucursalesModal';
+import SerieFacturacionSelect from '../../components/shared/SerieFacturacionSelect';
 
 const FORMAS_PAGO = [['01', '01 · Efectivo'], ['02', '02 · Cheque nominativo'], ['03', '03 · Transferencia'], ['04', '04 · Tarjeta de crédito'], ['28', '28 · Tarjeta de débito'], ['99', '99 · Por definir']];
 const METODOS_PAGO = [['PUE', 'PUE · Pago en una exhibición'], ['PPD', 'PPD · Pago en parcialidades o diferido']];
@@ -256,6 +257,14 @@ export default function ClientesList() {
                 <label className="label">Días de crédito</label>
                 <input type="number" className="input" min="0" {...register('dias_credito')} />
               </div>
+            </div>
+            <div>
+              <label className="label">Serie de facturación</label>
+              <SerieFacturacionSelect actual={editando?.serie_facturacion}
+                vacio="Sin serie (usa la del sistema)" {...register('serie_facturacion')} />
+              <p className="text-xs text-gray-400 mt-1">
+                Default del cliente y la que usan las facturas consolidadas. Cada sucursal puede tener la suya.
+              </p>
             </div>
             <div>
               <label className="label">Dirección fiscal</label>

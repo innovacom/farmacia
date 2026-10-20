@@ -84,13 +84,24 @@ async function cargarFactura(entregaId) {
   );
   if (!entrega) return null;
   const [[cliente]] = await pool.query('SELECT * FROM clientes WHERE id = ?', [entrega.cliente_id]);
+  const [[sucursal]] = entrega.sucursal_id
+    ? await pool.query('SELECT id, nombre, serie_facturacion FROM clientes_sucursales WHERE id = ?', [entrega.sucursal_id])
+    : [[null]];
   const [partidas] = await pool.query(
     `SELECT ep.*, pr.clave_sat, pr.clave_unidad_sat
      FROM entregas_partidas ep
      LEFT JOIN productos pr ON pr.id = ep.producto_id
      WHERE ep.entrega_id = ? ORDER BY ep.id`, [entregaId]
   );
-  return { entrega, cliente, partidas };
+  return { entrega, cliente, sucursal, partidas };
+}
+
+/** Serie CFDI: la de la sucursal; la factura consolidada (varias sucursales) usa la del cliente. */
+function serieDeEntrega({ entrega, cliente, sucursal }) {
+  const s = entrega.consolidada
+    ? cliente?.serie_facturacion
+    : (sucursal?.serie_facturacion || cliente?.serie_facturacion);
+  return s || null;
 }
 
 /** Construye el contenido del TXT. Cambiar SOLO esto cuando llegue la spec del PAC. */
@@ -153,4 +164,4 @@ async function generarCfdiTxt(entregaId) {
   return { relativePath, faltantes: [] };
 }
 
-module.exports = { validarFactura, cargarFactura, construirTxt, generarCfdiTxt, empresaCfdi };
+module.exports = { validarFactura, cargarFactura, serieDeEntrega, construirTxt, generarCfdiTxt, empresaCfdi };

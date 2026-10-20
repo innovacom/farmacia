@@ -20,7 +20,7 @@ const { pool } = require('../../config/db');
 const path = require('path');
 const fs = require('fs');
 const QRCode = require('qrcode');
-const { validarFactura, cargarFactura, empresaCfdi } = require('./cfdi.txt.generator');
+const { validarFactura, cargarFactura, serieDeEntrega, empresaCfdi } = require('./cfdi.txt.generator');
 const { generarFacturaCfdiPdf } = require('./ventas.pdf');
 const { LOTE_GENERICO } = require('../inventario/movimientos.service');
 const facturaDigital = require('./cfdi.facturadigital');
@@ -93,7 +93,7 @@ async function fDelete(ruta) {
 }
 
 // ── Construcción del body CFDI 4.0 para POST /3/cfdis ──────────────────────────
-function construirCfdiFacturama({ entrega, cliente, partidas }) {
+function construirCfdiFacturama({ entrega, cliente, sucursal, partidas }) {
   const emp = empresaCfdi();
   const uso = entrega.uso_cfdi || cliente.uso_cfdi || '';
 
@@ -146,8 +146,9 @@ function construirCfdiFacturama({ entrega, cliente, partidas }) {
     Exportation: '01',
     Items: items,
   };
-  // Serie opcional: sólo si está configurada en el entorno.
-  if (process.env.FACTURAMA_SERIE) body.Serie = process.env.FACTURAMA_SERIE;
+  // Serie: la de la sucursal/cliente; si no tiene, la del entorno (opcional).
+  const serie = serieDeEntrega({ entrega, cliente, sucursal }) || process.env.FACTURAMA_SERIE;
+  if (serie) body.Serie = serie;
   return body;
 }
 

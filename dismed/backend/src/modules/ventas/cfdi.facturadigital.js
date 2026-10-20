@@ -117,7 +117,7 @@ function traducirBody(b) {
 
   const out = {
     Version: '4.0',
-    Serie: process.env.FACTURADIGITAL_SERIE || b.Serie || undefined,
+    Serie: b.Serie || process.env.FACTURADIGITAL_SERIE || undefined,
     Fecha: 'AUTO',
     FormaPago: b.PaymentForm,
     SubTotal: n2(subtotal),

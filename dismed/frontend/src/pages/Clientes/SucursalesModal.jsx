@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { Plus, Loader2, MapPin, Merge } from 'lucide-react';
 import api from '../../services/api';
 import Modal from '../../components/ui/Modal';
+import SerieFacturacionSelect from '../../components/shared/SerieFacturacionSelect';
 
 const mxn = (n) => Number(n).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
 
@@ -105,6 +106,12 @@ export default function SucursalesModal({ cliente, clientes, onClose }) {
                 placeholder={`Vacío = hereda ${cliente.dias_credito ?? 0}`} {...register('dias_credito')} />
             </div>
             <div className="col-span-2">
+              <label className="label">Serie de facturación</label>
+              <SerieFacturacionSelect actual={editando.serie_facturacion}
+                vacio={`Vacío = la del cliente${cliente.serie_facturacion ? ` (${cliente.serie_facturacion})` : ''}`}
+                {...register('serie_facturacion')} />
+            </div>
+            <div className="col-span-2">
               <label className="label">Notas</label>
               <textarea className="input min-h-[50px]" {...register('notas')} />
             </div>
@@ -130,7 +137,7 @@ export default function SucursalesModal({ cliente, clientes, onClose }) {
           ) : (
             <table className="table-auto w-full">
               <thead>
-                <tr><th>ID</th><th>Sucursal</th><th>Entrega</th><th className="text-right">Crédito propio</th><th /></tr>
+                <tr><th>ID</th><th>Sucursal</th><th>Entrega</th><th>Serie</th><th className="text-right">Crédito propio</th><th /></tr>
               </thead>
               <tbody>
                 {sucursales.map((s) => (
@@ -142,6 +149,9 @@ export default function SucursalesModal({ cliente, clientes, onClose }) {
                     </td>
                     <td className="text-xs text-gray-500 max-w-[220px]">
                       {s.direccion_entrega && <><MapPin size={11} className="inline mr-1" />{s.direccion_entrega}</>}
+                    </td>
+                    <td className="text-xs font-mono">
+                      {s.serie_facturacion || <span className="text-gray-400" title="Hereda la del cliente">{cliente.serie_facturacion || '—'}</span>}
                     </td>
                     <td className="text-right text-xs">
                       {s.limite_credito != null ? mxn(s.limite_credito) : '—'}
